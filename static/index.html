@@ -1,502 +1,338 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TinyTop - VPS Monitor</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                    colors: {
-                        background: '#09090b',
-                        surface: '#111113',
-                        border: '#27272a',
-                        muted: '#71717a',
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body {
-            background:
-                radial-gradient(1200px 500px at 10% -10%, rgba(59,130,246,0.12), transparent 60%),
-                radial-gradient(900px 400px at 100% 0%, rgba(34,197,94,0.08), transparent 55%),
-                #09090b;
-            color: #fafafa;
-        }
-        .card {
-            background: linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 100%);
-            border: 1px solid rgba(255,255,255,0.07);
-            backdrop-filter: blur(6px);
-        }
-        .glow {
-            box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);
-        }
-        .progress-bar {
-            background: linear-gradient(90deg, #18181b 0%, #27272a 100%);
-            height: 6px;
-            border-radius: 999px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            border-radius: 999px;
-            transition: width 0.5s ease;
-        }
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 500;
-            border: 1px solid transparent;
-        }
-        .dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 999px;
-            background: currentColor;
-            box-shadow: 0 0 0 4px currentColor;
-            opacity: 0.9;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TinyTop - Monitor</title>
+  <meta name="color-scheme" content="dark">
+  <link rel="stylesheet" href="data:text/css,/* base reset */*,*::before,*::after{box-sizing:border-box}html,body{margin:0;padding:0}">
+  <script src="/static/vendor/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #09090b;
+      --bg2: #0d0d10;
+      --card: rgba(255,255,255,0.03);
+      --card-border: rgba(255,255,255,0.08);
+      --text: #fafafa;
+      --muted: #a1a1aa;
+      --muted2: #71717a;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --blue: #3b82f6;
+      --violet: #8b5cf6;
+      --cyan: #06b6d4;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+    }
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 500px at 10% -10%, rgba(59,130,246,0.12), transparent 60%),
+        radial-gradient(900px 400px at 100% 0%, rgba(34,197,94,0.08), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .header { display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .brand { display:flex; gap:12px; align-items:center; }
+    .logo { width:40px; height:40px; border-radius:12px; background:#fff; color:#000; display:flex; align-items:center; justify-content:center; font-weight:700; }
+    h1 { margin:0; font-size:1.5rem; letter-spacing:-0.02em; }
+    .subtitle { margin:2px 0 0; color: var(--muted2); font-size: .85rem; }
+    .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .badge { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:999px; font-size:.8rem; border:1px solid var(--card-border); background: rgba(255,255,255,0.03); }
+    .dot { width:8px; height:8px; border-radius:999px; background: currentColor; }
+    .badge.ok { color: #86efac; border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.08); }
+    .badge.warn { color: #fcd34d; border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.08); }
+    .badge.err { color: #fca5a5; border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.08); }
+    .btn, select { background: rgba(255,255,255,0.04); color: var(--text); border:1px solid var(--card-border); border-radius:10px; padding:8px 12px; font: inherit; font-size:.85rem; }
+    .btn { cursor:pointer; }
+    .btn:hover, select:hover { background: rgba(255,255,255,0.07); }
+    .btn:focus, select:focus { outline: 2px solid rgba(59,130,246,.5); outline-offset: 2px; }
+    .meta { color: var(--muted2); font-size:.8rem; }
+    .banner { display:none; margin-bottom:16px; padding:12px 14px; border-radius:12px; border:1px solid rgba(239,68,68,.35); background: rgba(239,68,68,.08); color:#fecaca; }
+    .banner.show { display:block; }
+    .grid { display:grid; gap:16px; }
+    .stats { grid-template-columns: repeat(4, minmax(0,1fr)); margin-bottom:16px; }
+    .charts { grid-template-columns: repeat(2, minmax(0,1fr)); margin-bottom:16px; }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015)); border:1px solid var(--card-border); border-radius:16px; padding:16px; box-shadow: 0 10px 30px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03); }
+    .card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .label { color: var(--muted2); text-transform:uppercase; letter-spacing:.08em; font-size:.72rem; margin:0 0 4px; }
+    .value { font-size:1.6rem; font-weight:700; margin:0; }
+    .sub { color: var(--muted2); font-size:.8rem; margin:4px 0 0; }
+    .icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:1px solid var(--card-border); background: rgba(255,255,255,0.03); color: var(--muted); font-size:.9rem; }
+    .bar { height:6px; background: rgba(255,255,255,0.06); border-radius:999px; overflow:hidden; }
+    .fill { height:100%; border-radius:999px; transition: width .4s ease; }
+    .chart-wrap { position:relative; height:240px; }
+    .chart-empty { position:absolute; inset:0; display:none; align-items:center; justify-content:center; color: var(--muted2); font-size:.9rem; }
+    .chart-empty.show { display:flex; }
+    .table-wrap { overflow:auto; }
+    table { width:100%; border-collapse: collapse; font-size:.9rem; }
+    th, td { text-align:left; padding:12px 8px; border-bottom:1px solid rgba(255,255,255,0.06); vertical-align:top; }
+    th { color: var(--muted2); font-weight:500; font-size:.8rem; }
+    tr:hover td { background: rgba(255,255,255,0.015); }
+    .pill { display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; font-size:.75rem; font-weight:600; border:1px solid transparent; }
+    .pill.up { color:#86efac; background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.3); }
+    .pill.down, .pill.error { color:#fca5a5; background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.3); }
+    .pill.degraded, .pill.unknown, .pill.starting { color:#fcd34d; background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.3); }
+    .muted { color: var(--muted2); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size:.8rem; color: var(--muted); }
+    .row-title { font-weight:600; }
+    @media (max-width: 1000px) { .stats { grid-template-columns: repeat(2, minmax(0,1fr)); } .charts { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .wrap { padding:16px; } .stats { grid-template-columns: 1fr; } .header { align-items:flex-start; } }
+  </style>
 </head>
-<body class="font-sans min-h-screen p-4 md:p-8">
-    <header class="mb-8">
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-white/10">
-                    <svg class="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="text-2xl font-semibold tracking-tight">TinyTop</h1>
-                    <p class="text-xs text-muted">Monitor ligero de VPS · métricas en tiempo real</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-3 flex-wrap">
-                <span id="healthBadge" class="badge bg-zinc-800/70 text-zinc-300 border-zinc-700/60" data-testid="health-badge">
-                    <span class="dot"></span><span id="healthText">Conectando…</span>
-                </span>
-                <button id="refreshBtn" data-testid="refresh-btn" class="px-3 py-1.5 text-xs rounded-lg border border-zinc-700/70 bg-zinc-900/60 hover:bg-zinc-800 transition-colors text-zinc-200">Actualizar</button>
-                <div class="text-xs text-muted">Actualizado: <span id="lastUpdate" data-testid="last-update">—</span></div>
-            </div>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">TT</div>
+        <div>
+          <h1>TinyTop</h1>
+          <p class="subtitle">Monitor de sistema y targets · <span id="version">v0.0.1</span></p>
         </div>
+      </div>
+      <div class="controls" role="group" aria-label="Controles">
+        <span id="healthBadge" class="badge warn" data-testid="health-badge"><span class="dot"></span><span id="healthText">Iniciando</span></span>
+        <label class="meta" for="rangeSelect">Rango</label>
+        <select id="rangeSelect" data-testid="range-select" aria-label="Rango de historial">
+          <option value="1">1h</option>
+          <option value="6">6h</option>
+          <option value="24" selected>24h</option>
+          <option value="72">72h</option>
+          <option value="168">7d</option>
+        </select>
+        <label class="meta" for="refreshSelect">Auto-refresh</label>
+        <select id="refreshSelect" data-testid="refresh-select" aria-label="Intervalo de auto-refresco">
+          <option value="0">Off</option>
+          <option value="10">10s</option>
+          <option value="30" selected>30s</option>
+          <option value="60">60s</option>
+        </select>
+        <button id="refreshBtn" class="btn" data-testid="refresh-btn" type="button">Actualizar</button>
+        <span class="meta">Actualizado: <span id="lastUpdate" data-testid="last-update">—</span></span>
+      </div>
     </header>
 
-    <div id="errorBanner" data-testid="error-banner" class="hidden mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200"></div>
+    <div id="errorBanner" class="banner" data-testid="error-banner" role="alert"></div>
 
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" data-testid="stats-grid">
-        <div class="card glow rounded-xl p-5" data-testid="card-cpu">
-            <div class="flex items-start justify-between mb-4">
-                <div>
-                    <p class="text-xs text-muted uppercase tracking-wider">CPU</p>
-                    <p class="text-2xl font-bold mt-1" id="cpuValue">--%</p>
-                    <p class="text-xs text-muted mt-1" id="cpuMeta">Uso del sistema</p>
-                </div>
-                <div class="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="progress-bar">
-                <div id="cpuBar" class="progress-fill bg-gradient-to-r from-blue-500 to-violet-500" style="width: 0%"></div>
-            </div>
-        </div>
+    <section class="grid stats" aria-label="Métricas del sistema" data-testid="stats-grid">
+      <article class="card" data-testid="card-cpu">
+        <div class="card-head"><div><p class="label">CPU</p><p class="value" id="cpuValue">--%</p><p class="sub" id="cpuMeta">Uso global</p></div><div class="icon">CPU</div></div>
+        <div class="bar"><div id="cpuBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--violet))"></div></div>
+      </article>
+      <article class="card" data-testid="card-memory">
+        <div class="card-head"><div><p class="label">Memoria</p><p class="value" id="memoryValue">--</p><p class="sub" id="memoryMeta">Usada / total</p></div><div class="icon">RAM</div></div>
+        <div class="bar"><div id="memoryBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--emerald),#34d399)"></div></div>
+      </article>
+      <article class="card" data-testid="card-disk">
+        <div class="card-head"><div><p class="label">Disco</p><p class="value" id="diskValue">--</p><p class="sub" id="diskMeta">Usado / total (disp.)</p></div><div class="icon">DISK</div></div>
+        <div class="bar"><div id="diskBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--amber),#f97316)"></div></div>
+      </article>
+      <article class="card" data-testid="card-network">
+        <div class="card-head"><div><p class="label">Red</p><p class="value" id="netRateValue">--</p><p class="sub" id="netMeta">↓ RX/s · ↑ TX/s · totales</p></div><div class="icon">NET</div></div>
+        <p class="sub" id="netTotals">RX total: -- · TX total: --</p>
+      </article>
+    </section>
 
-        <div class="card glow rounded-xl p-5" data-testid="card-memory">
-            <div class="flex items-start justify-between mb-4">
-                <div>
-                    <p class="text-xs text-muted uppercase tracking-wider">RAM</p>
-                    <p class="text-2xl font-bold mt-1" id="memoryValue">-- MB</p>
-                    <p class="text-xs text-muted mt-1" id="memoryMeta">Memoria en uso</p>
-                </div>
-                <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="progress-bar">
-                <div id="memoryBar" class="progress-fill bg-gradient-to-r from-emerald-500 to-teal-400" style="width: 0%"></div>
-            </div>
-        </div>
+    <section class="grid charts" aria-label="Histórico del sistema">
+      <article class="card" data-testid="chart-cpu-card">
+        <div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">CPU (%)</h2></div><span id="cpuChartMeta" class="meta">—</span></div>
+        <div class="chart-wrap"><canvas id="cpuChart"></canvas><div id="cpuChartEmpty" class="chart-empty">Sin datos aún</div></div>
+      </article>
+      <article class="card" data-testid="chart-memory-card">
+        <div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">Memoria (%)</h2></div><span id="memoryChartMeta" class="meta">—</span></div>
+        <div class="chart-wrap"><canvas id="memoryChart"></canvas><div id="memoryChartEmpty" class="chart-empty">Sin datos aún</div></div>
+      </article>
+    </section>
 
-        <div class="card glow rounded-xl p-5" data-testid="card-disk">
-            <div class="flex items-start justify-between mb-4">
-                <div>
-                    <p class="text-xs text-muted uppercase tracking-wider">Disk</p>
-                    <p class="text-2xl font-bold mt-1" id="diskValue">-- GB</p>
-                    <p class="text-xs text-muted mt-1" id="diskMeta">Espacio disponible</p>
-                </div>
-                <div class="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="progress-bar">
-                <div id="diskBar" class="progress-fill bg-gradient-to-r from-amber-500 to-orange-500" style="width: 0%"></div>
-            </div>
-        </div>
+    <section class="card" data-testid="targets-card" aria-label="Targets monitoreados">
+      <div class="card-head">
+        <div><p class="label">Targets</p><h2 class="value" style="font-size:1.1rem;margin:0">Endpoints monitoreados</h2><p class="sub">Estado y latencia según tipo de integración</p></div>
+        <span id="targetsCount" class="meta">—</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Target</th><th>Tipo</th><th>Estado</th><th>Latencia</th><th>Requests</th><th>Detalle</th><th>Actualizado</th></tr></thead>
+          <tbody id="targetsTable" data-testid="targets-table"><tr><td colspan="7" class="muted">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 
-        <div class="card glow rounded-xl p-5" data-testid="card-network">
-            <div class="flex items-start justify-between mb-4">
-                <div>
-                    <p class="text-xs text-muted uppercase tracking-wider">Network</p>
-                    <p class="text-xl font-bold mt-1"><span id="rxValue">--</span> <span class="text-muted text-xs font-medium">↓ RX</span></p>
-                    <p class="text-sm text-zinc-300 mt-1"><span id="txValue">--</span> <span class="text-muted text-xs font-medium">↑ TX</span></p>
-                </div>
-                <div class="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
-                    </svg>
-                </div>
-            </div>
-            <p class="text-xs text-muted">Totales acumulados por interfaz</p>
-        </div>
-    </div>
+  <script>
+    const state = { range: 24, refreshMs: 30000, timer: null };
 
-    <!-- Charts Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div class="card glow rounded-xl p-5" data-testid="chart-cpu-card">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="font-medium">CPU Usage</h3>
-                    <p class="text-xs text-muted">Histórico · sistema</p>
-                </div>
-                <span id="cpuChartMeta" class="text-xs text-muted">—</span>
-            </div>
-            <div class="relative" style="height: 220px; max-height: 220px;">
-                <canvas id="cpuChart"></canvas>
-                <div id="cpuChartEmpty" class="hidden absolute inset-0 flex items-center justify-center text-sm text-muted">Sin datos aún</div>
-            </div>
-        </div>
+    function $(id) { return document.getElementById(id); }
+    function fmtPct(v) { const n = Number(v || 0); return n.toFixed(1) + '%'; }
+    function fmtMB(v) { const n = Number(v || 0); if (n >= 1024) return (n/1024).toFixed(2) + ' GB'; return n.toFixed(0) + ' MB'; }
+    function fmtBytes(n) {
+      const v = Number(n || 0);
+      if (v < 1024) return v.toFixed(0) + ' B';
+      const kb = v / 1024; if (kb < 1024) return kb.toFixed(1) + ' KB';
+      const mb = kb / 1024; if (mb < 1024) return mb.toFixed(1) + ' MB';
+      const gb = mb / 1024; if (gb < 1024) return gb.toFixed(2) + ' GB';
+      return (gb / 1024).toFixed(2) + ' TB';
+    }
+    function fmtRate(n) { return fmtBytes(n) + '/s'; }
+    function fmtTs(ts) { if (!ts) return '—'; const d = new Date(ts); return isNaN(d) ? String(ts) : d.toLocaleString(); }
+    function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-        <div class="card glow rounded-xl p-5" data-testid="chart-memory-card">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="font-medium">Memory Usage</h3>
-                    <p class="text-xs text-muted">Histórico · sistema</p>
-                </div>
-                <span id="memoryChartMeta" class="text-xs text-muted">—</span>
-            </div>
-            <div class="relative" style="height: 220px; max-height: 220px;">
-                <canvas id="memoryChart"></canvas>
-                <div id="memoryChartEmpty" class="hidden absolute inset-0 flex items-center justify-center text-sm text-muted">Sin datos aún</div>
-            </div>
-        </div>
-    </div>
+    function setHealth(kind, text) {
+      const b = $('healthBadge');
+      b.className = 'badge ' + (kind || 'warn');
+      $('healthText').textContent = text;
+    }
+    function setError(msg) {
+      const b = $('errorBanner');
+      if (msg) { b.textContent = msg; b.classList.add('show'); }
+      else { b.textContent = ''; b.classList.remove('show'); }
+    }
 
-    <!-- Targets Table -->
-    <div class="card glow rounded-xl p-5" data-testid="targets-card">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h3 class="font-medium">Monitored Targets</h3>
-                <p class="text-xs text-muted">Estado de endpoints configurados</p>
-            </div>
-            <span id="targetsCount" class="text-xs text-muted">—</span>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="text-left text-muted border-b border-zinc-800/80">
-                        <th class="pb-3 font-medium">Target</th>
-                        <th class="pb-3 font-medium">Estado</th>
-                        <th class="pb-3 font-medium">Latencia</th>
-                        <th class="pb-3 font-medium">Requests</th>
-                        <th class="pb-3 font-medium text-right">Actualizado</th>
-                    </tr>
-                </thead>
-                <tbody id="targetsTable" data-testid="targets-table">
-                    <tr>
-                        <td colspan="5" class="py-8 text-center text-muted">Cargando targets...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    const baseOpts = {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { enabled: true, displayColors: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#71717a', maxTicksLimit: 8 } },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#71717a' } }
+      }
+    };
 
-    <script>
-        const chartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#18181b',
-                    borderColor: '#27272a',
-                    borderWidth: 1,
-                    padding: 12,
-                    titleFont: { size: 13 },
-                    bodyFont: { size: 12 },
-                    displayColors: false
-                }
-            },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#71717a', font: { size: 11 }, maxTicksLimit: 8 }
-                },
-                y: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#71717a', font: { size: 11 } },
-                    beginAtZero: true
-                }
-            },
-            elements: {
-                line: { tension: 0.35 },
-                point: { radius: 0, hoverRadius: 4 }
-            }
-        };
+    const cpuChart = new Chart($('cpuChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'CPU %', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.18)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+      options: { ...baseOpts, scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, min: 0, max: 100 } } }
+    });
+    const memChart = new Chart($('memoryChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Memoria %', data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.18)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+      options: { ...baseOpts, scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, min: 0, max: 100 } } }
+    });
 
-        const cpuCtx = document.getElementById('cpuChart').getContext('2d');
-        const memoryCtx = document.getElementById('memoryChart').getContext('2d');
+    function renderSystem(system) {
+      if (!system || system === null) {
+        $('cpuValue').textContent = '--%'; $('cpuBar').style.width = '0%';
+        $('memoryValue').textContent = '--'; $('memoryBar').style.width = '0%';
+        $('diskValue').textContent = '--'; $('diskBar').style.width = '0%';
+        $('netRateValue').textContent = '--'; $('netTotals').textContent = 'RX total: -- · TX total: --';
+        return;
+      }
+      const cpu = Number(system.cpu_percent || 0);
+      const mup = Number(system.mem_used_percent || 0);
+      const dup = Number(system.disk_used_percent || 0);
+      $('cpuValue').textContent = fmtPct(cpu);
+      $('cpuBar').style.width = Math.min(Math.max(cpu,0),100) + '%';
+      $('cpuMeta').textContent = cpu > 80 ? 'Uso alto' : cpu > 50 ? 'Uso moderado' : 'Uso normal';
+      $('memoryValue').textContent = fmtPct(mup);
+      $('memoryBar').style.width = Math.min(Math.max(mup,0),100) + '%';
+      $('memoryMeta').textContent = fmtMB(system.mem_used_mb) + ' / ' + fmtMB(system.mem_total_mb);
+      $('diskValue').textContent = fmtPct(dup);
+      $('diskBar').style.width = Math.min(Math.max(dup,0),100) + '%';
+      $('diskMeta').textContent = fmtMB(system.disk_used_mb) + ' / ' + fmtMB(system.disk_total_mb) + ' (' + fmtMB(system.disk_available_mb) + ' libre)';
+      $('netRateValue').textContent = '↓ ' + fmtRate(system.net_rx_bytes_per_sec) + ' · ↑ ' + fmtRate(system.net_tx_bytes_per_sec);
+      $('netTotals').textContent = 'RX total: ' + fmtBytes(system.net_rx_bytes) + ' · TX total: ' + fmtBytes(system.net_tx_bytes);
+    }
 
-        const gradientCpu = cpuCtx.createLinearGradient(0, 0, 0, 220);
-        gradientCpu.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
-        gradientCpu.addColorStop(1, 'rgba(59, 130, 246, 0)');
+    function statusPill(status) {
+      const s = String(status || 'unknown').toLowerCase();
+      const cls = s === 'up' ? 'up' : (s === 'down' || s === 'error') ? s : (s === 'degraded' || s === 'starting') ? s : 'unknown';
+      return '<span class="pill ' + cls + '">' + esc(s.toUpperCase()) + '</span>';
+    }
 
-        const gradientMem = memoryCtx.createLinearGradient(0, 0, 0, 220);
-        gradientMem.addColorStop(0, 'rgba(34, 197, 94, 0.3)');
-        gradientMem.addColorStop(1, 'rgba(34, 197, 94, 0)');
+    function renderTargets(targets) {
+      const tbody = $('targetsTable');
+      const list = Array.isArray(targets) ? targets : [];
+      $('targetsCount').textContent = list.length + ' target' + (list.length === 1 ? '' : 's');
+      tbody.textContent = '';
+      if (!list.length) {
+        const tr = document.createElement('tr'); const td = document.createElement('td');
+        td.colSpan = 7; td.className = 'muted'; td.textContent = 'No hay targets configurados';
+        tr.appendChild(td); tbody.appendChild(tr); return;
+      }
+      for (const t of list) {
+        const tr = document.createElement('tr');
+        const cells = [
+          (() => { const d=document.createElement('div'); d.className='row-title'; d.textContent=t.name||'unknown'; const u=document.createElement('div'); u.className='mono'; u.textContent=t.url||''; const td=document.createElement('td'); td.appendChild(d); td.appendChild(u); return td; })(),
+          (() => { const td=document.createElement('td'); td.textContent=t.kind||'generic'; return td; })(),
+          (() => { const td=document.createElement('td'); td.innerHTML=statusPill(t.status); return td; })(),
+          (() => { const td=document.createElement('td'); td.textContent = (t.latency_ms!=null)? Number(t.latency_ms).toFixed(1)+' ms':'—'; return td; })(),
+          (() => { const td=document.createElement('td'); td.textContent = (t.http_requests!=null)? String(t.http_requests):'—'; return td; })(),
+          (() => { const td=document.createElement('td'); td.className='muted'; td.textContent=t.detail||'—'; return td; })(),
+          (() => { const td=document.createElement('td'); td.className='muted'; td.textContent=fmtTs(t.timestamp); return td; })(),
+        ];
+        for (const c of cells) tr.appendChild(c);
+        tbody.appendChild(tr);
+      }
+    }
 
-        let cpuChart = new Chart(cpuCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'CPU %',
-                    data: [],
-                    borderColor: '#3b82f6',
-                    backgroundColor: gradientCpu,
-                    borderWidth: 2,
-                    fill: true,
-                    pointRadius: 2,
-                    pointHoverRadius: 4,
-                    tension: 0.35
-                }]
-            },
-            options: {
-                ...chartOptions,
-                interaction: { mode: 'index', intersect: false },
-                scales: {
-                    ...chartOptions.scales,
-                    y: { ...chartOptions.scales.y, min: 0, max: 100 }
-                }
-            }
-        });
+    async function loadLatest() {
+      const res = await fetch('/api/metrics/latest', { cache: 'no-store' });
+      if (!res.ok) throw new Error('latest: HTTP ' + res.status);
+      const data = await res.json();
+      renderSystem(data.system);
+      renderTargets(data.targets || []);
+      return data;
+    }
 
-        let memoryChart = new Chart(memoryCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Memory (MB)',
-                    data: [],
-                    borderColor: '#22c55e',
-                    backgroundColor: gradientMem,
-                    borderWidth: 2,
-                    fill: true,
-                    pointRadius: 2,
-                    pointHoverRadius: 4,
-                    tension: 0.35
-                }]
-            },
-            options: {
-                ...chartOptions,
-                interaction: { mode: 'index', intersect: false }
-            }
-        });
+    async function loadHistory() {
+      const url = '/api/metrics/history?target=system&range=' + encodeURIComponent(state.range);
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('history: HTTP ' + res.status);
+      const data = await res.json();
+      const points = Array.isArray(data.points) ? data.points : [];
+      const has = points.length > 0;
+      $('cpuChartEmpty').classList.toggle('show', !has);
+      $('memoryChartEmpty').classList.toggle('show', !has);
+      $('cpuChartMeta').textContent = has ? points.length + ' puntos' : '0 puntos';
+      $('memoryChartMeta').textContent = has ? points.length + ' puntos' : '0 puntos';
+      const labels = points.map(p => { const d = new Date(p.timestamp); return isNaN(d)?'':d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); });
+      cpuChart.data.labels = labels;
+      cpuChart.data.datasets[0].data = points.map(p => Number(p.cpu_percent || 0));
+      memChart.data.labels = labels;
+      memChart.data.datasets[0].data = points.map(p => Number(p.mem_used_percent || 0));
+      cpuChart.update();
+      memChart.update();
+      return data;
+    }
 
-        function fmtTs(ts) {
-            if (!ts) return '—';
-            const d = new Date(ts);
-            return isNaN(d) ? String(ts) : d.toLocaleString();
-        }
+    async function loadHealth() {
+      try {
+        const res = await fetch('/api/health', { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        $('version').textContent = 'v' + (data.version || '0.0.1');
+        if (res.ok && data.ready) setHealth('ok', 'En línea');
+        else if (res.ok) setHealth('warn', data.status || 'Iniciando');
+        else setHealth('err', data.status || 'Degradado');
+      } catch { setHealth('err', 'Sin conexión'); }
+    }
 
-        function fmtBytes(bytes) {
-            const n = Number(bytes || 0);
-            if (n < 1024) return `${n.toFixed(0)} B`;
-            const kb = n / 1024;
-            if (kb < 1024) return `${kb.toFixed(1)} KB`;
-            const mb = kb / 1024;
-            if (mb < 1024) return `${mb.toFixed(1)} MB`;
-            const gb = mb / 1024;
-            if (gb < 1024) return `${gb.toFixed(2)} GB`;
-            return `${(gb / 1024).toFixed(2)} TB`;
-        }
+    async function refresh() {
+      try {
+        await Promise.all([loadLatest(), loadHistory(), loadHealth()]);
+        setError('');
+      } catch (e) {
+        console.error(e);
+        setError('No se pudieron cargar los datos: ' + (e && e.message ? e.message : 'error'));
+        setHealth('err', 'Error');
+      } finally {
+        $('lastUpdate').textContent = new Date().toLocaleTimeString();
+      }
+    }
 
-        function setHealth(state, text) {
-            const badge = document.getElementById('healthBadge');
-            const label = document.getElementById('healthText');
-            label.textContent = text;
-            badge.className = 'badge ' + ({
-                ok: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
-                warn: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-                err: 'bg-red-500/10 text-red-300 border-red-500/30',
-                loading: 'bg-zinc-800/70 text-zinc-300 border-zinc-700/60'
-            }[state] || 'bg-zinc-800/70 text-zinc-300 border-zinc-700/60');
-        }
+    function applyAutoRefresh() {
+      if (state.timer) { clearInterval(state.timer); state.timer = null; }
+      if (state.refreshMs > 0) state.timer = setInterval(refresh, state.refreshMs);
+    }
 
-        function showError(msg) {
-            const el = document.getElementById('errorBanner');
-            if (!msg) {
-                el.classList.add('hidden');
-                el.textContent = '';
-                return;
-            }
-            el.textContent = msg;
-            el.classList.remove('hidden');
-        }
+    $('rangeSelect').addEventListener('change', (e) => { state.range = Number(e.target.value || 24); refresh(); });
+    $('refreshSelect').addEventListener('change', (e) => { state.refreshMs = Number(e.target.value || 0) * 1000; applyAutoRefresh(); });
+    $('refreshBtn').addEventListener('click', () => refresh());
 
-        async function fetchMetrics() {
-            try {
-                const res = await fetch('/api/metrics/latest', { cache: 'no-store' });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                updateDashboard(Array.isArray(data) ? data : []);
-                showError('');
-                setHealth('ok', 'En línea');
-            } catch (e) {
-                console.error('Failed to fetch metrics:', e);
-                setHealth('err', 'Sin conexión');
-                showError('No se pudieron cargar las métricas. Reintentando automáticamente.');
-            } finally {
-                updateTime();
-            }
-        }
-
-        function statusBadge(status) {
-            const s = String(status || 'unknown').toLower();
-            if (s === 'up') return ['bg-emerald-500/15 text-emerald-300 border-emerald-500/30', 'UP'];
-            if (s.startsWith('down')) return ['bg-red-500/15 text-red-300 border-red-500/30', 'DOWN'];
-            if (s.startsWith('error')) return ['bg-red-500/15 text-red-300 border-red-500/30', 'ERROR'];
-            return ['bg-zinc-700/40 text-zinc-300 border-zinc-600/50', s.toUpperCase()];
-        }
-
-        function updateDashboard(data) {
-            const system = data.find(item => item.type === 'system') || {};
-            const targets = data.filter(item => item.type === 'target');
-
-            const cpu = Number(system.cpu || 0);
-            const memMB = Number(system.memory_mb || 0);
-            const diskMB = Number(system.disk_mb || 0);
-            const rx = Number(system.network_rx || 0);
-            const tx = Number(system.network_tx || 0);
-
-            document.getElementById('cpuValue').textContent = `${cpu.toFixed(1)}%`;
-            document.getElementById('cpuBar').style.width = `${Math.min(Math.max(cpu, 0), 100)}%`;
-            document.getElementById('cpuMeta').textContent = cpu > 80 ? 'Uso alto' : cpu > 50 ? 'Uso moderado' : 'Uso normal';
-
-            document.getElementById('memoryValue').textContent = `${memMB.toFixed(0)} MB`;
-            document.getElementById('memoryBar').style.width = `${Math.min(Math.max(memMB / 1024, 0) * 10, 100)}%`;
-            document.getElementById('memoryMeta').textContent = 'Memoria en uso (sistema)';
-
-            const diskGB = diskMB / 1024;
-            document.getElementById('diskValue').textContent = `${diskGB.toFixed(1)} GB`;
-            document.getElementById('diskBar').style.width = `${Math.min(Math.max(diskGB / 100, 0) * 10, 100)}%`;
-            document.getElementById('diskMeta').textContent = 'Espacio disponible total';
-
-            document.getElementById('rxValue').textContent = fmtBytes(rx);
-            document.getElementById('txValue').textContent = fmtBytes(tx);
-
-            const tbody = document.getElementById('targetsTable');
-            document.getElementById('targetsCount').textContent = `${targets.length} target${targets.length === 1 ? '' : 's'}`;
-            if (targets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-muted">No hay targets configurados</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = targets.map(t => {
-                const [cls, label] = statusBadge(t.status);
-                const latency = t.latency_ms != null ? `${Number(t.latency_ms).toFixed(1)} ms` : '—';
-                const reqs = t.http_requests != null ? t.http_requests : '—';
-                const name = t.name || t.target || 'unknown';
-                return `
-                    <tr class="border-t border-zinc-800/80 hover:bg-white/[0.02] transition-colors">
-                        <td class="py-3 pr-3">
-                            <div class="font-medium text-zinc-100">${name}</div>
-                            <div class="text-xs text-muted">HTTP target</div>
-                        </td>
-                        <td class="py-3"><span class="badge border ${cls}">${label}</span></td>
-                        <td class="py-3 text-zinc-200">${latency}</td>
-                        <td class="py-3 text-zinc-200">${reqs}</td>
-                        <td class="py-3 text-right text-muted">${fmtTs(t.timestamp)}</td>
-                    </tr>`;
-            }).join('');
-        }
-
-        function updateTime() {
-            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-        }
-
-        async function loadHistory() {
-            try {
-                const res = await fetch('/api/metrics/history?range=24&target=system', { cache: 'no-store' });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (!Array.isArray(data) || data.length === 0) {
-                    document.getElementById('cpuChartEmpty').classList.remove('hidden');
-                    document.getElementById('memoryChartEmpty').classList.remove('hidden');
-                    document.getElementById('cpuChartMeta').textContent = '0 puntos';
-                    document.getElementById('memoryChartMeta').textContent = '0 puntos';
-                    return;
-                }
-
-                document.getElementById('cpuChartEmpty').classList.add('hidden');
-                document.getElementById('memoryChartEmpty').classList.add('hidden');
-
-                const labels = data.map(row => {
-                    const d = new Date(row.timestamp);
-                    return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                });
-                const cpuData = data.map(row => Number(row.cpu || 0));
-                const memData = data.map(row => Number(row.memory_mb || 0));
-
-                cpuChart.data.labels = labels;
-                cpuChart.data.datasets[0].data = cpuData;
-                cpuChart.update();
-
-                memoryChart.data.labels = labels;
-                memoryChart.data.datasets[0].data = memData;
-                memoryChart.update();
-
-                document.getElementById('cpuChartMeta').textContent = `${data.length} puntos`;
-                document.getElementById('memoryChartMeta').textContent = `${data.length} puntos`;
-            } catch (e) {
-                console.error('Failed to load history:', e);
-            }
-        }
-
-        async function refresh() {
-            setHealth('loading', 'Actualizando…');
-            await fetchMetrics();
-            await loadHistory();
-        }
-
-        document.getElementById('refreshBtn').addEventListener('click', () => {
-            refresh();
-        });
-
-        refresh();
-        setInterval(refresh, 30000);
-    </script>
+    applyAutoRefresh();
+    refresh();
+  </script>
 </body>
 </html>

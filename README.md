@@ -1,54 +1,38 @@
-# TinyTop - Monitor VPS Ligero en Rust
+# TinyTop v0.0.1 - Monitor ligero de VPS en Rust
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![size](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org)
-[![platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.os-linux.org)
+[![version](https://img.shields.io/badge/version-0.0.1-blue.svg)](Cargo.toml)
+[![rust](https://img.shields.io/badge/Rust-1.88%2B-orange.svg)](https://www.rust-lang.org)
+[![platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.kernel.org)
 
 ![TinyTop Dashboard](docs/dashboard.png)
 
-## 📊 Monitor Autohospedado para VPS
+**TinyTop** es un monitor autohospedado y ligero para servidores/VPS. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real.
 
-**TinyTop** es una herramienta de monitoreo autohospedada y ligera para servidores y VPS. Recopila tráfico, latencia, CPU y memoria de aplicaciones configuradas y muestra gráficos simples en una interfaz dark mode moderna.
+## Características
 
-**Tamaño binario**: ~15-25MB estático  
-**Consumo RAM idle**: 8-12MB (ideal para VPS con recursos limitados)  
-**Arquitectura**: Statically linked binary, sin dependencias externas
+- **Sistema**: CPU (%), memoria usada/total (%), disco usado/total/disponible (%), red acumulada y **tasas RX/TX por segundo** calculadas entre muestras.
+- **Targets HTTP**: chequeo por endpoint con `kind` (`generic`, `spring-boot`/`spring`, `quarkus`, `micronaut`/`micrometer`), latencia, estado normalizado, extracción heurística de `http_requests` (JSON/Actuator/Prometheus-like) y detalle de error acotado.
+- **Persistencia y retención**: SQLite (WAL) con tablas separadas `system_metrics` y `target_metrics`, histórico por rango (`/api/metrics/history?range=&target=system|<name>`), pruning automático por retención.
+- **API**: `/api/health` (readiness/db/runtime), `/api/metrics/latest`, `/api/metrics/history`, `/api/config` con errores JSON y códigos HTTP consistentes (404/400/5xx).
+- **Dashboard**: HTML/CSS/JS embebido + Chart.js servido localmente (`/static/vendor/chart.umd.min.js`, sin CDN), controles de rango y auto-refresh, estados vacíos/carga/error, render seguro de targets (DOM + escape), tabla y tarjetas accesibles.
+- **Operación**: apagado ordenado (SIGINT/SIGTERM), logging con `tracing`, configuración por archivo + overrides de entorno, validación de config (puerto/rangos/nombres únicos/URLs).
+- **Docker**: imagen multi-stage, usuario no-root, volumen de datos, `HEALTHCHECK`, variables de entorno para config y DB.
 
----
+## Configuración
 
-## 🌟 Características
+`config.toml` (ejemplo):
 
-### Interfaz de Usuario
-- **Dark mode** estilo Vercel con Tailwind CSS
-- **Gráficos modernos** con Chart.js y gradientes dark mode
-- **Grids responsivos**: CPU, RAM, Disk, Network
-- **Actualización automática** cada 30 segundos
-- **Historial 24h** con animaciones smooth
-- **Responsive design** - funciona en mobile y desktop
-
-### Monitoreo de Métricas
-- **CPU**: Uso promedio de todos los procesadores
-- **RAM**: Memoria disponible en MB
-- **Disk**: Espacio disponible (lectura via sysinfo)
-- **Network**: Bytes recibidos/transmitidos total
-- **Targets personalizables**: Múltiples aplicaciones Java (Spring Boot, Quarkus, Micronaut)
-
-### Integraciones de Aplicaciones
-- **Spring Boot**: Actuator health y request metrics
-- **Quarkus**: Request, latency, CPU vía Micrometer
-- **Micronaut**: Request metrics vía Micrometer
-- **Cualquier lenguaje**: Endpoint JSON personalizado
-
-### Configuración
 ```toml
-# config.toml
 port = 9090
 db_path = "tinytop.db"
 interval_seconds = 30
+retention_hours = 168
+request_timeout_secs = 5
 
 [[targets]]
 name = "localhost"
-url = "http://localhost:8080/actuator/metrics"
+url = "http://localhost:8080/actuator/health"
 kind = "spring-boot"
 
 [[targets]]
@@ -57,194 +41,73 @@ url = "http://localhost:3000/api/health"
 kind = "generic"
 ```
 
----
+### Variables de entorno
 
-## 🚀 Despliegue Rápido
+| Variable | Descripción | Default |
+|---|---|---|
+| `TINYTOP_CONFIG` | Ruta al archivo de configuración | `config.toml` |
+| `TINYTOP_PORT` | Puerto HTTP | `9090` |
+| `TINYTOP_DB_PATH` | Ruta de la base SQLite | `tinytop.db` |
+| `TINYTOP_INTERVAL` | Intervalo de recolección (segundos) | `30` |
+| `TINYTOP_RETENTION_HOURS` | Retención de histórico (horas) | `168` |
+| `TINYTOP_REQUEST_TIMEOUT_SECS` | Timeout de sondeo de targets (segundos) | `5` |
 
-### Opción 1: Binario Rust Estático
+## API
+
+- `GET /` — dashboard web
+- `GET /api/health` — estado/readiness (`db.ok`, `runtime`, última colección, errores, versión)
+- `GET /api/metrics/latest` — `{ system: {...} | null, targets: [...] }`
+- `GET /api/metrics/history?range=24&target=system` — `{ target, range_hours, points: [...] }` (sistema)
+- `GET /api/metrics/history?range=24&target=<name>` — histórico del target (404 si no existe)
+- `GET /api/config` — configuración efectiva
+
+## Ejecución local
 
 ```bash
-# Clonar y compilar
-git clone https://github.com/dev1lsconf/tinytop.git
-cd tinytop
-cargo build --release  # ~2-5 minutos
-
-# Ejecutar
+cargo build --release --locked
 ./target/release/tinytop
-# Acceder: http://TU_IP:9090
+# http://localhost:9090
 ```
 
-### Opción 2: Docker (recomendado para VPS)
+## Docker
 
 ```bash
-# Build y run con docker compose
-git clone https://github.com/dev1lsconf/tinytop.git
-cd tinytop
-docker compose up -d  # Puerto 9090 expuesto
-
-# Acceder: http://TU_IP:9090
-# Ver logs: docker compose logs -f
+docker compose up -d --build
+# http://localhost:9090
 ```
 
-### Opción 3: Script de instalación
+- DB persistida en volumen (`/app/data/tinytop.db` por defecto en la imagen/compose).
+- Healthcheck: `curl -fsS http://localhost:9090/api/health`.
+- Ejecuta como usuario no-root.
+
+## Pruebas y calidad
 
 ```bash
-curl -fsSL https://tu-dominio.com/install.sh | sh
+cargo fmt --all -- --check
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --all-targets --locked
 ```
 
----
-
-## 📸 Captura de Pantalla
-
-![TinyTop Dashboard](docs/dashboard.png)
-
-*Dashboard dark mode con métricas de sistema (CPU/RAM/Disco/Red), gráficos históricos y estado de targets en tiempo real.*
-
-### API Health
-```bash
-curl http://localhost:9090/api/health
-# {"status":"ok","version":"0.1.0","targets":1}
-
-curl http://localhost:9090/api/metrics/latest
-# [{"type":"system","cpu":45.2,"memory_mb":384.3},{"type":"target","name":"localhost","status":"up"}]
-```
-
----
-
-## 🛠️ Arquitectura Técnica
-
-### Stack Tecnológico
-
-| Capa | Tecnología | Por qué |
-|------|-----------|---------|
-| **Runtime** | Rust 1.85 + Tokio | Sin GC, bajo overhead, binario estático |
-| **HTTP Server** | Axum | Moderno, type-safe, minimal |
-| **SQLite** | sqlx + rusqlite | Embedded, sin proceso separado |
-| **Métricas sistema** | sysinfo | Bajo overhead, multiplataforma |
-| **Frontend** | HTML + Tailwind CDN + Chart.js | Sin build step, sirve desde binario |
-| **HTTP Client** | reqwest | Fetch a aplicaciones Java |
-
-### Arquitectura de Sistema
-
-```
-┌─────────────────────────────────────────┐
-│             TinyTop Binary               │
-│  ┌─────────────┐  ┌─────────────────┐ │
-│  │ Axum Server │  │ tokio Runtime   │ │
-│  └──────┬──────┘  └───────┬─────────┘ │
-│          │                      │      │
-│   API REST│                      │ Background Collector (cada 30s)
-│          │                      │
-│          ▼                      ▼
-│  ┌─────────────────────────────────────┐ │
-│  │ SQLite Database (tinytop.db)         │ │
-│  └─────────────────────────────────────┘ │
-│                ▲                        │
-│                │ Fetch from           │
-│      Java Apps (Spring/Quarkus/Micronaut)│
-└─────────────────────────────────────────┘
-```
-
----
-
-## 📡 API Endpoints
-
-| Endpoint | Método | Descripción |
-|----------|--------|-------------|
-| `/` | GET | Página HTML con dashboard |
-| `/api/health` | GET | Status del servicio + versión |
-| `/api/metrics/latest` | GET | Métricas actuales + status targets |
-| `/api/metrics/history` | GET | Histórico con `?range=24&target=name` |
-| `/api/config` | GET | Configuración actual de targets |
-
-### Ejemplos de Respuesta
+Pruebas E2E (Playwright, requiere servidor corriendo y accesible):
 
 ```bash
-# Health check
-curl http://localhost:9090/api/health
-{"status":"ok","version":"0.1.0","targets":1}
-
-# Latest metrics
-curl http://localhost:9090/api/metrics/latest
-[{"type":"system","cpu":45.2,"memory_mb":384.3,"disk_mb":8192.0},{"type":"target","name":"localhost","status":"up","latency_ms":12.5}]
-
-# History 24h
-curl "http://localhost:9090/api/metrics/history?range=24&target=localhost"
-[{"id":1,"target":"localhost","timestamp":"2026-01-15T10:30:00Z","cpu":42.1,"memory_mb":500.0,"disk_mb":8000.0,"network_rx":1048576,"network_tx":524288,"latency_ms":15.0,"http_requests":128}]
+npm ci
+npx playwright install --with-deps chromium
+BASE_URL=http://localhost:9090 npx playwright test
 ```
 
----
+El workflow de CI ejecuta fmt, clippy, tests, build y E2E en Ubuntu.
 
-## 📦 Variables de Entorno
+## Seguridad y notas
 
-| Variable | Predeterminado | Descripción |
-|----------|----------------|-------------|
-| `TINYTOP_PORT` | `9090` | Puerto del servidor HTTP |
-| `TINYTOP_DB_PATH` | `tinytop.db` | Ruta archivo SQLite |
-| `TINYTOP_INTERVAL` | `30` | Intervalo recolección métricas (segundos) |
-| `TINYTOP_CONFIG` | `config.toml` | Archivo de configuración |
+- Sin autenticación incorporada: expón el servicio detrás de reverse proxy con TLS/auth si es accesible públicamente.
+- Las URLs de targets se leen de configuración local/controlada por el operador.
+- `Cargo.lock` incluido para builds reproducibles.
 
-```bash
-# Ejecutar con vars de entorno
-TINYTOP_PORT=3000 TINYTOP_DB_PATH=/var/lib/tinytop/tinytop.db ./target/release/tinytop
-```
+## Licencia
 
----
+MIT - Copyright (c) 2026 TinyTop Contributors
 
-## 🐳 Despliegue con Docker
+## Agradecimientos
 
-```dockerfile
-# Usa el Dockerfile incluido
-FROM rust:1.85-slim-bookworm AS builder
-WORKDIR /app
-COPY . .
-RUN cargo build --release
-
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
-COPY --from=builder /app/target/release/tinytop /usr/local/bin/tinytop
-EXPOSE 9090
-ENTRYPOINT ["tinytop"]
-```
-
-```bash
-docker build -t tinytop .
-docker run -d -p 9090:9090 --name tinytop tinytop
-```
-
-Con docker-compose:
-```yaml
-version: '3.8'
-services:
-  tinytop:
-    build: .
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./config.toml:/app/config.toml
-      - ./tinytop.db:/app/tinytop.db
-    restart: unless-stopped
-```
-
----
-
-## 📜 Licencia
-
-**MIT** - Copyright (c) 2026 TinyTop Contributors
-
----
-
-## 🙏 Agradecimientos
-
-- [Rust Language](https://www.rust-lang.org) - Lenguaje de programación
-- [Axum](https://github.com/tokio-rs/axum) - Framework HTTP
-- [Chart.js](https://chartjs.org) - Gráficos visuales
-- [Tailwind CSS](https://tailwindcss.com) - Styling utility-first
-
----
-
-## 📬 Contacto
-
-- **GitHub**: [https://github.com/dev1lsconf/tinytop](https://github.com/dev1lsconf/tinytop)
-- **Issues**: [https://github.com/dev1lsconf/tinytop/issues](https://github.com/dev1lsconf/tinytop/issues)
-- **Discussions**: [https://github.com/dev1lsconf/tinytop/discussions](https://github.com/dev1lsconf/tinytop/discussions)
+- [Rust](https://www.rust-lang.org), [Tokio](https://tokio.rs), [Axum](https://github.com/tokio-rs/axum), [SQLx](https://github.com/launchbadge/sqlx), [sysinfo](https://github.com/GuillaumeGomez/sysinfo), [Chart.js](https://www.chartjs.org/)

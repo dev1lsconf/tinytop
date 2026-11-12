@@ -1,4 +1,6 @@
+use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -9,6 +11,10 @@ pub struct Config {
     pub db_path: String,
     #[serde(default = "default_interval")]
     pub interval_seconds: u64,
+    #[serde(default = "default_retention_hours")]
+    pub retention_hours: u64,
+    #[serde(default = "default_request_timeout_secs")]
+    pub request_timeout_secs: u64,
     #[serde(default)]
     pub targets: Vec<Target>,
 }
@@ -24,13 +30,17 @@ pub struct Target {
 fn default_port() -> u16 {
     9090
 }
-
 fn default_db_path() -> String {
     "tinytop.db".to_string()
 }
-
 fn default_interval() -> u64 {
     30
+}
+fn default_retention_hours() -> u64 {
+    168
+}
+fn default_request_timeout_secs() -> u64 {
+    5
 }
 
 impl Default for Config {
@@ -39,9 +49,11 @@ impl Default for Config {
             port: default_port(),
             db_path: default_db_path(),
             interval_seconds: default_interval(),
+            retention_hours: default_retention_hours(),
+            request_timeout_secs: default_request_timeout_secs(),
             targets: vec![Target {
                 name: "localhost".to_string(),
-                url: "http://localhost:8080/actuator/metrics".to_string(),
+                url: "http://localhost:8080/actuator/health".to_string(),
                 kind: Some("generic".to_string()),
             }],
         }
@@ -54,16 +66,120 @@ impl Config {
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("config.toml"));
 
-        if path.exists() {
-            let contents = std::fs::read_to_string(&path)?;
-            let mut parsed: Config = toml::from_str(&contents)?;
-            if parsed.targets.is_empty() {
-                parsed.targets = Config::default().targets;
-            }
-            Ok(parsed)
+        let mut cfg = if path.exists() {
+            let contents = std::fs::read_to_string(&path)
+                .with_context(|| format!("failed to read config file {path:?}"))?;
+            toml::from_str::<Config>(&contents)
+                .with_context(|| format!("failed to parse config file {path:?}"))?
         } else {
             tracing::warn!("Config file {:?} not found, using defaults", path);
-            Ok(Config::default())
+            Config::default()
+        };
+
+        cfg.apply_env_overrides()?;
+        if cfg.targets.is_empty() {
+            cfg.targets = Config::default().targets;
         }
+        cfg.validate()?;
+        Ok(cfg)
+    }
+
+    fn apply_env_overrides(&mut self) -> anyhow::Result<()> {
+        if let Ok(v) = std::env::var("TINYTOP_PORT") {
+            self.port = v.parse().context("invalid TINYTOP_PORT")?;
+        }
+        if let Ok(v) = std::env::var("TINYTOP_DB_PATH") {
+            self.db_path = v;
+        }
+        if let Ok(v) = std::env::var("TINYTOP_INTERVAL") {
+            self.interval_seconds = v.parse().context("invalid TINYTOP_INTERVAL")?;
+        }
+        if let Ok(v) = std::env::var("TINYTOP_RETENTION_HOURS") {
+            self.retention_hours = v.parse().context("invalid TINYTOP_RETENTION_HOURS")?;
+        }
+        if let Ok(v) = std::env::var("TINYTOP_REQUEST_TIMEOUT_SECS") {
+            self.request_timeout_secs =
+                v.parse().context("invalid TINYTOP_REQUEST_TIMEOUT_SECS")?;
+        }
+        Ok(())
+    }
+
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.port == 0 {
+            bail!("port must be greater than 0");
+        }
+        if self.interval_seconds == 0 {
+            bail!("interval_seconds must be greater than 0");
+        }
+        if self.request_timeout_secs == 0 {
+            bail!("request_timeout_secs must be greater than 0");
+        }
+        if self.retention_hours == 0 {
+            bail!("retention_hours must be greater than 0");
+        }
+        if self.db_path.trim().is_empty() {
+            bail!("db_path must not be empty");
+        }
+
+        let mut names = HashSet::new();
+        for t in &self.targets {
+            if t.name.trim().is_empty() {
+                bail!("target name must not be empty");
+            }
+            if !names.insert(t.name.clone()) {
+                bail!("duplicate target name: {}", t.name);
+            }
+            let url = t.url.trim();
+            if !(url.starts_with("http://") || url.starts_with("https://")) {
+                bail!("target '{}' has invalid url: {}", t.name, t.url);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_is_valid() {
+        let cfg = Config::default();
+        assert!(cfg.validate().is_ok());
+        assert!(cfg.port > 0);
+        assert!(!cfg.targets.is_empty());
+    }
+
+    #[test]
+    fn rejects_duplicate_names() {
+        let cfg = Config {
+            targets: vec![
+                Target {
+                    name: "a".into(),
+                    url: "http://localhost".into(),
+                    kind: None,
+                },
+                Target {
+                    name: "a".into(),
+                    url: "http://localhost".into(),
+                    kind: None,
+                },
+            ],
+            ..Config::default()
+        };
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn rejects_invalid_url() {
+        let cfg = Config {
+            targets: vec![Target {
+                name: "a".into(),
+                url: "ftp://localhost".into(),
+                kind: None,
+            }],
+            ..Config::default()
+        };
+        assert!(cfg.validate().is_err());
     }
 }

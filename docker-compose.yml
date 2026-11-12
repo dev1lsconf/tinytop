@@ -6,11 +6,24 @@ services:
     image: tinytop:dev
     container_name: tinytop-dev
     volumes:
-      - ./config.toml:/app/config.toml
-      - ./tinytop.db:/app/tinytop.db
+      - ./config.toml:/app/config.toml:ro
+      - tinytop-data:/app/data
     working_dir: /app
     environment:
-      - TINYTOP_CONFIG=/app/config.toml
+      TINYTOP_CONFIG: /app/config.toml
+      TINYTOP_DB_PATH: /app/data/tinytop.db
+      TINYTOP_PORT: "9090"
+      TINYTOP_INTERVAL: "30"
+      TINYTOP_RETENTION_HOURS: "168"
     ports:
       - "9090:9090"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9090/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  tinytop-data:

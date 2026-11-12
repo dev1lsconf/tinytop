@@ -5,6 +5,9 @@ on:
     branches: ["**"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -16,15 +19,22 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.88"
+          components: rustfmt, clippy
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Cargo check
-        run: cargo check --locked --all-targets || cargo check --all-targets
+      - name: Format check
+        run: cargo fmt --all -- --check
 
-      - name: Cargo build (release)
-        run: cargo build --release
+      - name: Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Tests
+        run: cargo test --all-targets --locked
+
+      - name: Build (release)
+        run: cargo build --release --locked
 
   e2e:
     runs-on: ubuntu-latest
@@ -42,7 +52,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build server
-        run: cargo build --release
+        run: cargo build --release --locked
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -58,6 +68,7 @@ jobs:
 
       - name: Start TinyTop server
         run: |
+          mkdir -p data
           ./target/release/tinytop > tinytop.log 2>&1 &
           echo $! > tinytop.pid
           for i in $(seq 1 60); do
@@ -71,6 +82,9 @@ jobs:
           exit 1
         env:
           TINYTOP_CONFIG: ./config.toml
+          TINYTOP_DB_PATH: ./data/tinytop.db
+          TINYTOP_INTERVAL: "2"
+          TINYTOP_RETENTION_HOURS: "24"
 
       - name: Run Playwright E2E tests
         run: npx playwright test

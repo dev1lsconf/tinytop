@@ -1,11 +1,12 @@
 use axum::{
     extract::{Query, State},
-    response::IntoResponse,
+    http::StatusCode,
+    response::{Html, IntoResponse},
     routing::get,
     Json, Router,
 };
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::web::AppState;
 
@@ -18,6 +19,7 @@ struct HistoryParams {
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/", get(serve_index))
+        .route("/static/vendor/chart.umd.min.js", get(serve_chart_js))
         .route("/api/health", get(health))
         .route("/api/metrics/latest", get(latest))
         .route("/api/metrics/history", get(history))
@@ -26,88 +28,214 @@ pub fn router(state: AppState) -> Router {
 }
 
 async fn serve_index() -> impl IntoResponse {
-    let html = include_str!("../../static/index.html");
+    Html(include_str!("../../static/index.html"))
+}
+
+async fn serve_chart_js() -> impl IntoResponse {
     (
-        axum::http::StatusCode::OK,
-        [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
-        html,
+        StatusCode::OK,
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "application/javascript; charset=utf-8",
+        )],
+        include_str!("../../static/vendor/chart.umd.min.js"),
     )
 }
 
-async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
-    Json(json!({
-        "status": "ok",
-        "version": env!("CARGO_PKG_VERSION"),
-        "targets": state.cfg.targets.len(),
-    }))
+async fn health(State(state): State<AppState>) -> impl IntoResponse {
+    let runtime = state.runtime.read().await.clone();
+    let db_ok = state.db.ping().await.is_ok();
+    let shutting_down = state.is_shutting_down();
+    let ready = db_ok && !shutting_down && runtime.last_collection_ok.unwrap_or(false);
+
+    let status = if ready {
+        "ok"
+    } else if db_ok && !shutting_down {
+        "starting"
+    } else {
+        "degraded"
+    };
+
+    let http = if ready || status == "starting" {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+
+    (
+        http,
+        Json(json!({
+            "status": status,
+            "ready": ready,
+            "version": env!("CARGO_PKG_VERSION"),
+            "db": { "ok": db_ok },
+            "shutting_down": shutting_down,
+            "runtime": runtime,
+        })),
+    )
 }
 
-async fn latest(State(state): State<AppState>) -> Json<Vec<serde_json::Value>> {
-    let mut out = Vec::new();
-
-    // include a "system" snapshot from the most recent system row if present
-    if let Ok(Some(row)) = state.db.latest("system").await {
-        out.push(json!({
-            "type": "system",
-            "target": "system",
-            "cpu": row.cpu,
-            "memory_mb": row.memory_mb,
-            "disk_mb": row.disk_mb,
-            "network_rx": row.network_rx,
-            "network_tx": row.network_tx,
-            "timestamp": row.timestamp,
-        }));
-    }
-
-    for t in &state.cfg.targets {
-        if let Ok(Some(row)) = state.db.latest(&t.name).await {
-            out.push(json!({
-                "type": "target",
-                "target": row.target,
-                "name": row.target,
-                "status": if row.latency_ms.is_some() { "up" } else { "unknown" },
-                "latency_ms": row.latency_ms,
-                "http_requests": row.http_requests,
-                "cpu": row.cpu,
-                "memory_mb": row.memory_mb,
-                "disk_mb": row.disk_mb,
-                "network_rx": row.network_rx,
-                "network_tx": row.network_tx,
+async fn latest(State(state): State<AppState>) -> impl IntoResponse {
+    let mut system = Value::Null;
+    match state.db.latest_system().await {
+        Ok(Some(row)) => {
+            system = json!({
+                "type": "system",
                 "timestamp": row.timestamp,
-            }));
-        } else {
-            out.push(json!({
-                "type": "target",
-                "target": t.name,
-                "name": t.name,
-                "status": "unknown",
-                "latency_ms": null,
-                "http_requests": null,
-            }));
+                "cpu_percent": row.cpu_percent,
+                "mem_used_mb": row.mem_used_mb,
+                "mem_total_mb": row.mem_total_mb,
+                "mem_used_percent": row.mem_used_percent,
+                "disk_used_mb": row.disk_used_mb,
+                "disk_total_mb": row.disk_total_mb,
+                "disk_available_mb": row.disk_available_mb,
+                "disk_used_percent": row.disk_used_percent,
+                "net_rx_bytes": row.net_rx_bytes,
+                "net_tx_bytes": row.net_tx_bytes,
+                "net_rx_bytes_per_sec": row.net_rx_bytes_per_sec,
+                "net_tx_bytes_per_sec": row.net_tx_bytes_per_sec,
+            });
+        }
+        Ok(None) => {}
+        Err(e) => {
+            return api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "db_error",
+                &e.to_string(),
+            );
         }
     }
 
-    Json(out)
+    let mut targets = Vec::with_capacity(state.cfg.targets.len());
+    for t in &state.cfg.targets {
+        match state.db.latest_target(&t.name).await {
+            Ok(Some(row)) => targets.push(json!({
+                "type": "target",
+                "name": row.target,
+                "kind": row.kind,
+                "url": row.url,
+                "status": row.status,
+                "latency_ms": row.latency_ms,
+                "http_requests": row.http_requests,
+                "detail": row.detail,
+                "timestamp": row.timestamp,
+            })),
+            Ok(None) => targets.push(json!({
+                "type": "target",
+                "name": t.name,
+                "kind": t.kind.clone().unwrap_or_else(|| "generic".to_string()),
+                "url": t.url,
+                "status": "unknown",
+                "latency_ms": Value::Null,
+                "http_requests": Value::Null,
+                "detail": "no data yet",
+                "timestamp": Value::Null,
+            })),
+            Err(e) => {
+                return api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "db_error",
+                    &e.to_string(),
+                );
+            }
+        }
+    }
+
+    (
+        StatusCode::OK,
+        Json(json!({ "system": system, "targets": targets })),
+    )
+        .into_response()
 }
 
 async fn history(
     State(state): State<AppState>,
     Query(params): Query<HistoryParams>,
-) -> Json<serde_json::Value> {
+) -> impl IntoResponse {
     let target = params.target.unwrap_or_else(|| "system".to_string());
     let range = params.range.unwrap_or(24).clamp(1, 168);
 
-    match state.db.history(&target, range).await {
-        Ok(rows) => Json(json!(rows)),
-        Err(e) => Json(json!({ "error": e.to_string() })),
+    if target.trim().is_empty() {
+        return api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_target",
+            "target must not be empty",
+        );
+    }
+
+    if target == "system" {
+        match state.db.system_history(range).await {
+            Ok(rows) => {
+                return (
+                    StatusCode::OK,
+                    Json(json!({
+                        "target": "system",
+                        "range_hours": range,
+                        "points": rows,
+                    })),
+                )
+                    .into_response();
+            }
+            Err(e) => {
+                return api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "db_error",
+                    &e.to_string(),
+                );
+            }
+        }
+    }
+
+    if !state.cfg.targets.iter().any(|t| t.name == target) {
+        return api_error(
+            StatusCode::NOT_FOUND,
+            "target_not_found",
+            &format!("unknown target: {target}"),
+        );
+    }
+
+    match state.db.target_history(&target, range).await {
+        Ok(rows) => (
+            StatusCode::OK,
+            Json(json!({
+                "target": target,
+                "range_hours": range,
+                "points": rows,
+            })),
+        )
+            .into_response(),
+        Err(e) => api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "db_error",
+            &e.to_string(),
+        ),
     }
 }
 
-async fn get_config(State(state): State<AppState>) -> Json<serde_json::Value> {
-    Json(json!({
-        "port": state.cfg.port,
-        "db_path": state.cfg.db_path,
-        "interval_seconds": state.cfg.interval_seconds,
-        "targets": state.cfg.targets,
-    }))
+async fn get_config(State(state): State<AppState>) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(json!({
+            "version": env!("CARGO_PKG_VERSION"),
+            "port": state.cfg.port,
+            "db_path": state.cfg.db_path,
+            "interval_seconds": state.cfg.interval_seconds,
+            "retention_hours": state.cfg.retention_hours,
+            "request_timeout_secs": state.cfg.request_timeout_secs,
+            "targets": state.cfg.targets,
+        })),
+    )
+}
+
+fn api_error(status: StatusCode, code: &str, message: &str) -> axum::response::Response {
+    (
+        status,
+        Json(json!({
+            "error": {
+                "code": code,
+                "message": message,
+            }
+        })),
+    )
+        .into_response()
 }
