@@ -5,9 +5,11 @@
 [![size](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org)
 [![platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.os-linux.org)
 
-## 📊 Monitor Autohospedado para VPS Pequeños
+![TinyTop Dashboard](docs/dashboard.png)
 
-**TinyTop** es una herramienta de monitoreo autos alojada y ligera para servidores pequeños y VPS (512MB, 1GB). Recopila tráfico, latencia, CPU y memoria de aplicaciones configuradas y muestra gráficos simples en una interfaz dark mode moderna.
+## 📊 Monitor Autohospedado para VPS
+
+**TinyTop** es una herramienta de monitoreo autohospedada y ligera para servidores y VPS. Recopila tráfico, latencia, CPU y memoria de aplicaciones configuradas y muestra gráficos simples en una interfaz dark mode moderna.
 
 **Tamaño binario**: ~15-25MB estático  
 **Consumo RAM idle**: 8-12MB (ideal para VPS con recursos limitados)  
@@ -64,7 +66,7 @@ kind = "generic"
 
 ```bash
 # Clonar y compilar
-git clone https://github.com/tu-usuario/tinytop.git
+git clone https://github.com/dev1lsconf/tinytop.git
 cd tinytop
 cargo build --release  # ~2-5 minutos
 
@@ -77,12 +79,12 @@ cargo build --release  # ~2-5 minutos
 
 ```bash
 # Build y run con docker compose
-git clone https://github.com/tu-usuario/tinytop.git
+git clone https://github.com/dev1lsconf/tinytop.git
 cd tinytop
 docker compose up -d  # Puerto 9090 expuesto
 
 # Acceder: http://TU_IP:9090
-# Ver logs: docker logs -f tinytop
+# Ver logs: docker compose logs -f
 ```
 
 ### Opción 3: Script de instalación
@@ -95,15 +97,11 @@ brew install pvrlabs/tap/tinytop  # Si disponible
 
 ---
 
-## 📸 Capturas de Pantalla
+## 📸 Captura de Pantalla
 
-### Dashboard Principal
-![TinyTop Dashboard](static/dashboard-preview.png)
-*Interfaz dark mode con grids de estadísticas en tiempo real*
+![TinyTop Dashboard](docs/dashboard.png)
 
-### Gráficos 24h
-![TinyTop Charts](static/charts-preview.png)
-*Historial de CPU y Memory con Chart.js dark mode*
+*Dashboard dark mode con métricas de sistema (CPU/RAM/Disco/Red), gráficos históricos y estado de targets en tiempo real.*
 
 ### API Health
 ```bash
@@ -111,7 +109,7 @@ curl http://localhost:9090/api/health
 # {"status":"ok","version":"0.1.0","targets":1}
 
 curl http://localhost:9090/api/metrics/latest
-# [{"type":"system","cpu":45.2,"memory_mb":512.3},{"type":"target","name":"localhost","status":"up"}]
+# [{"type":"system","cpu":45.2,"memory_mb":384.3},{"type":"target","name":"localhost","status":"up"}]
 ```
 
 ---
@@ -171,7 +169,7 @@ curl http://localhost:9090/api/health
 
 # Latest metrics
 curl http://localhost:9090/api/metrics/latest
-[{"type":"system","cpu":45.2,"memory_mb":512.3,"disk_mb":8192.0},{"type":"target","name":"localhost","status":"up","latency_ms":12.5}]
+[{"type":"system","cpu":45.2,"memory_mb":384.3,"disk_mb":8192.0},{"type":"target","name":"localhost","status":"up","latency_ms":12.5}]
 
 # History 24h
 curl "http://localhost:9090/api/metrics/history?range=24&target=localhost"
@@ -253,6 +251,6 @@ Basado en el diseño de [statlite](https://github.com/PVRLabs/statlite), pero im
 
 ## 📬 Contacto
 
-- **GitHub**: [https://github.com/tu-usuario/tinytop](https://github.com/tu-usuario/tinytop)
-- **Issues**: [https://github.com/tu-usuario/tinytop/issues](https://github.com/tu-usuario/tinytop/issues)
-- **Discussion**: [https://github.com/tu-usuario/tinytop/discussions](https://github.com/tu-usuario/tinytop/discussions)
+- **GitHub**: [https://github.com/dev1lsconf/tinytop](https://github.com/dev1lsconf/tinytop)
+- **Issues**: [https://github.com/dev1lsconf/tinytop/issues](https://github.com/dev1lsconf/tinytop/issues)
+- **Discussions**: [https://github.com/dev1lsconf/tinytop/discussions](https://github.com/dev1lsconf/tinytop/discussions)
