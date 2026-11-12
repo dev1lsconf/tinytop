@@ -29,171 +29,204 @@
     </script>
     <style>
         body {
-            background-color: #09090b;
+            background:
+                radial-gradient(1200px 500px at 10% -10%, rgba(59,130,246,0.12), transparent 60%),
+                radial-gradient(900px 400px at 100% 0%, rgba(34,197,94,0.08), transparent 55%),
+                #09090b;
             color: #fafafa;
         }
         .card {
-            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 100%);
+            border: 1px solid rgba(255,255,255,0.07);
+            backdrop-filter: blur(6px);
         }
         .glow {
-            box-shadow: 0 0 20px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.02);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);
         }
         .progress-bar {
             background: linear-gradient(90deg, #18181b 0%, #27272a 100%);
-            height: 4px;
-            border-radius: 2px;
+            height: 6px;
+            border-radius: 999px;
             overflow: hidden;
         }
         .progress-fill {
             height: 100%;
-            border-radius: 2px;
+            border-radius: 999px;
             transition: width 0.5s ease;
         }
-        .sparkline {
-            stroke: none;
-            fill: url(#gradient);
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid transparent;
+        }
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: currentColor;
+            box-shadow: 0 0 0 4px currentColor;
+            opacity: 0.9;
         }
     </style>
 </head>
 <body class="font-sans min-h-screen p-4 md:p-8">
-    <!-- Header -->
     <header class="mb-8">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-white/10">
                     <svg class="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-xl font-semibold tracking-tight">TinyTop</h1>
-                    <p class="text-xs text-muted">VPS Monitor</p>
+                    <h1 class="text-2xl font-semibold tracking-tight">TinyTop</h1>
+                    <p class="text-xs text-muted">Monitor ligero de VPS · métricas en tiempo real</p>
                 </div>
             </div>
-            <div id="lastUpdate" class="text-xs text-muted"></div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <span id="healthBadge" class="badge bg-zinc-800/70 text-zinc-300 border-zinc-700/60" data-testid="health-badge">
+                    <span class="dot"></span><span id="healthText">Conectando…</span>
+                </span>
+                <button id="refreshBtn" data-testid="refresh-btn" class="px-3 py-1.5 text-xs rounded-lg border border-zinc-700/70 bg-zinc-900/60 hover:bg-zinc-800 transition-colors text-zinc-200">Actualizar</button>
+                <div class="text-xs text-muted">Actualizado: <span id="lastUpdate" data-testid="last-update">—</span></div>
+            </div>
         </div>
     </header>
 
+    <div id="errorBanner" data-testid="error-banner" class="hidden mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200"></div>
+
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <!-- CPU -->
-        <div class="card glow rounded-xl p-5">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" data-testid="stats-grid">
+        <div class="card glow rounded-xl p-5" data-testid="card-cpu">
             <div class="flex items-start justify-between mb-4">
                 <div>
                     <p class="text-xs text-muted uppercase tracking-wider">CPU</p>
                     <p class="text-2xl font-bold mt-1" id="cpuValue">--%</p>
+                    <p class="text-xs text-muted mt-1" id="cpuMeta">Uso del sistema</p>
                 </div>
-                <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
                     </svg>
                 </div>
             </div>
             <div class="progress-bar">
-                <div id="cpuBar" class="progress-fill bg-gradient-to-r from-blue-500 to-purple-500" style="width: 0%"></div>
+                <div id="cpuBar" class="progress-fill bg-gradient-to-r from-blue-500 to-violet-500" style="width: 0%"></div>
             </div>
         </div>
 
-        <!-- Memory -->
-        <div class="card glow rounded-xl p-5">
+        <div class="card glow rounded-xl p-5" data-testid="card-memory">
             <div class="flex items-start justify-between mb-4">
                 <div>
                     <p class="text-xs text-muted uppercase tracking-wider">RAM</p>
                     <p class="text-2xl font-bold mt-1" id="memoryValue">-- MB</p>
+                    <p class="text-xs text-muted mt-1" id="memoryMeta">Memoria en uso</p>
                 </div>
-                <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                     </svg>
                 </div>
             </div>
             <div class="progress-bar">
-                <div id="memoryBar" class="progress-fill bg-gradient-to-r from-green-500 to-emerald-500" style="width: 0%"></div>
+                <div id="memoryBar" class="progress-fill bg-gradient-to-r from-emerald-500 to-teal-400" style="width: 0%"></div>
             </div>
         </div>
 
-        <!-- Disk -->
-        <div class="card glow rounded-xl p-5">
+        <div class="card glow rounded-xl p-5" data-testid="card-disk">
             <div class="flex items-start justify-between mb-4">
                 <div>
                     <p class="text-xs text-muted uppercase tracking-wider">Disk</p>
                     <p class="text-2xl font-bold mt-1" id="diskValue">-- GB</p>
+                    <p class="text-xs text-muted mt-1" id="diskMeta">Espacio disponible</p>
                 </div>
-                <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
                     </svg>
                 </div>
             </div>
             <div class="progress-bar">
-                <div id="diskBar" class="progress-fill bg-gradient-to-r from-orange-500 to-red-500" style="width: 0%"></div>
+                <div id="diskBar" class="progress-fill bg-gradient-to-r from-amber-500 to-orange-500" style="width: 0%"></div>
             </div>
         </div>
 
-        <!-- Network -->
-        <div class="card glow rounded-xl p-5">
+        <div class="card glow rounded-xl p-5" data-testid="card-network">
             <div class="flex items-start justify-between mb-4">
                 <div>
                     <p class="text-xs text-muted uppercase tracking-wider">Network</p>
-                    <p class="text-sm font-semibold mt-1"><span id="rxValue">0</span> KB/s <span class="text-muted text-xs">↓</span> / <span id="txValue">0</span> KB/s <span class="text-muted text-xs">↑</span></p>
+                    <p class="text-xl font-bold mt-1"><span id="rxValue">--</span> <span class="text-muted text-xs font-medium">↓ RX</span></p>
+                    <p class="text-sm text-zinc-300 mt-1"><span id="txValue">--</span> <span class="text-muted text-xs font-medium">↑ TX</span></p>
                 </div>
-                <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
                     </svg>
                 </div>
             </div>
-            <div class="flex gap-1 h-2">
-                <div class="flex-1 bg-green-500/20 rounded-full"></div>
-                <div class="flex-1 bg-green-500/40 rounded-full"></div>
-                <div class="flex-1 bg-green-500/60 rounded-full"></div>
-            </div>
+            <p class="text-xs text-muted">Totales acumulados por interfaz</p>
         </div>
     </div>
 
     <!-- Charts Section -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <!-- CPU Chart -->
-        <div class="card glow rounded-xl p-5">
+        <div class="card glow rounded-xl p-5" data-testid="chart-cpu-card">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="font-medium">CPU Usage</h3>
-                <span class="text-xs text-muted">Last 24 hours</span>
+                <div>
+                    <h3 class="font-medium">CPU Usage</h3>
+                    <p class="text-xs text-muted">Histórico · sistema</p>
+                </div>
+                <span id="cpuChartMeta" class="text-xs text-muted">—</span>
             </div>
             <div class="relative" style="height: 220px; max-height: 220px;">
                 <canvas id="cpuChart"></canvas>
+                <div id="cpuChartEmpty" class="hidden absolute inset-0 flex items-center justify-center text-sm text-muted">Sin datos aún</div>
             </div>
         </div>
 
-        <!-- Memory Chart -->
-        <div class="card glow rounded-xl p-5">
+        <div class="card glow rounded-xl p-5" data-testid="chart-memory-card">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="font-medium">Memory Usage</h3>
-                <span class="text-xs text-muted">Last 24 hours</span>
+                <div>
+                    <h3 class="font-medium">Memory Usage</h3>
+                    <p class="text-xs text-muted">Histórico · sistema</p>
+                </div>
+                <span id="memoryChartMeta" class="text-xs text-muted">—</span>
             </div>
             <div class="relative" style="height: 220px; max-height: 220px;">
                 <canvas id="memoryChart"></canvas>
+                <div id="memoryChartEmpty" class="hidden absolute inset-0 flex items-center justify-center text-sm text-muted">Sin datos aún</div>
             </div>
         </div>
     </div>
 
     <!-- Targets Table -->
-    <div class="card glow rounded-xl p-5">
-        <h3 class="font-medium mb-4">Monitored Targets</h3>
+    <div class="card glow rounded-xl p-5" data-testid="targets-card">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="font-medium">Monitored Targets</h3>
+                <p class="text-xs text-muted">Estado de endpoints configurados</p>
+            </div>
+            <span id="targetsCount" class="text-xs text-muted">—</span>
+        </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
-                    <tr class="text-left text-muted">
+                    <tr class="text-left text-muted border-b border-zinc-800/80">
                         <th class="pb-3 font-medium">Target</th>
-                        <th class="pb-3 font-medium">Status</th>
-                        <th class="pb-3 font-medium">Latency</th>
+                        <th class="pb-3 font-medium">Estado</th>
+                        <th class="pb-3 font-medium">Latencia</th>
                         <th class="pb-3 font-medium">Requests</th>
-                        <th class="pb-3 font-medium text-right">Updated</th>
+                        <th class="pb-3 font-medium text-right">Actualizado</th>
                     </tr>
                 </thead>
-                <tbody id="targetsTable">
+                <tbody id="targetsTable" data-testid="targets-table">
                     <tr>
-                        <td colspan="5" class="py-8 text-center text-muted">Loading targets...</td>
+                        <td colspan="5" class="py-8 text-center text-muted">Cargando targets...</td>
                     </tr>
                 </tbody>
             </table>
@@ -201,7 +234,6 @@
     </div>
 
     <script>
-        // Chart configurations
         const chartOptions = {
             responsive: true,
             maintainAspectRatio: false,
@@ -214,12 +246,13 @@
                     padding: 12,
                     titleFont: { size: 13 },
                     bodyFont: { size: 12 },
+                    displayColors: false
                 }
             },
             scales: {
                 x: {
                     grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#71717a', font: { size: 11 } }
+                    ticks: { color: '#71717a', font: { size: 11 }, maxTicksLimit: 8 }
                 },
                 y: {
                     grid: { color: 'rgba(255,255,255,0.05)' },
@@ -228,12 +261,11 @@
                 }
             },
             elements: {
-                line: { tension: 0.4 },
+                line: { tension: 0.35 },
                 point: { radius: 0, hoverRadius: 4 }
             }
         };
 
-        // Initialize charts
         const cpuCtx = document.getElementById('cpuChart').getContext('2d');
         const memoryCtx = document.getElementById('memoryChart').getContext('2d');
 
@@ -294,24 +326,73 @@
         });
 
         function fmtTs(ts) {
-            return ts ? new Date(ts).toLocaleTimeString() : '—';
+            if (!ts) return '—';
+            const d = new Date(ts);
+            return isNaN(d) ? String(ts) : d.toLocaleString();
+        }
+
+        function fmtBytes(bytes) {
+            const n = Number(bytes || 0);
+            if (n < 1024) return `${n.toFixed(0)} B`;
+            const kb = n / 1024;
+            if (kb < 1024) return `${kb.toFixed(1)} KB`;
+            const mb = kb / 1024;
+            if (mb < 1024) return `${mb.toFixed(1)} MB`;
+            const gb = mb / 1024;
+            if (gb < 1024) return `${gb.toFixed(2)} GB`;
+            return `${(gb / 1024).toFixed(2)} TB`;
+        }
+
+        function setHealth(state, text) {
+            const badge = document.getElementById('healthBadge');
+            const label = document.getElementById('healthText');
+            label.textContent = text;
+            badge.className = 'badge ' + ({
+                ok: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+                warn: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+                err: 'bg-red-500/10 text-red-300 border-red-500/30',
+                loading: 'bg-zinc-800/70 text-zinc-300 border-zinc-700/60'
+            }[state] || 'bg-zinc-800/70 text-zinc-300 border-zinc-700/60');
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorBanner');
+            if (!msg) {
+                el.classList.add('hidden');
+                el.textContent = '';
+                return;
+            }
+            el.textContent = msg;
+            el.classList.remove('hidden');
         }
 
         async function fetchMetrics() {
             try {
-                const res = await fetch('/api/metrics/latest');
+                const res = await fetch('/api/metrics/latest', { cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                updateDashboard(data);
-                updateTime();
+                updateDashboard(Array.isArray(data) ? data : []);
+                showError('');
+                setHealth('ok', 'En línea');
             } catch (e) {
                 console.error('Failed to fetch metrics:', e);
+                setHealth('err', 'Sin conexión');
+                showError('No se pudieron cargar las métricas. Reintentando automáticamente.');
+            } finally {
+                updateTime();
             }
         }
 
-        function updateDashboard(data) {
-            if (!Array.isArray(data) || data.length === 0) return;
+        function statusBadge(status) {
+            const s = String(status || 'unknown').toLower();
+            if (s === 'up') return ['bg-emerald-500/15 text-emerald-300 border-emerald-500/30', 'UP'];
+            if (s.startsWith('down')) return ['bg-red-500/15 text-red-300 border-red-500/30', 'DOWN'];
+            if (s.startsWith('error')) return ['bg-red-500/15 text-red-300 border-red-500/30', 'ERROR'];
+            return ['bg-zinc-700/40 text-zinc-300 border-zinc-600/50', s.toUpperCase()];
+        }
 
-            const system = data.find(item => item.type === 'system') || data[0];
+        function updateDashboard(data) {
+            const system = data.find(item => item.type === 'system') || {};
             const targets = data.filter(item => item.type === 'target');
 
             const cpu = Number(system.cpu || 0);
@@ -320,39 +401,43 @@
             const rx = Number(system.network_rx || 0);
             const tx = Number(system.network_tx || 0);
 
-            document.getElementById('cpuValue').textContent = cpu.toFixed(1) + '%';
-            document.getElementById('cpuBar').style.width = Math.min(cpu, 100) + '%';
+            document.getElementById('cpuValue').textContent = `${cpu.toFixed(1)}%`;
+            document.getElementById('cpuBar').style.width = `${Math.min(Math.max(cpu, 0), 100)}%`;
+            document.getElementById('cpuMeta').textContent = cpu > 80 ? 'Uso alto' : cpu > 50 ? 'Uso moderado' : 'Uso normal';
 
-            document.getElementById('memoryValue').textContent = memMB.toFixed(0) + ' MB';
-            document.getElementById('memoryBar').style.width = Math.min(memMB / 10, 100) + '%';
+            document.getElementById('memoryValue').textContent = `${memMB.toFixed(0)} MB`;
+            document.getElementById('memoryBar').style.width = `${Math.min(Math.max(memMB / 1024, 0) * 10, 100)}%`;
+            document.getElementById('memoryMeta').textContent = 'Memoria en uso (sistema)';
 
             const diskGB = diskMB / 1024;
-            document.getElementById('diskValue').textContent = diskGB.toFixed(1) + ' GB';
-            document.getElementById('diskBar').style.width = Math.min(diskGB, 100) + '%';
+            document.getElementById('diskValue').textContent = `${diskGB.toFixed(1)} GB`;
+            document.getElementById('diskBar').style.width = `${Math.min(Math.max(diskGB / 100, 0) * 10, 100)}%`;
+            document.getElementById('diskMeta').textContent = 'Espacio disponible total';
 
-            document.getElementById('rxValue').textContent = (rx / 1024).toFixed(0);
-            document.getElementById('txValue').textContent = (tx / 1024).toFixed(0);
+            document.getElementById('rxValue').textContent = fmtBytes(rx);
+            document.getElementById('txValue').textContent = fmtBytes(tx);
 
             const tbody = document.getElementById('targetsTable');
+            document.getElementById('targetsCount').textContent = `${targets.length} target${targets.length === 1 ? '' : 's'}`;
             if (targets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-muted">No targets configured</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-muted">No hay targets configurados</td></tr>';
                 return;
             }
 
             tbody.innerHTML = targets.map(t => {
-                const status = t.status || 'unknown';
-                const ok = status === 'up';
-                const badge = ok
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-red-500/20 text-red-400';
-                const latency = t.latency_ms != null ? (Number(t.latency_ms)).toFixed(1) + ' ms' : '—';
+                const [cls, label] = statusBadge(t.status);
+                const latency = t.latency_ms != null ? `${Number(t.latency_ms).toFixed(1)} ms` : '—';
                 const reqs = t.http_requests != null ? t.http_requests : '—';
+                const name = t.name || t.target || 'unknown';
                 return `
-                    <tr class="border-t border-zinc-800/80">
-                        <td class="py-3">${t.name || t.target || 'unknown'}</td>
-                        <td class="py-3"><span class="px-2 py-1 rounded text-xs ${badge}">${status}</span></td>
-                        <td class="py-3">${latency}</td>
-                        <td class="py-3">${reqs}</td>
+                    <tr class="border-t border-zinc-800/80 hover:bg-white/[0.02] transition-colors">
+                        <td class="py-3 pr-3">
+                            <div class="font-medium text-zinc-100">${name}</div>
+                            <div class="text-xs text-muted">HTTP target</div>
+                        </td>
+                        <td class="py-3"><span class="badge border ${cls}">${label}</span></td>
+                        <td class="py-3 text-zinc-200">${latency}</td>
+                        <td class="py-3 text-zinc-200">${reqs}</td>
                         <td class="py-3 text-right text-muted">${fmtTs(t.timestamp)}</td>
                     </tr>`;
             }).join('');
@@ -364,13 +449,23 @@
 
         async function loadHistory() {
             try {
-                const res = await fetch('/api/metrics/history?range=24&target=system');
+                const res = await fetch('/api/metrics/history?range=24&target=system', { cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                if (!Array.isArray(data) || data.length === 0) return;
+                if (!Array.isArray(data) || data.length === 0) {
+                    document.getElementById('cpuChartEmpty').classList.remove('hidden');
+                    document.getElementById('memoryChartEmpty').classList.remove('hidden');
+                    document.getElementById('cpuChartMeta').textContent = '0 puntos';
+                    document.getElementById('memoryChartMeta').textContent = '0 puntos';
+                    return;
+                }
+
+                document.getElementById('cpuChartEmpty').classList.add('hidden');
+                document.getElementById('memoryChartEmpty').classList.add('hidden');
 
                 const labels = data.map(row => {
                     const d = new Date(row.timestamp);
-                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 });
                 const cpuData = data.map(row => Number(row.cpu || 0));
                 const memData = data.map(row => Number(row.memory_mb || 0));
@@ -382,19 +477,26 @@
                 memoryChart.data.labels = labels;
                 memoryChart.data.datasets[0].data = memData;
                 memoryChart.update();
+
+                document.getElementById('cpuChartMeta').textContent = `${data.length} puntos`;
+                document.getElementById('memoryChartMeta').textContent = `${data.length} puntos`;
             } catch (e) {
                 console.error('Failed to load history:', e);
             }
         }
 
         async function refresh() {
+            setHealth('loading', 'Actualizando…');
             await fetchMetrics();
             await loadHistory();
         }
 
-        // Initial load
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            refresh();
+        });
+
         refresh();
-        setInterval(refresh, 30000); // Refresh every 30 seconds
+        setInterval(refresh, 30000);
     </script>
 </body>
 </html>
