@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TinyTop - VPS Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        background: '#09090b',
+                        surface: '#111113',
+                        border: '#27272a',
+                        muted: '#71717a',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #09090b;
+            color: #fafafa;
+        }
+        .card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .glow {
+            box-shadow: 0 0 20px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.02);
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #18181b 0%, #27272a 100%);
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+        .sparkline {
+            stroke: none;
+            fill: url(#gradient);
+        }
+    </style>
+</head>
+<body class="font-sans min-h-screen p-4 md:p-8">
+    <!-- Header -->
+    <header class="mb-8">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                    <svg class="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-semibold tracking-tight">TinyTop</h1>
+                    <p class="text-xs text-muted">VPS Monitor</p>
+                </div>
+            </div>
+            <div id="lastUpdate" class="text-xs text-muted"></div>
+        </div>
+    </header>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- CPU -->
+        <div class="card glow rounded-xl p-5">
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <p class="text-xs text-muted uppercase tracking-wider">CPU</p>
+                    <p class="text-2xl font-bold mt-1" id="cpuValue">--%</p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div id="cpuBar" class="progress-fill bg-gradient-to-r from-blue-500 to-purple-500" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Memory -->
+        <div class="card glow rounded-xl p-5">
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <p class="text-xs text-muted uppercase tracking-wider">RAM</p>
+                    <p class="text-2xl font-bold mt-1" id="memoryValue">-- MB</p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div id="memoryBar" class="progress-fill bg-gradient-to-r from-green-500 to-emerald-500" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Disk -->
+        <div class="card glow rounded-xl p-5">
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <p class="text-xs text-muted uppercase tracking-wider">Disk</p>
+                    <p class="text-2xl font-bold mt-1" id="diskValue">-- GB</p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div id="diskBar" class="progress-fill bg-gradient-to-r from-orange-500 to-red-500" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Network -->
+        <div class="card glow rounded-xl p-5">
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <p class="text-xs text-muted uppercase tracking-wider">Network</p>
+                    <p class="text-sm font-semibold mt-1"><span id="rxValue">0</span> KB/s <span class="text-muted text-xs">↓</span> / <span id="txValue">0</span> KB/s <span class="text-muted text-xs">↑</span></p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="flex gap-1 h-2">
+                <div class="flex-1 bg-green-500/20 rounded-full"></div>
+                <div class="flex-1 bg-green-500/40 rounded-full"></div>
+                <div class="flex-1 bg-green-500/60 rounded-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- CPU Chart -->
+        <div class="card glow rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-medium">CPU Usage</h3>
+                <span class="text-xs text-muted">Last 24 hours</span>
+            </div>
+            <div class="relative" style="height: 220px; max-height: 220px;">
+                <canvas id="cpuChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Memory Chart -->
+        <div class="card glow rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-medium">Memory Usage</h3>
+                <span class="text-xs text-muted">Last 24 hours</span>
+            </div>
+            <div class="relative" style="height: 220px; max-height: 220px;">
+                <canvas id="memoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Targets Table -->
+    <div class="card glow rounded-xl p-5">
+        <h3 class="font-medium mb-4">Monitored Targets</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-muted">
+                        <th class="pb-3 font-medium">Target</th>
+                        <th class="pb-3 font-medium">Status</th>
+                        <th class="pb-3 font-medium">Latency</th>
+                        <th class="pb-3 font-medium">Requests</th>
+                        <th class="pb-3 font-medium text-right">Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="targetsTable">
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-muted">Loading targets...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Chart configurations
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#18181b',
+                    borderColor: '#27272a',
+                    borderWidth: 1,
+                    padding: 12,
+                    titleFont: { size: 13 },
+                    bodyFont: { size: 12 },
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#71717a', font: { size: 11 } }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#71717a', font: { size: 11 } },
+                    beginAtZero: true
+                }
+            },
+            elements: {
+                line: { tension: 0.4 },
+                point: { radius: 0, hoverRadius: 4 }
+            }
+        };
+
+        // Initialize charts
+        const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+        const memoryCtx = document.getElementById('memoryChart').getContext('2d');
+
+        const gradientCpu = cpuCtx.createLinearGradient(0, 0, 0, 220);
+        gradientCpu.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+        gradientCpu.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+        const gradientMem = memoryCtx.createLinearGradient(0, 0, 0, 220);
+        gradientMem.addColorStop(0, 'rgba(34, 197, 94, 0.3)');
+        gradientMem.addColorStop(1, 'rgba(34, 197, 94, 0)');
+
+        let cpuChart = new Chart(cpuCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CPU %',
+                    data: [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: gradientCpu,
+                    borderWidth: 2,
+                    fill: true,
+                    pointRadius: 2,
+                    pointHoverRadius: 4,
+                    tension: 0.35
+                }]
+            },
+            options: {
+                ...chartOptions,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    ...chartOptions.scales,
+                    y: { ...chartOptions.scales.y, min: 0, max: 100 }
+                }
+            }
+        });
+
+        let memoryChart = new Chart(memoryCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Memory (MB)',
+                    data: [],
+                    borderColor: '#22c55e',
+                    backgroundColor: gradientMem,
+                    borderWidth: 2,
+                    fill: true,
+                    pointRadius: 2,
+                    pointHoverRadius: 4,
+                    tension: 0.35
+                }]
+            },
+            options: {
+                ...chartOptions,
+                interaction: { mode: 'index', intersect: false }
+            }
+        });
+
+        function fmtTs(ts) {
+            return ts ? new Date(ts).toLocaleTimeString() : '—';
+        }
+
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/metrics/latest');
+                const data = await res.json();
+                updateDashboard(data);
+                updateTime();
+            } catch (e) {
+                console.error('Failed to fetch metrics:', e);
+            }
+        }
+
+        function updateDashboard(data) {
+            if (!Array.isArray(data) || data.length === 0) return;
+
+            const system = data.find(item => item.type === 'system') || data[0];
+            const targets = data.filter(item => item.type === 'target');
+
+            const cpu = Number(system.cpu || 0);
+            const memMB = Number(system.memory_mb || 0);
+            const diskMB = Number(system.disk_mb || 0);
+            const rx = Number(system.network_rx || 0);
+            const tx = Number(system.network_tx || 0);
+
+            document.getElementById('cpuValue').textContent = cpu.toFixed(1) + '%';
+            document.getElementById('cpuBar').style.width = Math.min(cpu, 100) + '%';
+
+            document.getElementById('memoryValue').textContent = memMB.toFixed(0) + ' MB';
+            document.getElementById('memoryBar').style.width = Math.min(memMB / 10, 100) + '%';
+
+            const diskGB = diskMB / 1024;
+            document.getElementById('diskValue').textContent = diskGB.toFixed(1) + ' GB';
+            document.getElementById('diskBar').style.width = Math.min(diskGB, 100) + '%';
+
+            document.getElementById('rxValue').textContent = (rx / 1024).toFixed(0);
+            document.getElementById('txValue').textContent = (tx / 1024).toFixed(0);
+
+            const tbody = document.getElementById('targetsTable');
+            if (targets.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-muted">No targets configured</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = targets.map(t => {
+                const status = t.status || 'unknown';
+                const ok = status === 'up';
+                const badge = ok
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'bg-red-500/20 text-red-400';
+                const latency = t.latency_ms != null ? (Number(t.latency_ms)).toFixed(1) + ' ms' : '—';
+                const reqs = t.http_requests != null ? t.http_requests : '—';
+                return `
+                    <tr class="border-t border-zinc-800/80">
+                        <td class="py-3">${t.name || t.target || 'unknown'}</td>
+                        <td class="py-3"><span class="px-2 py-1 rounded text-xs ${badge}">${status}</span></td>
+                        <td class="py-3">${latency}</td>
+                        <td class="py-3">${reqs}</td>
+                        <td class="py-3 text-right text-muted">${fmtTs(t.timestamp)}</td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function updateTime() {
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/metrics/history?range=24&target=system');
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) return;
+
+                const labels = data.map(row => {
+                    const d = new Date(row.timestamp);
+                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                });
+                const cpuData = data.map(row => Number(row.cpu || 0));
+                const memData = data.map(row => Number(row.memory_mb || 0));
+
+                cpuChart.data.labels = labels;
+                cpuChart.data.datasets[0].data = cpuData;
+                cpuChart.update();
+
+                memoryChart.data.labels = labels;
+                memoryChart.data.datasets[0].data = memData;
+                memoryChart.update();
+            } catch (e) {
+                console.error('Failed to load history:', e);
+            }
+        }
+
+        async function refresh() {
+            await fetchMetrics();
+            await loadHistory();
+        }
+
+        // Initial load
+        refresh();
+        setInterval(refresh, 30000); // Refresh every 30 seconds
+    </script>
+</body>
+</html>

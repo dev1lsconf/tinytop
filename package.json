@@ -1,0 +1,18 @@
+{
+  "name": "tinytop",
+  "version": "1.0.0",
+  "description": "[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![build](https://img.shields.io/badge/build-passing-success.svg)](https://github.com/pvrlabs/statlite) [![size](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org) [![platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.os-linux.org)",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "node tests/ui-check.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "playwright": "^1.65.0"
+  }
+}

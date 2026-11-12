@@ -1,0 +1,13 @@
+port = 9090
+db_path = "tinytop.db"
+interval_seconds = 30
+
+[[targets]]
+name = "localhost"
+url = "http://localhost:8080/actuator/metrics"
+kind = "spring-boot"
+
+[[targets]]
+name = "api"
+url = "http://localhost:3000/api/health"
+kind = "generic"

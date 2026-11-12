@@ -1,0 +1,7 @@
+/target
+node_modules
+/test-results
+/playwright-report
+/tests/dashboard*.png
+/tests/*.png
+*.db

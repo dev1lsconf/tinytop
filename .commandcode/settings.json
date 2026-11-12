@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(npx playwright test 2 >& 1)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

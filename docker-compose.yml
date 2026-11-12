@@ -1,0 +1,16 @@
+services:
+  tinytop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tinytop:dev
+    container_name: tinytop-dev
+    volumes:
+      - ./config.toml:/app/config.toml
+      - ./tinytop.db:/app/tinytop.db
+    working_dir: /app
+    environment:
+      - TINYTOP_CONFIG=/app/config.toml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
