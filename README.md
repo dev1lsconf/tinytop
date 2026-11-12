@@ -1,7 +1,6 @@
 # TinyTop - Monitor VPS Ligero en Rust
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![build](https://img.shields.io/badge/build-passing-success.svg)](https://github.com/pvrlabs/statlite)
 [![size](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org)
 [![platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.os-linux.org)
 
@@ -91,8 +90,6 @@ docker compose up -d  # Puerto 9090 expuesto
 
 ```bash
 curl -fsSL https://tu-dominio.com/install.sh | sh
-# O el script oficial:
-brew install pvrlabs/tap/tinytop  # Si disponible
 ```
 
 ---
@@ -235,13 +232,10 @@ services:
 
 **MIT** - Copyright (c) 2026 TinyTop Contributors
 
-Basado en el diseño de [statlite](https://github.com/PVRLabs/statlite), pero implementado completamente en Rust para mejor performance y seguridad de memoria.
-
 ---
 
 ## 🙏 Agradecimientos
 
-- [PVRLabs/statlite](https://github.com/PVRLabs/statlite) - Inspiración original
 - [Rust Language](https://www.rust-lang.org) - Lenguaje de programación
 - [Axum](https://github.com/tokio-rs/axum) - Framework HTTP
 - [Chart.js](https://chartjs.org) - Gráficos visuales
