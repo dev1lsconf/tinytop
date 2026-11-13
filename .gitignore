@@ -5,3 +5,4 @@ node_modules
 /tests/dashboard*.png
 /tests/*.png
 *.db
+/docs/dashboard-*.png
