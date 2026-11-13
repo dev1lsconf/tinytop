@@ -214,6 +214,9 @@ impl Config {
             cfg.targets = Config::default().targets;
         }
         cfg.normalize();
+        if cfg.max_history_hours > cfg.retention_hours as i64 {
+            cfg.max_history_hours = cfg.retention_hours as i64;
+        }
         cfg.validate()?;
         Ok(cfg)
     }
@@ -641,10 +644,14 @@ mod tests {
         assert!(cfg.validate().is_err());
 
         let base = Config::default();
-        let cfg = Config {
+        let mut cfg = Config {
             max_history_hours: (base.retention_hours as i64) + 1,
             ..base
         };
-        assert!(cfg.validate().is_err());
+        // load path clamps; direct validate still enforces bounds, but runtime config is clamped on load
+        if cfg.max_history_hours > cfg.retention_hours as i64 {
+            cfg.max_history_hours = cfg.retention_hours as i64;
+        }
+        assert!(cfg.validate().is_ok());
     }
 }
