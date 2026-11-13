@@ -4,6 +4,28 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.0] - 2026-11-13
+
+> Primera versión estable (SemVer 1.0.0): API/configuración, instalación y documentación consolidadas.
+
+### Añadido
+- Modo **TUI** interactivo en terminal (`--tui`) con vistas de sistema/targets/alertas/eventos, métricas extendidas, sparklines de histórico y selección de rango/target.
+- Flags de CLI `--help`/`-h`, `--version`/`-V`, `--config <PATH>`, `--check-config`.
+- Métricas de sistema extendidas (best-effort): load average, swap, uptime, I/O de disco, temperatura y top de procesos.
+- Checks de targets adicionales: `tcp`, `ping` y `tls` (con latencia y días de certificado, best-effort).
+- Alertas e incidentes configurables (sistema/targets/latencia/cert) con historial y eventos, y notificaciones opcionales (webhook, Telegram, ntfy).
+- API ampliada: `/api/alerts`, `/api/events`, `/api/export` (JSON/CSV), `/metrics` (Prometheus) y campos extendidos en métricas/config (redactada).
+- Autenticación opcional (Bearer/`X-API-Key`/`?token=` o Basic) y recarga de configuración por `SIGHUP` (Unix).
+- Rollups/downsampling de métricas e índices/migración `20241202000002_extended_metrics`.
+- Dashboard web con métricas extendidas, alertas/eventos y exportación.
+- Pruebas: integración de API (endpoints, auth/redacción, export/errores, Prometheus), cobertura de collector/probes y alertas, DB/rollups/retención y smoke e2e de la TUI en PTY.
+- Empaquetado y distribución: release multi-arch con binarios Linux (x86_64, aarch64, musl) y *BSD, paquetes `.deb`/`.rpm`, imagen Docker multi-arch (amd64/arm64), plantillas Homebrew/AUR, unidad systemd y plantillas rc.d/notas para *BSD.
+- Documentación operativa ampliada (`docs/ADVANCED.md`, ejemplos, notas de empaquetado y contribución).
+
+### Cambiado
+- Hardening de validaciones y comportamiento de API/config: coherencia de `max_history_hours`/`retention_hours` (acotada al cargar), validación de formato/target en exportación y respuestas JSON consistentes.
+- Versión del proyecto y artefactos actualizada a `1.0.0`.
+
 ## [0.1.0] - 2026-11-13
 
 > Bump MENOR (SemVer): nuevas funcionalidades compatibles con versiones anteriores.

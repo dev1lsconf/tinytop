@@ -1,6 +1,6 @@
 # Maintainer: TinyTop Contributors <noreply@commandcode.ai>
 pkgname=tinytop
-pkgver=0.1.0
+pkgver=1.0.0
 pkgrel=1
 pkgdesc="Lightweight self-hosted system and target monitor (single binary, SQLite, web dashboard and TUI)"
 arch=('x86_64' 'aarch64')
@@ -11,8 +11,8 @@ provides=('tinytop')
 conflicts=('tinytop')
 source_x86_64=("tinytop-v${pkgver}-linux-x86_64.tar.gz::${url}/releases/download/v${pkgver}/tinytop-v${pkgver}-linux-x86_64.tar.gz")
 source_aarch64=("tinytop-v${pkgver}-linux-aarch64.tar.gz::${url}/releases/download/v${pkgver}/tinytop-v${pkgver}-linux-aarch64.tar.gz")
-sha256sums_x86_64=('fffa68631c73b371f35ae760583fb51d8660a56081b3826db9d808dc66a72f2c')
-sha256sums_aarch64=('20eb5a90c8e67d1ebdcdeef0dd4b5ab2a4a84cb47d0074d1eceefe2960112ebc')
+sha256sums_x86_64=('REPLACE_WITH_LINUX_X86_64_SHA256')
+sha256sums_aarch64=('REPLACE_WITH_LINUX_AARCH64_SHA256')
 
 package() {
   cd "$srcdir"
