@@ -60,6 +60,7 @@ async fn main() -> anyhow::Result<()> {
     let cfg = config::Config::load()?;
     tracing::info!(
         version = env!("CARGO_PKG_VERSION"),
+        bind = %cfg.bind,
         port = cfg.port,
         db_path = %cfg.db_path,
         interval_seconds = cfg.interval_seconds,
@@ -92,9 +93,9 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let app = web::create_router(db.clone(), cfg.clone(), runtime.clone(), shutdown.clone());
-    let addr = format!("0.0.0.0:{}", cfg.port);
+    let addr = format!("{}:{}", cfg.bind, cfg.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    tracing::info!("listening on http://{}", addr);
+    tracing::info!(%addr, "listening");
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal(shutdown.clone()))

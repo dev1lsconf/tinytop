@@ -153,7 +153,8 @@ async fn history(
     Query(params): Query<HistoryParams>,
 ) -> impl IntoResponse {
     let target = params.target.unwrap_or_else(|| "system".to_string());
-    let range = params.range.unwrap_or(24).clamp(1, 168);
+    let max_range = state.cfg.max_history_hours.max(1).min(state.cfg.retention_hours as i64);
+    let range = params.range.unwrap_or(24).clamp(1, max_range);
 
     if target.trim().is_empty() {
         return api_error(
@@ -217,10 +218,12 @@ async fn get_config(State(state): State<AppState>) -> impl IntoResponse {
         StatusCode::OK,
         Json(json!({
             "version": env!("CARGO_PKG_VERSION"),
+            "bind": state.cfg.bind,
             "port": state.cfg.port,
             "db_path": state.cfg.db_path,
             "interval_seconds": state.cfg.interval_seconds,
             "retention_hours": state.cfg.retention_hours,
+            "max_history_hours": state.cfg.max_history_hours,
             "request_timeout_secs": state.cfg.request_timeout_secs,
             "targets": state.cfg.targets,
         })),

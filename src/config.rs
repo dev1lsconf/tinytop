@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default = "default_bind")]
+    pub bind: String,
     #[serde(default = "default_port")]
     pub port: u16,
     #[serde(default = "default_db_path")]
@@ -15,6 +17,8 @@ pub struct Config {
     pub retention_hours: u64,
     #[serde(default = "default_request_timeout_secs")]
     pub request_timeout_secs: u64,
+    #[serde(default = "default_max_history_hours")]
+    pub max_history_hours: i64,
     #[serde(default)]
     pub targets: Vec<Target>,
 }
@@ -27,6 +31,9 @@ pub struct Target {
     pub kind: Option<String>,
 }
 
+fn default_bind() -> String {
+    "0.0.0.0".to_string()
+}
 fn default_port() -> u16 {
     9090
 }
@@ -42,15 +49,20 @@ fn default_retention_hours() -> u64 {
 fn default_request_timeout_secs() -> u64 {
     5
 }
+fn default_max_history_hours() -> i64 {
+    168
+}
 
 impl Default for Config {
     fn default() -> Self {
         Self {
+            bind: default_bind(),
             port: default_port(),
             db_path: default_db_path(),
             interval_seconds: default_interval(),
             retention_hours: default_retention_hours(),
             request_timeout_secs: default_request_timeout_secs(),
+            max_history_hours: default_max_history_hours(),
             targets: vec![Target {
                 name: "localhost".to_string(),
                 url: "http://localhost:8080/actuator/health".to_string(),
@@ -85,6 +97,9 @@ impl Config {
     }
 
     fn apply_env_overrides(&mut self) -> anyhow::Result<()> {
+        if let Ok(v) = std::env::var("TINYTOP_BIND") {
+            self.bind = v;
+        }
         if let Ok(v) = std::env::var("TINYTOP_PORT") {
             self.port = v.parse().context("invalid TINYTOP_PORT")?;
         }
@@ -101,10 +116,16 @@ impl Config {
             self.request_timeout_secs =
                 v.parse().context("invalid TINYTOP_REQUEST_TIMEOUT_SECS")?;
         }
+        if let Ok(v) = std::env::var("TINYTOP_MAX_HISTORY_HOURS") {
+            self.max_history_hours = v.parse().context("invalid TINYTOP_MAX_HISTORY_HOURS")?;
+        }
         Ok(())
     }
 
     pub fn validate(&self) -> anyhow::Result<()> {
+        if self.bind.trim().is_empty() {
+            bail!("bind must not be empty");
+        }
         if self.port == 0 {
             bail!("port must be greater than 0");
         }
@@ -117,21 +138,30 @@ impl Config {
         if self.retention_hours == 0 {
             bail!("retention_hours must be greater than 0");
         }
+        if self.max_history_hours <= 0 {
+            bail!("max_history_hours must be greater than 0");
+        }
         if self.db_path.trim().is_empty() {
             bail!("db_path must not be empty");
         }
 
         let mut names = HashSet::new();
         for t in &self.targets {
-            if t.name.trim().is_empty() {
+            let name = t.name.trim();
+            if name.is_empty() {
                 bail!("target name must not be empty");
             }
-            if !names.insert(t.name.clone()) {
+            if !names.insert(name.to_string()) {
                 bail!("duplicate target name: {}", t.name);
             }
             let url = t.url.trim();
             if !(url.starts_with("http://") || url.starts_with("https://")) {
                 bail!("target '{}' has invalid url: {}", t.name, t.url);
+            }
+            if let Some(kind) = &t.kind {
+                if kind.trim().is_empty() {
+                    bail!("target '{}' has empty kind", t.name);
+                }
             }
         }
         Ok(())
