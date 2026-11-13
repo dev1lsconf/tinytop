@@ -1,7 +1,8 @@
 use axum::{
     extract::{Query, State},
-    http::StatusCode,
-    response::{Html, IntoResponse},
+    http::{header, HeaderValue, StatusCode},
+    middleware::{self, Next},
+    response::{Html, IntoResponse, Response},
     routing::get,
     Json, Router,
 };
@@ -24,7 +25,33 @@ pub fn router(state: AppState) -> Router {
         .route("/api/metrics/latest", get(latest))
         .route("/api/metrics/history", get(history))
         .route("/api/config", get(get_config))
+        .layer(middleware::from_fn(security_headers))
         .with_state(state)
+}
+
+async fn security_headers(req: axum::http::Request<axum::body::Body>, next: Next) -> Response {
+    let mut res = next.run(req).await;
+    let headers = res.headers_mut();
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    headers.insert(
+        header::HeaderName::from_static("permissions-policy"),
+        HeaderValue::from_static("geolocation=(), microphone=(), camera=()"),
+    );
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' data:; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+        ),
+    );
+    res
 }
 
 async fn serve_index() -> impl IntoResponse {
@@ -153,7 +180,11 @@ async fn history(
     Query(params): Query<HistoryParams>,
 ) -> impl IntoResponse {
     let target = params.target.unwrap_or_else(|| "system".to_string());
-    let max_range = state.cfg.max_history_hours.max(1).min(state.cfg.retention_hours as i64);
+    let max_range = state
+        .cfg
+        .max_history_hours
+        .max(1)
+        .min(state.cfg.retention_hours as i64);
     let range = params.range.unwrap_or(24).clamp(1, max_range);
 
     if target.trim().is_empty() {
