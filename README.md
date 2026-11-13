@@ -12,7 +12,7 @@
 ## Características
 
 - **Sistema**: CPU (%), memoria usada/total (%), disco usado/total/disponible (%), red acumulada y **tasas RX/TX por segundo** calculadas entre muestras.
-- **Targets HTTP**: chequeo por endpoint con `kind` (`generic`, `spring-boot`/`spring`, `quarkus`, `micronaut`/`micrometer`), latencia, estado normalizado, extracción heurística de `http_requests` (JSON/Actuator/Prometheus-like) y detalle de error acotado.
+- **Targets HTTP**: chequeo por endpoint con `kind` (`generic`, `spring-boot`/`spring`, `quarkus`, `micronaut`/`micrometer`), latencia, estado normalizado, extracción heurística de `http_requests` (JSON/Actuator/texto de métricas) y detalle de error acotado.
 - **Persistencia y retención**: SQLite (WAL) con tablas separadas `system_metrics` y `target_metrics`, histórico por rango (`/api/metrics/history?range=&target=system|<name>`), pruning automático por retención.
 - **API**: `/api/health` (readiness/db/runtime), `/api/metrics/latest`, `/api/metrics/history`, `/api/config` con errores JSON y códigos HTTP consistentes (404/400/5xx).
 - **Dashboard**: HTML/CSS/JS embebido + Chart.js servido localmente (`/static/vendor/chart.umd.min.js`, sin CDN), controles de rango y auto-refresh, estados vacíos/carga/error, render seguro de targets (DOM + escape), tabla y tarjetas accesibles.

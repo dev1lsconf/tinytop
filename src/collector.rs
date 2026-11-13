@@ -180,9 +180,9 @@ fn interpret_response(
         _ => interpret_generic(ok_http, parsed.as_ref(), &mut detail),
     };
 
-    // if parser found requests in textually embedded metrics/prometheus-ish content
+    // if parser found request counters in plain-text metrics payloads
     if http_requests.is_none() {
-        http_requests = extract_prometheus_requests(body);
+        http_requests = extract_text_metrics_requests(body);
     }
 
     if detail.is_none() && !ok_http {
@@ -330,11 +330,11 @@ fn extract_requests_count(v: Option<&serde_json::Value>) -> Option<i64> {
     None
 }
 
-fn extract_prometheus_requests(body: &str) -> Option<i64> {
-    // very small heuristic for text exposition formats
+fn extract_text_metrics_requests(body: &str) -> Option<i64> {
+    // very small heuristic for text metrics formats
     for line in body.lines() {
         let line = line.trim();
-        if line.starts_with('#') {
+        if line.starts_with('#') || line.is_empty() {
             continue;
         }
         if line.contains("http_server_requests_seconds_count")
