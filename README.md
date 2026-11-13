@@ -9,6 +9,10 @@
 
 ![TinyTop Dashboard](docs/dashboard.png?v=1.0.0)
 
+**TUI (terminal):**
+
+![TinyTop TUI](docs/tui.gif)
+
 **TinyTop** es un monitor autohospedado y ligero para servidores. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real, además de una **TUI** interactiva en terminal. Funciona como **un solo binario**, sin Prometheus ni servicios externos.
 
 ## Características
