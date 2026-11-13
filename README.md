@@ -90,7 +90,7 @@ docker compose up -d --build
 ## Compatibilidad
 
 - Soporte de plataforma: **Linux** y **sistemas *BSD** (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD) vía `sysinfo`.
-- Binarios/paquetes oficiales actuales: Linux x86_64 (release tarball) e imagen de contenedor `ghcr.io/dev1lsconf/tinytop`.
+- Artefactos oficiales de release: Linux x86_64 (tarball) e imagen de contenedor `ghcr.io/dev1lsconf/tinytop`, además de tarballs para **FreeBSD**, **OpenBSD** y **NetBSD** (x86_64) generados por el workflow de release.
 - En otras plataformas soportadas por las dependencias se puede compilar desde código (`cargo build --release --locked`).
 
 ## Pruebas y calidad
@@ -126,7 +126,7 @@ Ver [CHANGELOG.md](CHANGELOG.md).
 
 - Releases y artefactos (`.tar.gz` + `.sha256`): [GitHub Releases](https://github.com/dev1lsconf/tinytop/releases).
 - Paquete de contenedor: `ghcr.io/dev1lsconf/tinytop` (publicado por el workflow de release en tags `v*`).
-- El workflow `.github/workflows/release.yml` construye el binario, empaqueta artefactos, crea/actualiza la release y publica la imagen en GHCR; soporta `workflow_dispatch` para republicar desde un tag.
+- El workflow `.github/workflows/release.yml` construye y publica artefactos para Linux x86_64 y *BSD (FreeBSD, OpenBSD, NetBSD), crea/actualiza la release y publica la imagen en GHCR; soporta `workflow_dispatch` para republicar desde un tag.
 
 ## Licencia
 

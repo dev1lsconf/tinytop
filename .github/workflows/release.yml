@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag de release a publicar (ej. v0.0.3)"
+        description: "Tag de release a publicar (ej. v0.0.4)"
         required: true
         type: string
 
@@ -16,8 +16,8 @@ permissions:
   packages: write
 
 jobs:
-  release:
-    name: Build release and publish package
+  linux:
+    name: Linux release and container package
     runs-on: ubuntu-latest
     env:
       REGISTRY: ghcr.io
@@ -113,3 +113,79 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  bsd:
+    name: BSD release artifacts (${{ matrix.os }})
+    needs: linux
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: freebsd
+            vm: vmactions/freebsd-vm@v1
+            prepare: |
+              pkg install -y curl pkgconf sqlite3 bash
+              curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.88
+            sha_cmd: 'if command -v sha256sum >/dev/null 2>&1; then sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"; else sha256 -r "$ARCHIVE" | awk "{print \$1\"  \"\$2}" > "$ARCHIVE.sha256"; fi'
+          - os: openbsd
+            vm: vmactions/openbsd-vm@v1
+            prepare: |
+              pkg_add curl pkgconf sqlite3 bash
+              curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.88
+            sha_cmd: 'if command -v sha256sum >/dev/null 2>&1; then sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"; else sha256 "$ARCHIVE" > "$ARCHIVE.sha256"; fi'
+          - os: netbsd
+            vm: vmactions/netbsd-vm@v1
+            prepare: |
+              /usr/sbin/pkg_add curl pkgconf sqlite3 bash mozilla-rootcerts || pkg_add curl pkgconf sqlite3 bash || true
+              /usr/sbin/mozilla-rootcerts install || true
+              curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.88
+            sha_cmd: 'if command -v sha256sum >/dev/null 2>&1; then sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"; else sha256 "$ARCHIVE" > "$ARCHIVE.sha256"; fi'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Set version
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "archive=tinytop-${TAG}-${{ matrix.os }}-x86_64.tar.gz" >> "$GITHUB_OUTPUT"
+
+      - name: Build release binary (${{ matrix.os }})
+        uses: ${{ matrix.vm }}
+        with:
+          usesh: true
+          prepare: ${{ matrix.prepare }}
+          run: |
+            set -e
+            . "$HOME/.cargo/env"
+            export PATH="$HOME/.cargo/bin:$PATH"
+            cargo build --release --locked
+            mkdir -p dist
+            cp target/release/tinytop dist/tinytop
+            cp config.toml dist/config.toml
+            cp -r static dist/static
+            cp -r migrations dist/migrations
+            ARCHIVE="${{ steps.vars.outputs.archive }}"
+            tar -czf "$ARCHIVE" -C dist tinytop config.toml static migrations
+            ${{ matrix.sha_cmd }}
+
+      - name: Upload BSD artifacts to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.vars.outputs.tag }}
+          ARCHIVE: ${{ steps.vars.outputs.archive }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" "$ARCHIVE" "$ARCHIVE.sha256" --clobber

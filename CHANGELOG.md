@@ -8,7 +8,8 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ### Añadido
 - Soporte de plataforma para **sistemas *BSD** (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD) vía `sysinfo`, manteniendo Linux.
-- Sección de compatibilidad en el README (binarios oficiales Linux x86_64/contenedor; compilación desde código en plataformas soportadas).
+- Artefactos de release para *BSD (tarballs `freebsd`/`openbsd`/`netbsd` x86_64) generados y publicados por el workflow de release.
+- Sección de compatibilidad en el README (artefactos oficiales y compilación desde código en plataformas soportadas).
 
 ### Cambiado
 - Colector de disco: excluye pseudo-filesystems adicionales presentes en *BSD/Linux (`procfs`, `devfs`, `fdescfs`, `linprocfs`, `linsysfs`, `nullfs`) para contabilizar solo almacenamiento real.
