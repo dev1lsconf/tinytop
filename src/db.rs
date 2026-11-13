@@ -216,6 +216,31 @@ impl Database {
 
     pub async fn system_history(&self, range_hours: i64) -> anyhow::Result<Vec<SystemMetric>> {
         let cutoff = (chrono::Utc::now() - chrono::Duration::hours(range_hours)).to_rfc3339();
+        // Downsample long ranges using rollups when available to keep responses small.
+        if range_hours > 24 {
+            let bucket: i64 = if range_hours > 72 { 3600 } else { 300 };
+            let rows = sqlx::query_as::<_, SystemMetric>(
+                "SELECT 0 as id, bucket_start as timestamp,
+                        COALESCE(cpu_avg,0.0) as cpu_percent,
+                        0.0 as mem_used_mb, 0.0 as mem_total_mb, COALESCE(mem_avg,0.0) as mem_used_percent,
+                        0.0 as disk_used_mb, 0.0 as disk_total_mb, 0.0 as disk_available_mb, COALESCE(disk_avg,0.0) as disk_used_percent,
+                        0 as net_rx_bytes, 0 as net_tx_bytes, COALESCE(net_rx_bps_avg,0.0) as net_rx_bytes_per_sec, COALESCE(net_tx_bps_avg,0.0) as net_tx_bytes_per_sec,
+                        load1_avg as load1, NULL as load5, NULL as load15,
+                        NULL as swap_used_mb, NULL as swap_total_mb, NULL as swap_used_percent,
+                        NULL as uptime_seconds, NULL as disk_read_bytes, NULL as disk_write_bytes, NULL as disk_read_bytes_per_sec, NULL as disk_write_bytes_per_sec,
+                        temp_avg as temp_celsius, NULL as top_processes
+                 FROM system_metrics_rollup
+                 WHERE bucket_seconds = ? AND bucket_start >= ?
+                 ORDER BY bucket_start ASC",
+            )
+            .bind(bucket)
+            .bind(&cutoff)
+            .fetch_all(&self.pool)
+            .await?;
+            if !rows.is_empty() {
+                return Ok(rows);
+            }
+        }
         let rows = sqlx::query_as::<_, SystemMetric>(
             "SELECT id, timestamp, cpu_percent, mem_used_mb, mem_total_mb, mem_used_percent,
                     disk_used_mb, disk_total_mb, disk_available_mb, disk_used_percent,
