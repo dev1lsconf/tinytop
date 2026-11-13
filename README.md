@@ -1,4 +1,4 @@
-# TinyTop v0.0.2 - Monitor ligero de VPS en Rust
+# TinyTop v0.0.2 - Monitor ligero en Rust
 
 [![CI](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
