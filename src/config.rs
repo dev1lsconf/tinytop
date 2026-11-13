@@ -502,6 +502,88 @@ mod tests {
     }
 
     #[test]
+    fn rejects_tls_without_host_port_and_ping_without_host() {
+        let tls_bad = Config {
+            targets: vec![Target {
+                name: "tls1".into(),
+                url: "".into(),
+                kind: None,
+                check_type: "tls".into(),
+                host: Some("example.com".into()),
+                port: None,
+                latency_warn_ms: None,
+                cert_expiry_warn_days: None,
+            }],
+            ..Config::default()
+        };
+        assert!(tls_bad.validate().is_err());
+
+        let ping_bad = Config {
+            targets: vec![Target {
+                name: "ping1".into(),
+                url: "".into(),
+                kind: None,
+                check_type: "ping".into(),
+                host: None,
+                port: None,
+                latency_warn_ms: None,
+                cert_expiry_warn_days: None,
+            }],
+            ..Config::default()
+        };
+        assert!(ping_bad.validate().is_err());
+
+        // ping accepted via url fallback
+        let ping_ok = Config {
+            targets: vec![Target {
+                name: "ping2".into(),
+                url: "127.0.0.1".into(),
+                kind: None,
+                check_type: "ping".into(),
+                host: None,
+                port: None,
+                latency_warn_ms: None,
+                cert_expiry_warn_days: None,
+            }],
+            ..Config::default()
+        };
+        assert!(ping_ok.validate().is_ok());
+    }
+
+    #[test]
+    fn rejects_unsupported_check_type_and_empty_kind() {
+        let bad_type = Config {
+            targets: vec![Target {
+                name: "x".into(),
+                url: "http://localhost".into(),
+                kind: None,
+                check_type: "udp".into(),
+                host: None,
+                port: None,
+                latency_warn_ms: None,
+                cert_expiry_warn_days: None,
+            }],
+            ..Config::default()
+        };
+        assert!(bad_type.validate().is_err());
+
+        let bad_kind = Config {
+            targets: vec![Target {
+                name: "x".into(),
+                url: "http://localhost".into(),
+                kind: Some("   ".into()),
+                check_type: "http".into(),
+                host: None,
+                port: None,
+                latency_warn_ms: None,
+                cert_expiry_warn_days: None,
+            }],
+            ..Config::default()
+        };
+        assert!(bad_kind.validate().is_err());
+    }
+
+    #[test]
     fn redacts_sensitive_auth_and_notifications() {
         let cfg = Config {
             auth: Some(AuthConfig {
@@ -513,6 +595,7 @@ mod tests {
             notifications: NotificationConfig {
                 webhook_url: Some("https://hook".into()),
                 telegram_bot_token: Some("tok".into()),
+                telegram_chat_id: Some("123".into()),
                 ..Default::default()
             },
             ..Default::default()
@@ -520,8 +603,11 @@ mod tests {
         let r = cfg.redacted();
         let a = r.auth.unwrap();
         assert_eq!(a.token.as_deref(), Some("***"));
+        assert_eq!(a.basic_user.as_deref(), Some("u"));
         assert_eq!(a.basic_password.as_deref(), Some("***"));
         assert_eq!(r.notifications.webhook_url.as_deref(), Some("***"));
         assert_eq!(r.notifications.telegram_bot_token.as_deref(), Some("***"));
+        // chat id kept (not secret in same way) but config still usable
+        assert_eq!(r.notifications.telegram_chat_id.as_deref(), Some("123"));
     }
 }
