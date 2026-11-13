@@ -88,8 +88,40 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
     let mut disk_available = 0.0f64;
     let mut seen_devices = HashSet::new();
     for d in &disks {
+        let fs = d.file_system().to_string_lossy().to_ascii_lowercase();
+        if matches!(
+            fs.as_str(),
+            "tmpfs"
+                | "devtmpfs"
+                | "overlay"
+                | "squashfs"
+                | "proc"
+                | "sysfs"
+                | "cgroup"
+                | "cgroup2"
+                | "nsfs"
+                | "mqueue"
+                | "debugfs"
+                | "tracefs"
+                | "securityfs"
+                | "pstore"
+                | "efivarfs"
+                | "bpf"
+                | "autofs"
+                | "ramfs"
+                | "fusectl"
+                | "configfs"
+                | "hugetlbfs"
+                | "rpc_pipefs"
+                | "binfmt_misc"
+                | "aufs"
+                | "devpts"
+        ) {
+            continue;
+        }
+
         // Deduplicate by device identity to avoid double-counting bind mounts/subvolumes
-        // (e.g. btrfs subvolumes or Docker bind mounts on the same underlying filesystem).
+        // (e.g. btrfs subvolumes or multiple mount points on the same block device).
         let name = d.name().to_string_lossy();
         let key = if name.is_empty() {
             d.mount_point().to_string_lossy().into_owned()
