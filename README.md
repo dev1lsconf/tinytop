@@ -1,13 +1,13 @@
-# TinyTop v0.0.5 - Monitor ligero en Rust
+# TinyTop v0.1.0 - Monitor ligero en Rust
 
 [![CI](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dev1lsconf/tinytop?display_name=tag)](https://github.com/dev1lsconf/tinytop/releases)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-0.0.5-blue.svg)](Cargo.toml)
+[![version](https://img.shields.io/badge/version-0.1.0-blue.svg)](Cargo.toml)
 [![rust](https://img.shields.io/badge/Rust-1.88%2B%20(edition%202024)-orange.svg)](https://www.rust-lang.org)
 [![platform](https://img.shields.io/badge/platform-linux%20%7C%20BSD-lightgrey.svg)](https://www.kernel.org)
 
-![TinyTop Dashboard](docs/dashboard.png?v=0.0.5)
+![TinyTop Dashboard](docs/dashboard.png?v=0.1.0)
 
 **TinyTop** es un monitor autohospedado y ligero para servidores. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real, además de una **TUI** interactiva en terminal. Funciona como **un solo binario**, sin Prometheus ni servicios externos.
 

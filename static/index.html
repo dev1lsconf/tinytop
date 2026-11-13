@@ -44,7 +44,7 @@
 <body>
   <div class="wrap">
     <header class="header">
-      <div class="brand"><div class="logo" aria-hidden="true">TT</div><div><h1>TinyTop</h1><p class="subtitle">Monitor de sistema y targets · <span id="version">v0.0.5</span></p></div></div>
+      <div class="brand"><div class="logo" aria-hidden="true">TT</div><div><h1>TinyTop</h1><p class="subtitle">Monitor de sistema y targets · <span id="version">v0.1.0</span></p></div></div>
       <div class="controls" role="group" aria-label="Controles">
         <span id="healthBadge" class="badge warn" data-testid="health-badge"><span class="dot"></span><span id="healthText">Iniciando</span></span>
         <label class="meta" for="rangeSelect">Rango</label>
@@ -150,7 +150,7 @@
 
     async function loadLatest(){ const res=await fetch('/api/metrics/latest',{cache:'no-store'}); if(!res.ok) throw new Error('latest: HTTP '+res.status); const data=await res.json(); renderSystem(data.system); renderTargets(data.targets||[]); return data; }
     async function loadHistory(){ const url='/api/metrics/history?target=system&range='+encodeURIComponent(state.range); const res=await fetch(url,{cache:'no-store'}); if(!res.ok) throw new Error('history: HTTP '+res.status); const data=await res.json(); const points=Array.isArray(data.points)?data.points:[]; const has=points.length>0; $('cpuChartEmpty').classList.toggle('show',!has); $('memoryChartEmpty').classList.toggle('show',!has); $('cpuChartMeta').textContent=has?points.length+' puntos':'0 puntos'; $('memoryChartMeta').textContent=has?points.length+' puntos':'0 puntos'; const labels=points.map(p=>{const d=new Date(p.timestamp); return isNaN(d)?'':d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}); cpuChart.data.labels=labels; cpuChart.data.datasets[0].data=points.map(p=>Number(p.cpu_percent||0)); memChart.data.labels=labels; memChart.data.datasets[0].data=points.map(p=>Number(p.mem_used_percent||0)); cpuChart.update(); memChart.update(); return data; }
-    async function loadHealth(){ try{ const res=await fetch('/api/health',{cache:'no-store'}); const data=await res.json().catch(()=>({})); $('version').textContent='v'+(data.version||'0.0.5'); if(res.ok&&data.ready) setHealth('ok','En línea'); else if(res.ok) setHealth('warn',data.status||'Iniciando'); else setHealth('err',data.status||'Degradado'); }catch{ setHealth('err','Sin conexión'); } }
+    async function loadHealth(){ try{ const res=await fetch('/api/health',{cache:'no-store'}); const data=await res.json().catch(()=>({})); $('version').textContent='v'+(data.version||'0.1.0'); if(res.ok&&data.ready) setHealth('ok','En línea'); else if(res.ok) setHealth('warn',data.status||'Iniciando'); else setHealth('err',data.status||'Degradado'); }catch{ setHealth('err','Sin conexión'); } }
     async function loadAlerts(){ try{ const res=await fetch('/api/alerts?limit=50',{cache:'no-store'}); if(!res.ok) throw 0; const d=await res.json(); renderAlerts(d.alerts||[]); }catch{ renderAlerts([]); $('kvAlerts').textContent='--'; } }
     async function loadEvents(){ try{ const res=await fetch('/api/events?limit=50',{cache:'no-store'}); if(!res.ok) throw 0; const d=await res.json(); renderEvents(d.events||[]); }catch{ renderEvents([]); } }
     function updateExportLinks(){ const r=state.range; $('exportJson').href='/api/export?target=system&format=json&range='+r; $('exportCsv').href='/api/export?target=system&format=csv&range='+r; }
