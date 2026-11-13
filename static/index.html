@@ -8,109 +8,49 @@
   <link rel="stylesheet" href="data:text/css,/* base reset */*,*::before,*::after{box-sizing:border-box}html,body{margin:0;padding:0}">
   <script src="/static/vendor/chart.umd.min.js"></script>
   <style>
-    :root {
-      --bg: #09090b;
-      --bg2: #0d0d10;
-      --card: rgba(255,255,255,0.03);
-      --card-border: rgba(255,255,255,0.08);
-      --text: #fafafa;
-      --muted: #a1a1aa;
-      --muted2: #71717a;
-      --ok: #22c55e;
-      --warn: #f59e0b;
-      --bad: #ef4444;
-      --blue: #3b82f6;
-      --violet: #8b5cf6;
-      --cyan: #06b6d4;
-      --emerald: #10b981;
-      --amber: #f59e0b;
-    }
-    body {
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background:
-        radial-gradient(1200px 500px at 10% -10%, rgba(59,130,246,0.12), transparent 60%),
-        radial-gradient(900px 400px at 100% 0%, rgba(34,197,94,0.08), transparent 55%),
-        var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      line-height: 1.4;
-    }
-    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
-    .header { display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between; margin-bottom:20px; }
-    .brand { display:flex; gap:12px; align-items:center; }
-    .logo { width:40px; height:40px; border-radius:12px; background:#fff; color:#000; display:flex; align-items:center; justify-content:center; font-weight:700; }
-    h1 { margin:0; font-size:1.5rem; letter-spacing:-0.02em; }
-    .subtitle { margin:2px 0 0; color: var(--muted2); font-size: .85rem; }
-    .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-    .badge { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:999px; font-size:.8rem; border:1px solid var(--card-border); background: rgba(255,255,255,0.03); }
-    .dot { width:8px; height:8px; border-radius:999px; background: currentColor; }
-    .badge.ok { color: #86efac; border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.08); }
-    .badge.warn { color: #fcd34d; border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.08); }
-    .badge.err { color: #fca5a5; border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.08); }
-    .btn, select { background: rgba(255,255,255,0.04); color: var(--text); border:1px solid var(--card-border); border-radius:10px; padding:8px 12px; font: inherit; font-size:.85rem; }
-    .btn { cursor:pointer; }
-    .btn:hover, select:hover { background: rgba(255,255,255,0.07); }
-    .btn:focus, select:focus { outline: 2px solid rgba(59,130,246,.5); outline-offset: 2px; }
-    .meta { color: var(--muted2); font-size:.8rem; }
-    .banner { display:none; margin-bottom:16px; padding:12px 14px; border-radius:12px; border:1px solid rgba(239,68,68,.35); background: rgba(239,68,68,.08); color:#fecaca; }
-    .banner.show { display:block; }
-    .grid { display:grid; gap:16px; }
-    .stats { grid-template-columns: repeat(4, minmax(0,1fr)); margin-bottom:16px; }
-    .charts { grid-template-columns: repeat(2, minmax(0,1fr)); margin-bottom:16px; }
-    .card { background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015)); border:1px solid var(--card-border); border-radius:16px; padding:16px; box-shadow: 0 10px 30px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03); }
-    .card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
-    .label { color: var(--muted2); text-transform:uppercase; letter-spacing:.08em; font-size:.72rem; margin:0 0 4px; }
-    .value { font-size:1.6rem; font-weight:700; margin:0; }
-    .sub { color: var(--muted2); font-size:.8rem; margin:4px 0 0; }
-    .icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:1px solid var(--card-border); background: rgba(255,255,255,0.03); color: var(--muted); font-size:.9rem; }
-    .bar { height:6px; background: rgba(255,255,255,0.06); border-radius:999px; overflow:hidden; }
-    .fill { height:100%; border-radius:999px; transition: width .4s ease; }
-    .chart-wrap { position:relative; height:240px; }
-    .chart-empty { position:absolute; inset:0; display:none; align-items:center; justify-content:center; color: var(--muted2); font-size:.9rem; }
-    .chart-empty.show { display:flex; }
-    .table-wrap { overflow:auto; }
-    table { width:100%; border-collapse: collapse; font-size:.9rem; }
-    th, td { text-align:left; padding:12px 8px; border-bottom:1px solid rgba(255,255,255,0.06); vertical-align:top; }
-    th { color: var(--muted2); font-weight:500; font-size:.8rem; }
-    tr:hover td { background: rgba(255,255,255,0.015); }
-    .pill { display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; font-size:.75rem; font-weight:600; border:1px solid transparent; }
-    .pill.up { color:#86efac; background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.3); }
-    .pill.down, .pill.error { color:#fca5a5; background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.3); }
-    .pill.degraded, .pill.unknown, .pill.starting { color:#fcd34d; background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.3); }
-    .muted { color: var(--muted2); }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size:.8rem; color: var(--muted); }
-    .row-title { font-weight:600; }
-    @media (max-width: 1000px) { .stats { grid-template-columns: repeat(2, minmax(0,1fr)); } .charts { grid-template-columns: 1fr; } }
-    @media (max-width: 640px) { .wrap { padding:16px; } .stats { grid-template-columns: 1fr; } .header { align-items:flex-start; } }
+    :root { --bg:#09090b; --card:rgba(255,255,255,.03); --card-border:rgba(255,255,255,.08); --text:#fafafa; --muted:#a1a1aa; --muted2:#71717a; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --blue:#3b82f6; --violet:#8b5cf6; --emerald:#10b981; --amber:#f59e0b; }
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 500px at 10% -10%,rgba(59,130,246,.12),transparent 60%),radial-gradient(900px 400px at 100% 0%,rgba(34,197,94,.08),transparent 55%),var(--bg);color:var(--text);min-height:100vh;line-height:1.4}
+    .wrap{max-width:1280px;margin:0 auto;padding:24px}
+    .header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:20px}
+    .brand{display:flex;gap:12px;align-items:center}.logo{width:40px;height:40px;border-radius:12px;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-weight:700}
+    h1{margin:0;font-size:1.5rem;letter-spacing:-.02em}.subtitle{margin:2px 0 0;color:var(--muted2);font-size:.85rem}
+    .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;font-size:.8rem;border:1px solid var(--card-border);background:rgba(255,255,255,.03)}
+    .dot{width:8px;height:8px;border-radius:999px;background:currentColor}
+    .badge.ok{color:#86efac;border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.08)}.badge.warn{color:#fcd34d;border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.08)}.badge.err{color:#fca5a5;border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.08)}
+    .btn,select{background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;font:inherit;font-size:.85rem}
+    .btn{cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.btn:hover,select:hover{background:rgba(255,255,255,.07)}
+    .meta{color:var(--muted2);font-size:.8rem}.banner{display:none;margin-bottom:16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);color:#fecaca}.banner.show{display:block}
+    .grid{display:grid;gap:16px}.stats{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px}.charts{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border:1px solid var(--card-border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.03)}
+    .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .label{color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;margin:0 0 4px}.value{font-size:1.6rem;font-weight:700;margin:0}.sub{color:var(--muted2);font-size:.8rem;margin:4px 0 0}
+    .icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:var(--muted);font-size:.8rem}
+    .bar{height:6px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden}.fill{height:100%;border-radius:999px;transition:width .4s ease}
+    .chart-wrap{position:relative;height:240px}.chart-empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted2);font-size:.9rem}.chart-empty.show{display:flex}
+    .table-wrap{overflow:auto} table{width:100%;border-collapse:collapse;font-size:.9rem} th,td{text-align:left;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top}
+    th{color:var(--muted2);font-weight:500;font-size:.8rem} tr:hover td{background:rgba(255,255,255,.015)}
+    .pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:600;border:1px solid transparent}
+    .pill.up,.pill.ok,.pill.resolved,.pill.info{color:#86efac;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.3)}
+    .pill.down,.pill.error,.pill.firing,.pill.critical{color:#fca5a5;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3)}
+    .pill.degraded,.pill.unknown,.pill.starting,.pill.warn,.pill.warning{color:#fcd34d;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.3)}
+    .muted{color:var(--muted2)} .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.8rem;color:var(--muted)} .row-title{font-weight:600}
+    .kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}.kv .item{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:10px 12px}.kv .k{color:var(--muted2);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em}.kv .v{font-size:1rem;font-weight:600;margin-top:2px}
+    .links{display:flex;gap:8px;flex-wrap:wrap}.list{max-height:260px;overflow:auto}
+    @media(max-width:1000px){.stats,.two{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:1fr}.kv{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:640px){.wrap{padding:16px}.stats,.two,.kv{grid-template-columns:1fr}.header{align-items:flex-start}}
   </style>
 </head>
 <body>
   <div class="wrap">
     <header class="header">
-      <div class="brand">
-        <div class="logo" aria-hidden="true">TT</div>
-        <div>
-          <h1>TinyTop</h1>
-          <p class="subtitle">Monitor de sistema y targets · <span id="version">v0.0.4</span></p>
-        </div>
-      </div>
+      <div class="brand"><div class="logo" aria-hidden="true">TT</div><div><h1>TinyTop</h1><p class="subtitle">Monitor de sistema y targets · <span id="version">v0.0.4</span></p></div></div>
       <div class="controls" role="group" aria-label="Controles">
         <span id="healthBadge" class="badge warn" data-testid="health-badge"><span class="dot"></span><span id="healthText">Iniciando</span></span>
         <label class="meta" for="rangeSelect">Rango</label>
-        <select id="rangeSelect" data-testid="range-select" aria-label="Rango de historial">
-          <option value="1">1h</option>
-          <option value="6">6h</option>
-          <option value="24" selected>24h</option>
-          <option value="72">72h</option>
-          <option value="168">7d</option>
-        </select>
+        <select id="rangeSelect" data-testid="range-select" aria-label="Rango de historial"><option value="1">1h</option><option value="6">6h</option><option value="24" selected>24h</option><option value="72">72h</option><option value="168">7d</option></select>
         <label class="meta" for="refreshSelect">Auto-refresh</label>
-        <select id="refreshSelect" data-testid="refresh-select" aria-label="Intervalo de auto-refresco">
-          <option value="0">Off</option>
-          <option value="10">10s</option>
-          <option value="30" selected>30s</option>
-          <option value="60">60s</option>
-        </select>
+        <select id="refreshSelect" data-testid="refresh-select" aria-label="Intervalo de auto-refresco"><option value="0">Off</option><option value="10">10s</option><option value="30" selected>30s</option><option value="60">60s</option></select>
         <button id="refreshBtn" class="btn" data-testid="refresh-btn" type="button">Actualizar</button>
         <span class="meta">Actualizado: <span id="lastUpdate" data-testid="last-update">—</span></span>
       </div>
@@ -119,220 +59,108 @@
     <div id="errorBanner" class="banner" data-testid="error-banner" role="alert"></div>
 
     <section class="grid stats" aria-label="Métricas del sistema" data-testid="stats-grid">
-      <article class="card" data-testid="card-cpu">
-        <div class="card-head"><div><p class="label">CPU</p><p class="value" id="cpuValue">--%</p><p class="sub" id="cpuMeta">Uso global</p></div><div class="icon">CPU</div></div>
-        <div class="bar"><div id="cpuBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--violet))"></div></div>
-      </article>
-      <article class="card" data-testid="card-memory">
-        <div class="card-head"><div><p class="label">Memoria</p><p class="value" id="memoryValue">--</p><p class="sub" id="memoryMeta">Usada / total</p></div><div class="icon">RAM</div></div>
-        <div class="bar"><div id="memoryBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--emerald),#34d399)"></div></div>
-      </article>
-      <article class="card" data-testid="card-disk">
-        <div class="card-head"><div><p class="label">Disco</p><p class="value" id="diskValue">--</p><p class="sub" id="diskMeta">Usado / total (disp.)</p></div><div class="icon">DISK</div></div>
-        <div class="bar"><div id="diskBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--amber),#f97316)"></div></div>
-      </article>
-      <article class="card" data-testid="card-network">
-        <div class="card-head"><div><p class="label">Red</p><p class="value" id="netRateValue">--</p><p class="sub" id="netMeta">↓ RX/s · ↑ TX/s · totales</p></div><div class="icon">NET</div></div>
-        <p class="sub" id="netTotals">RX total: -- · TX total: --</p>
-      </article>
+      <article class="card" data-testid="card-cpu"><div class="card-head"><div><p class="label">CPU</p><p class="value" id="cpuValue">--%</p><p class="sub" id="cpuMeta">Uso global</p></div><div class="icon">CPU</div></div><div class="bar"><div id="cpuBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--violet))"></div></div></article>
+      <article class="card" data-testid="card-memory"><div class="card-head"><div><p class="label">Memoria</p><p class="value" id="memoryValue">--</p><p class="sub" id="memoryMeta">Usada / total</p></div><div class="icon">RAM</div></div><div class="bar"><div id="memoryBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--emerald),#34d399)"></div></div></article>
+      <article class="card" data-testid="card-disk"><div class="card-head"><div><p class="label">Disco</p><p class="value" id="diskValue">--</p><p class="sub" id="diskMeta">Usado / total (disp.)</p></div><div class="icon">DISK</div></div><div class="bar"><div id="diskBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--amber),#f97316)"></div></div></article>
+      <article class="card" data-testid="card-network"><div class="card-head"><div><p class="label">Red</p><p class="value" id="netRateValue">--</p><p class="sub" id="netMeta">↓ RX/s · ↑ TX/s · totales</p></div><div class="icon">NET</div></div><p class="sub" id="netTotals">RX total: -- · TX total: --</p></article>
+    </section>
+
+    <section class="kv" aria-label="Métricas extendidas">
+      <div class="item"><div class="k">Load (1/5/15)</div><div class="v" id="kvLoad">--</div></div>
+      <div class="item"><div class="k">Swap</div><div class="v" id="kvSwap">--</div></div>
+      <div class="item"><div class="k">Uptime</div><div class="v" id="kvUptime">--</div></div>
+      <div class="item"><div class="k">Temperatura</div><div class="v" id="kvTemp">--</div></div>
+      <div class="item"><div class="k">Disk IO (R/W)</div><div class="v" id="kvDiskIO">--</div></div>
+      <div class="item"><div class="k">Top procesos</div><div class="v mono" id="kvProcs" style="font-size:.75rem;font-weight:500">--</div></div>
+      <div class="item"><div class="k">Exportar</div><div class="v links"><a class="btn" id="exportJson" href="/api/export?target=system&format=json&range=24" data-testid="export-json">JSON</a><a class="btn" id="exportCsv" href="/api/export?target=system&format=csv&range=24" data-testid="export-csv">CSV</a><a class="btn" href="/metrics" target="_blank" rel="noopener">Prometheus</a></div></div>
+      <div class="item"><div class="k">Alertas activas</div><div class="v" id="kvAlerts">--</div></div>
     </section>
 
     <section class="grid charts" aria-label="Histórico del sistema">
-      <article class="card" data-testid="chart-cpu-card">
-        <div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">CPU (%)</h2></div><span id="cpuChartMeta" class="meta">—</span></div>
-        <div class="chart-wrap"><canvas id="cpuChart"></canvas><div id="cpuChartEmpty" class="chart-empty">Sin datos aún</div></div>
-      </article>
-      <article class="card" data-testid="chart-memory-card">
-        <div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">Memoria (%)</h2></div><span id="memoryChartMeta" class="meta">—</span></div>
-        <div class="chart-wrap"><canvas id="memoryChart"></canvas><div id="memoryChartEmpty" class="chart-empty">Sin datos aún</div></div>
-      </article>
+      <article class="card" data-testid="chart-cpu-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">CPU (%)</h2></div><span id="cpuChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="cpuChart"></canvas><div id="cpuChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-memory-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">Memoria (%)</h2></div><span id="memoryChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="memoryChart"></canvas><div id="memoryChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
     </section>
 
-    <section class="card" data-testid="targets-card" aria-label="Targets monitoreados">
-      <div class="card-head">
-        <div><p class="label">Targets</p><h2 class="value" style="font-size:1.1rem;margin:0">Endpoints monitoreados</h2><p class="sub">Estado y latencia según tipo de integración</p></div>
-        <span id="targetsCount" class="meta">—</span>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Target</th><th>Tipo</th><th>Estado</th><th>Latencia</th><th>Requests</th><th>Detalle</th><th>Actualizado</th></tr></thead>
-          <tbody id="targetsTable" data-testid="targets-table"><tr><td colspan="7" class="muted">Cargando…</td></tr></tbody>
-        </table>
-      </div>
+    <section class="card" data-testid="targets-card" aria-label="Targets monitoreados" style="margin-bottom:16px">
+      <div class="card-head"><div><p class="label">Targets</p><h2 class="value" style="font-size:1.1rem;margin:0">Endpoints monitoreados</h2><p class="sub">Estado, latencia, check/TLS y métricas</p></div><span id="targetsCount" class="meta">—</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Target</th><th>Check</th><th>Estado</th><th>Latencia</th><th>Req/TLS</th><th>Detalle</th><th>Actualizado</th></tr></thead><tbody id="targetsTable" data-testid="targets-table"><tr><td colspan="7" class="muted">Cargando…</td></tr></tbody></table></div>
+    </section>
+
+    <section class="grid two" aria-label="Alertas y eventos">
+      <article class="card" data-testid="alerts-card"><div class="card-head"><div><p class="label">Alertas</p><h2 class="value" style="font-size:1.1rem;margin:0">Incidentes</h2></div><span id="alertsMeta" class="meta">—</span></div><div class="list table-wrap"><table><thead><tr><th>Estado</th><th>Severidad</th><th>Origen</th><th>Mensaje</th><th>Creada</th></tr></thead><tbody id="alertsTable"><tr><td colspan="5" class="muted">Sin datos</td></tr></tbody></table></div></article>
+      <article class="card" data-testid="events-card"><div class="card-head"><div><p class="label">Eventos</p><h2 class="value" style="font-size:1.1rem;margin:0">Actividad reciente</h2></div><span id="eventsMeta" class="meta">—</span></div><div class="list table-wrap"><table><thead><tr><th>Nivel</th><th>Tipo</th><th>Origen</th><th>Mensaje</th><th>Hora</th></tr></thead><tbody id="eventsTable"><tr><td colspan="5" class="muted">Sin datos</td></tr></tbody></table></div></article>
     </section>
   </div>
 
   <script>
     const state = { range: 24, refreshMs: 30000, timer: null };
-
     function $(id) { return document.getElementById(id); }
     function fmtPct(v) { const n = Number(v || 0); return n.toFixed(1) + '%'; }
     function fmtMB(v) { const n = Number(v || 0); if (n >= 1024) return (n/1024).toFixed(2) + ' GB'; return n.toFixed(0) + ' MB'; }
-    function fmtBytes(n) {
-      const v = Number(n || 0);
-      if (v < 1024) return v.toFixed(0) + ' B';
-      const kb = v / 1024; if (kb < 1024) return kb.toFixed(1) + ' KB';
-      const mb = kb / 1024; if (mb < 1024) return mb.toFixed(1) + ' MB';
-      const gb = mb / 1024; if (gb < 1024) return gb.toFixed(2) + ' GB';
-      return (gb / 1024).toFixed(2) + ' TB';
-    }
+    function fmtBytes(n) { const v = Number(n || 0); if (v < 1024) return v.toFixed(0) + ' B'; const kb=v/1024; if(kb<1024) return kb.toFixed(1)+' KB'; const mb=kb/1024; if(mb<1024) return mb.toFixed(1)+' MB'; const gb=mb/1024; if(gb<1024) return gb.toFixed(2)+' GB'; return (gb/1024).toFixed(2)+' TB'; }
     function fmtRate(n) { return fmtBytes(n) + '/s'; }
     function fmtTs(ts) { if (!ts) return '—'; const d = new Date(ts); return isNaN(d) ? String(ts) : d.toLocaleString(); }
+    function fmtUptime(sec){ if(sec==null) return '--'; sec=Number(sec); const d=Math.floor(sec/86400), h=Math.floor((sec%86400)/3600), m=Math.floor((sec%3600)/60); if(d>0) return d+'d '+h+'h'; if(h>0) return h+'h '+m+'m'; return m+'m'; }
     function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-    function setHealth(kind, text) {
-      const b = $('healthBadge');
-      b.className = 'badge ' + (kind || 'warn');
-      $('healthText').textContent = text;
-    }
-    function setError(msg) {
-      const b = $('errorBanner');
-      if (msg) { b.textContent = msg; b.classList.add('show'); }
-      else { b.textContent = ''; b.classList.remove('show'); }
-    }
+    function setHealth(kind, text) { const b = $('healthBadge'); b.className = 'badge ' + (kind || 'warn'); $('healthText').textContent = text; }
+    function setError(msg) { const b = $('errorBanner'); if (msg) { b.textContent = msg; b.classList.add('show'); } else { b.textContent = ''; b.classList.remove('show'); } }
 
-    const baseOpts = {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: false }, tooltip: { enabled: true, displayColors: false } },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#71717a', maxTicksLimit: 8 } },
-        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#71717a' } }
-      }
-    };
-
-    const cpuChart = new Chart($('cpuChart'), {
-      type: 'line',
-      data: { labels: [], datasets: [{ label: 'CPU %', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.18)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
-      options: { ...baseOpts, scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, min: 0, max: 100 } } }
-    });
-    const memChart = new Chart($('memoryChart'), {
-      type: 'line',
-      data: { labels: [], datasets: [{ label: 'Memoria %', data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.18)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
-      options: { ...baseOpts, scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, min: 0, max: 100 } } }
-    });
+    const baseOpts = { responsive:true, maintainAspectRatio:false, animation:false, interaction:{mode:'index',intersect:false}, plugins:{legend:{display:false}, tooltip:{enabled:true,displayColors:false}}, scales:{ x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#71717a',maxTicksLimit:8}}, y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#71717a'}} } };
+    const cpuChart = new Chart($('cpuChart'), { type:'line', data:{labels:[], datasets:[{label:'CPU %', data:[], borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.18)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:{...baseOpts, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, min:0, max:100}}} });
+    const memChart = new Chart($('memoryChart'), { type:'line', data:{labels:[], datasets:[{label:'Memoria %', data:[], borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.18)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:{...baseOpts, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, min:0, max:100}}} });
 
     function renderSystem(system) {
-      if (!system || system === null) {
-        $('cpuValue').textContent = '--%'; $('cpuBar').style.width = '0%';
-        $('memoryValue').textContent = '--'; $('memoryBar').style.width = '0%';
-        $('diskValue').textContent = '--'; $('diskBar').style.width = '0%';
-        $('netRateValue').textContent = '--'; $('netTotals').textContent = 'RX total: -- · TX total: --';
-        return;
-      }
-      const cpu = Number(system.cpu_percent || 0);
-      const mup = Number(system.mem_used_percent || 0);
-      const dup = Number(system.disk_used_percent || 0);
-      $('cpuValue').textContent = fmtPct(cpu);
-      $('cpuBar').style.width = Math.min(Math.max(cpu,0),100) + '%';
-      $('cpuMeta').textContent = cpu > 80 ? 'Uso alto' : cpu > 50 ? 'Uso moderado' : 'Uso normal';
-      $('memoryValue').textContent = fmtPct(mup);
-      $('memoryBar').style.width = Math.min(Math.max(mup,0),100) + '%';
-      $('memoryMeta').textContent = fmtMB(system.mem_used_mb) + ' / ' + fmtMB(system.mem_total_mb);
-      $('diskValue').textContent = fmtPct(dup);
-      $('diskBar').style.width = Math.min(Math.max(dup,0),100) + '%';
-      $('diskMeta').textContent = fmtMB(system.disk_used_mb) + ' / ' + fmtMB(system.disk_total_mb) + ' (' + fmtMB(system.disk_available_mb) + ' libre)';
-      $('netRateValue').textContent = '↓ ' + fmtRate(system.net_rx_bytes_per_sec) + ' · ↑ ' + fmtRate(system.net_tx_bytes_per_sec);
-      $('netTotals').textContent = 'RX total: ' + fmtBytes(system.net_rx_bytes) + ' · TX total: ' + fmtBytes(system.net_tx_bytes);
+      if (!system) { $('cpuValue').textContent='--%'; $('cpuBar').style.width='0%'; $('memoryValue').textContent='--'; $('memoryBar').style.width='0%'; $('diskValue').textContent='--'; $('diskBar').style.width='0%'; $('netRateValue').textContent='--'; $('netTotals').textContent='RX total: -- · TX total: --'; $('kvLoad').textContent='--'; $('kvSwap').textContent='--'; $('kvUptime').textContent='--'; $('kvTemp').textContent='--'; $('kvDiskIO').textContent='--'; $('kvProcs').textContent='--'; return; }
+      const cpu=Number(system.cpu_percent||0), mup=Number(system.mem_used_percent||0), dup=Number(system.disk_used_percent||0);
+      $('cpuValue').textContent = fmtPct(cpu); $('cpuBar').style.width = Math.min(Math.max(cpu,0),100)+'%'; $('cpuMeta').textContent = cpu>80?'Uso alto':cpu>50?'Uso moderado':'Uso normal';
+      $('memoryValue').textContent = fmtPct(mup); $('memoryBar').style.width = Math.min(Math.max(mup,0),100)+'%'; $('memoryMeta').textContent = fmtMB(system.mem_used_mb)+' / '+fmtMB(system.mem_total_mb);
+      $('diskValue').textContent = fmtPct(dup); $('diskBar').style.width = Math.min(Math.max(dup,0),100)+'%'; $('diskMeta').textContent = fmtMB(system.disk_used_mb)+' / '+fmtMB(system.disk_total_mb)+' ('+fmtMB(system.disk_available_mb)+' libre)';
+      $('netRateValue').textContent = '↓ '+fmtRate(system.net_rx_bytes_per_sec)+' · ↑ '+fmtRate(system.net_tx_bytes_per_sec);
+      $('netTotals').textContent = 'RX total: '+fmtBytes(system.net_rx_bytes)+' · TX total: '+fmtBytes(system.net_tx_bytes);
+      const l1=system.load1, l5=system.load5, l15=system.load15; $('kvLoad').textContent = (l1!=null?Number(l1).toFixed(2):'--')+' / '+(l5!=null?Number(l5).toFixed(2):'--')+' / '+(l15!=null?Number(l15).toFixed(2):'--');
+      $('kvSwap').textContent = (system.swap_total_mb!=null && Number(system.swap_total_mb)>0) ? (fmtMB(system.swap_used_mb)+' / '+fmtMB(system.swap_total_mb)+' ('+fmtPct(system.swap_used_percent||0)+')') : 'n/d';
+      $('kvUptime').textContent = fmtUptime(system.uptime_seconds);
+      $('kvTemp').textContent = system.temp_celsius!=null ? (Number(system.temp_celsius).toFixed(1)+' °C') : 'n/d';
+      $('kvDiskIO').textContent = (system.disk_read_bytes_per_sec!=null?fmtRate(system.disk_read_bytes_per_sec):'--')+' / '+(system.disk_write_bytes_per_sec!=null?fmtRate(system.disk_write_bytes_per_sec):'--');
+      try { const tp = system.top_processes ? JSON.parse(system.top_processes) : []; $('kvProcs').textContent = (Array.isArray(tp)&&tp.length) ? tp.slice(0,3).map(p=> (p.name||'?')+' '+Number(p.cpu||0).toFixed(0)+'%').join(', ') : '--'; } catch { $('kvProcs').textContent = '--'; }
     }
 
-    function statusPill(status) {
-      const s = String(status || 'unknown').toLowerCase();
-      const cls = s === 'up' ? 'up' : (s === 'down' || s === 'error') ? s : (s === 'degraded' || s === 'starting') ? s : 'unknown';
-      return '<span class="pill ' + cls + '">' + esc(s.toUpperCase()) + '</span>';
-    }
+    function statusPill(status) { const s=String(status||'unknown').toLowerCase(); const cls=(s==='up'||s==='ok'||s==='resolved'||s==='info')?'up':(s==='down'||s==='error'||s==='firing'||s==='critical')?s:(s==='degraded'||s==='starting'||s==='warn'||s==='warning')?s:'unknown'; return '<span class="pill '+cls+'">'+esc(s.toUpperCase())+'</span>'; }
 
     function renderTargets(targets) {
-      const tbody = $('targetsTable');
-      const list = Array.isArray(targets) ? targets : [];
-      $('targetsCount').textContent = list.length + ' target' + (list.length === 1 ? '' : 's');
-      tbody.textContent = '';
-      if (!list.length) {
-        const tr = document.createElement('tr'); const td = document.createElement('td');
-        td.colSpan = 7; td.className = 'muted'; td.textContent = 'No hay targets configurados';
-        tr.appendChild(td); tbody.appendChild(tr); return;
-      }
-      for (const t of list) {
-        const tr = document.createElement('tr');
-        const cells = [
-          (() => { const d=document.createElement('div'); d.className='row-title'; d.textContent=t.name||'unknown'; const u=document.createElement('div'); u.className='mono'; u.textContent=t.url||''; const td=document.createElement('td'); td.appendChild(d); td.appendChild(u); return td; })(),
-          (() => { const td=document.createElement('td'); td.textContent=t.kind||'generic'; return td; })(),
-          (() => { const td=document.createElement('td'); td.innerHTML=statusPill(t.status); return td; })(),
-          (() => { const td=document.createElement('td'); td.textContent = (t.latency_ms!=null)? Number(t.latency_ms).toFixed(1)+' ms':'—'; return td; })(),
-          (() => { const td=document.createElement('td'); td.textContent = (t.http_requests!=null)? String(t.http_requests):'—'; return td; })(),
-          (() => { const td=document.createElement('td'); td.className='muted'; td.textContent=t.detail||'—'; return td; })(),
-          (() => { const td=document.createElement('td'); td.className='muted'; td.textContent=fmtTs(t.timestamp); return td; })(),
-        ];
-        for (const c of cells) tr.appendChild(c);
-        tbody.appendChild(tr);
+      const tbody=$('targetsTable'); const list=Array.isArray(targets)?targets:[]; $('targetsCount').textContent=list.length+' target'+(list.length===1?'':'s'); tbody.textContent='';
+      if(!list.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=7; td.className='muted'; td.textContent='No hay targets configurados'; tr.appendChild(td); tbody.appendChild(tr); return; }
+      for(const t of list){
+        const tr=document.createElement('tr');
+        const reqtls = (t.cert_days_left!=null) ? ('cert '+t.cert_days_left+'d') : (t.http_requests!=null?String(t.http_requests):'—');
+        const c1=document.createElement('td'); const d=document.createElement('div'); d.className='row-title'; d.textContent=t.name||'unknown'; const u=document.createElement('div'); u.className='mono'; u.textContent=t.url||''; c1.appendChild(d); c1.appendChild(u);
+        const c2=document.createElement('td'); c2.textContent=(t.check_type||t.kind||'http');
+        const c3=document.createElement('td'); c3.innerHTML=statusPill(t.status);
+        const c4=document.createElement('td'); c4.textContent=(t.latency_ms!=null)?Number(t.latency_ms).toFixed(1)+' ms':'—';
+        const c5=document.createElement('td'); c5.textContent=reqtls;
+        const c6=document.createElement('td'); c6.className='muted'; c6.textContent=t.detail||'—';
+        const c7=document.createElement('td'); c7.className='muted'; c7.textContent=fmtTs(t.timestamp);
+        [c1,c2,c3,c4,c5,c6,c7].forEach(c=>tr.appendChild(c)); tbody.appendChild(tr);
       }
     }
 
-    async function loadLatest() {
-      const res = await fetch('/api/metrics/latest', { cache: 'no-store' });
-      if (!res.ok) throw new Error('latest: HTTP ' + res.status);
-      const data = await res.json();
-      renderSystem(data.system);
-      renderTargets(data.targets || []);
-      return data;
-    }
+    function renderAlerts(alerts){ const tb=$('alertsTable'); const list=Array.isArray(alerts)?alerts:[]; const firing=list.filter(a=>a.status==='firing'); $('kvAlerts').textContent=firing.length+' firing / '+list.length; $('alertsMeta').textContent=list.length+' total'; tb.textContent=''; if(!list.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.className='muted'; td.textContent='Sin alertas'; tr.appendChild(td); tb.appendChild(tr); return; } for(const a of list.slice(0,50)){ const tr=document.createElement('tr'); const cells=[statusPill(a.status), statusPill(a.severity), esc(a.source||''), esc(a.message||''), fmtTs(a.created_at)]; const tds=cells.map((h,i)=>{const td=document.createElement('td'); if(i<2) td.innerHTML=h; else td.textContent=String(h).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g,''); return td;}); tds[2].textContent=a.source||''; tds[3].textContent=a.message||''; tds[4].textContent=fmtTs(a.created_at); tds.forEach(td=>tr.appendChild(td)); tb.appendChild(tr);} }
+    function renderEvents(events){ const tb=$('eventsTable'); const list=Array.isArray(events)?events:[]; $('eventsMeta').textContent=list.length+' recientes'; tb.textContent=''; if(!list.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.className='muted'; td.textContent='Sin eventos'; tr.appendChild(td); tb.appendChild(tr); return; } for(const e of list.slice(0,50)){ const tr=document.createElement('tr'); const c1=document.createElement('td'); c1.innerHTML=statusPill(e.level||'info'); const c2=document.createElement('td'); c2.textContent=e.kind||''; const c3=document.createElement('td'); c3.textContent=e.source||''; const c4=document.createElement('td'); c4.textContent=e.message||''; const c5=document.createElement('td'); c5.textContent=fmtTs(e.timestamp); [c1,c2,c3,c4,c5].forEach(c=>tr.appendChild(c)); tb.appendChild(tr);} }
 
-    async function loadHistory() {
-      const url = '/api/metrics/history?target=system&range=' + encodeURIComponent(state.range);
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) throw new Error('history: HTTP ' + res.status);
-      const data = await res.json();
-      const points = Array.isArray(data.points) ? data.points : [];
-      const has = points.length > 0;
-      $('cpuChartEmpty').classList.toggle('show', !has);
-      $('memoryChartEmpty').classList.toggle('show', !has);
-      $('cpuChartMeta').textContent = has ? points.length + ' puntos' : '0 puntos';
-      $('memoryChartMeta').textContent = has ? points.length + ' puntos' : '0 puntos';
-      const labels = points.map(p => { const d = new Date(p.timestamp); return isNaN(d)?'':d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); });
-      cpuChart.data.labels = labels;
-      cpuChart.data.datasets[0].data = points.map(p => Number(p.cpu_percent || 0));
-      memChart.data.labels = labels;
-      memChart.data.datasets[0].data = points.map(p => Number(p.mem_used_percent || 0));
-      cpuChart.update();
-      memChart.update();
-      return data;
-    }
+    async function loadLatest(){ const res=await fetch('/api/metrics/latest',{cache:'no-store'}); if(!res.ok) throw new Error('latest: HTTP '+res.status); const data=await res.json(); renderSystem(data.system); renderTargets(data.targets||[]); return data; }
+    async function loadHistory(){ const url='/api/metrics/history?target=system&range='+encodeURIComponent(state.range); const res=await fetch(url,{cache:'no-store'}); if(!res.ok) throw new Error('history: HTTP '+res.status); const data=await res.json(); const points=Array.isArray(data.points)?data.points:[]; const has=points.length>0; $('cpuChartEmpty').classList.toggle('show',!has); $('memoryChartEmpty').classList.toggle('show',!has); $('cpuChartMeta').textContent=has?points.length+' puntos':'0 puntos'; $('memoryChartMeta').textContent=has?points.length+' puntos':'0 puntos'; const labels=points.map(p=>{const d=new Date(p.timestamp); return isNaN(d)?'':d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}); cpuChart.data.labels=labels; cpuChart.data.datasets[0].data=points.map(p=>Number(p.cpu_percent||0)); memChart.data.labels=labels; memChart.data.datasets[0].data=points.map(p=>Number(p.mem_used_percent||0)); cpuChart.update(); memChart.update(); return data; }
+    async function loadHealth(){ try{ const res=await fetch('/api/health',{cache:'no-store'}); const data=await res.json().catch(()=>({})); $('version').textContent='v'+(data.version||'0.0.4'); if(res.ok&&data.ready) setHealth('ok','En línea'); else if(res.ok) setHealth('warn',data.status||'Iniciando'); else setHealth('err',data.status||'Degradado'); }catch{ setHealth('err','Sin conexión'); } }
+    async function loadAlerts(){ try{ const res=await fetch('/api/alerts?limit=50',{cache:'no-store'}); if(!res.ok) throw 0; const d=await res.json(); renderAlerts(d.alerts||[]); }catch{ renderAlerts([]); $('kvAlerts').textContent='--'; } }
+    async function loadEvents(){ try{ const res=await fetch('/api/events?limit=50',{cache:'no-store'}); if(!res.ok) throw 0; const d=await res.json(); renderEvents(d.events||[]); }catch{ renderEvents([]); } }
+    function updateExportLinks(){ const r=state.range; $('exportJson').href='/api/export?target=system&format=json&range='+r; $('exportCsv').href='/api/export?target=system&format=csv&range='+r; }
 
-    async function loadHealth() {
-      try {
-        const res = await fetch('/api/health', { cache: 'no-store' });
-        const data = await res.json().catch(() => ({}));
-        $('version').textContent = 'v' + (data.version || '0.0.4');
-        if (res.ok && data.ready) setHealth('ok', 'En línea');
-        else if (res.ok) setHealth('warn', data.status || 'Iniciando');
-        else setHealth('err', data.status || 'Degradado');
-      } catch { setHealth('err', 'Sin conexión'); }
-    }
-
-    async function refresh() {
-      try {
-        await Promise.all([loadLatest(), loadHistory(), loadHealth()]);
-        setError('');
-      } catch (e) {
-        console.error(e);
-        setError('No se pudieron cargar los datos: ' + (e && e.message ? e.message : 'error'));
-        setHealth('err', 'Error');
-      } finally {
-        $('lastUpdate').textContent = new Date().toLocaleTimeString();
-      }
-    }
-
-    function applyAutoRefresh() {
-      if (state.timer) { clearInterval(state.timer); state.timer = null; }
-      if (state.refreshMs > 0) state.timer = setInterval(refresh, state.refreshMs);
-    }
-
-    $('rangeSelect').addEventListener('change', (e) => { state.range = Number(e.target.value || 24); refresh(); });
-    $('refreshSelect').addEventListener('change', (e) => { state.refreshMs = Number(e.target.value || 0) * 1000; applyAutoRefresh(); });
-    $('refreshBtn').addEventListener('click', () => refresh());
-
-    applyAutoRefresh();
-    refresh();
+    async function refresh(){ try{ updateExportLinks(); await Promise.all([loadLatest(), loadHistory(), loadHealth(), loadAlerts(), loadEvents()]); setError(''); }catch(e){ console.error(e); setError('No se pudieron cargar los datos: '+(e&&e.message?e.message:'error')); setHealth('err','Error'); } finally { $('lastUpdate').textContent=new Date().toLocaleTimeString(); } }
+    function applyAutoRefresh(){ if(state.timer){ clearInterval(state.timer); state.timer=null; } if(state.refreshMs>0) state.timer=setInterval(refresh, state.refreshMs); }
+    $('rangeSelect').addEventListener('change',(e)=>{ state.range=Number(e.target.value||24); refresh(); });
+    $('refreshSelect').addEventListener('change',(e)=>{ state.refreshMs=Number(e.target.value||0)*1000; applyAutoRefresh(); });
+    $('refreshBtn').addEventListener('click',()=>refresh());
+    applyAutoRefresh(); refresh();
   </script>
 </body>
 </html>
