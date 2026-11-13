@@ -310,6 +310,9 @@ impl Config {
         if self.max_history_hours <= 0 {
             bail!("max_history_hours must be greater than 0");
         }
+        if self.max_history_hours > self.retention_hours as i64 {
+            bail!("max_history_hours must be <= retention_hours");
+        }
         if self.db_path.trim().is_empty() {
             bail!("db_path must not be empty");
         }
@@ -609,5 +612,39 @@ mod tests {
         assert_eq!(r.notifications.telegram_bot_token.as_deref(), Some("***"));
         // chat id kept (not secret in same way) but config still usable
         assert_eq!(r.notifications.telegram_chat_id.as_deref(), Some("123"));
+    }
+
+    #[test]
+    fn rejects_invalid_limits_and_history_bounds() {
+        let cfg = Config {
+            interval_seconds: 0,
+            ..Config::default()
+        };
+        assert!(cfg.validate().is_err());
+
+        let cfg = Config {
+            request_timeout_secs: 0,
+            ..Config::default()
+        };
+        assert!(cfg.validate().is_err());
+
+        let cfg = Config {
+            retention_hours: 0,
+            ..Config::default()
+        };
+        assert!(cfg.validate().is_err());
+
+        let cfg = Config {
+            max_history_hours: 0,
+            ..Config::default()
+        };
+        assert!(cfg.validate().is_err());
+
+        let base = Config::default();
+        let cfg = Config {
+            max_history_hours: (base.retention_hours as i64) + 1,
+            ..base
+        };
+        assert!(cfg.validate().is_err());
     }
 }
