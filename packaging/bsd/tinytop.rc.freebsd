@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# PROVIDE: tinytop
+# REQUIRE: LOGIN NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="tinytop"
+rcvar="tinytop_enable"
+
+load_rc_config $name
+
+: ${tinytop_enable:="NO"}
+: ${tinytop_user:="tinytop"}
+: ${tinytop_group:="tinytop"}
+: ${tinytop_config:="/usr/local/etc/tinytop/config.toml"}
+: ${tinytop_db_dir:="/var/db/tinytop"}
+: ${tinytop_flags:=""}
+
+pidfile="/var/run/${name}.pid"
+command="/usr/local/bin/tinytop"
+command_args="--config ${tinytop_config} ${tinytop_flags}"
+start_cmd="${name}_start"
+extra_commands="reload configtest"
+configtest_cmd="${name}_configtest"
+reload_cmd="${name}_reload"
+
+tinytop_start()
+{
+	install -d -o "${tinytop_user}" -g "${tinytop_group}" "${tinytop_db_dir}" /var/run
+	echo "Starting ${name}."
+	/usr/sbin/daemon -S -p "${pidfile}" -u "${tinytop_user}" \
+		"${command}" ${command_args}
+}
+
+tinytop_configtest()
+{
+	"${command}" --check-config --config "${tinytop_config}"
+}
+
+tinytop_reload()
+{
+	if [ ! -f "${pidfile}" ]; then
+		echo "${name} not running?" >&2
+		return 1
+	fi
+	echo "Reloading ${name}."
+	kill -HUP "$(cat "${pidfile}")"
+}
+
+run_rc_command "$1"

@@ -15,7 +15,7 @@ Cada tarball incluye: binario `tinytop`, `config.toml`, `static/` y `migrations/
 
 - `packaging/homebrew/tinytop.rb`: fórmula de ejemplo (URLs de release; **reemplazar `sha256`** por los checksums publicados al liberar).
 - `packaging/aur/PKGBUILD`: receta AUR de ejemplo (x86_64/aarch64, tarballs Linux; **reemplazar `sha256sums_*`**).
-- `packaging/bsd/README.md`: notas/guía para ports/pkg (FreeBSD), ports (OpenBSD) y pkgsrc (NetBSD).
+- `packaging/bsd/README.md` + `packaging/bsd/tinytop.rc.*`: notas y plantillas rc.d para ports/pkg (FreeBSD), ports (OpenBSD) y pkgsrc (NetBSD).
 
 - `packaging/systemd/tinytop.service`: unidad systemd de ejemplo (usuario dedicado, recarga por `SIGHUP`, hardening básico).
 

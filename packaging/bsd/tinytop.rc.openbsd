@@ -1,0 +1,15 @@
+#!/bin/ksh
+
+daemon="/usr/local/bin/tinytop"
+daemon_flags="--config /etc/tinytop/config.toml"
+daemon_user="tinytop"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=YES
+
+rc_configtest() {
+	${daemon} --check-config ${daemon_flags}
+}
+
+rc_cmd $1

@@ -1,0 +1,46 @@
+#!/bin/sh
+#
+# PROVIDE: tinytop
+# REQUIRE: DAEMON NETWORKING
+# KEYWORD: shutdown
+
+$_rc_subr_loaded . /etc/rc.subr
+
+name="tinytop"
+rcvar=$name
+command="/usr/pkg/bin/tinytop"
+command_args="--config /usr/pkg/etc/tinytop/config.toml"
+tinytop_user="tinytop"
+tinytop_group="tinytop"
+pidfile="/var/run/${name}.pid"
+start_cmd="tinytop_start"
+extra_commands="reload configtest"
+configtest_cmd="tinytop_configtest"
+reload_cmd="tinytop_reload"
+
+tinytop_start()
+{
+	install -d -o "${tinytop_user}" -g "${tinytop_group}" /var/db/tinytop
+	echo "Starting ${name}."
+	${command} ${command_args} &
+	echo $! > "${pidfile}"
+}
+
+tinytop_configtest()
+{
+	${command} --check-config --config /usr/pkg/etc/tinytop/config.toml
+}
+
+tinytop_reload()
+{
+	if [ -f "${pidfile}" ]; then
+		echo "Reloading ${name}."
+		kill -HUP "$(cat "${pidfile}")"
+	else
+		echo "${name} not running?" >&2
+		return 1
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"
