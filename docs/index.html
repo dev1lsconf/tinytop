@@ -5,78 +5,314 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyTop — Monitor ligero en Rust</title>
   <meta name="description" content="TinyTop: monitor autohospedado y ligero para servidores Linux y *BSD. Un solo binario, SQLite, dashboard web, sin Prometheus.">
-  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#000000">
+  <meta name="color-scheme" content="dark">
   <style>
-    :root { --bg:#0b0d10; --card:#12161c; --text:#e8edf2; --muted:#a7b1bb; --accent:#6ee7b7; --accent2:#60a5fa; --border:#232a33; }
-    @media (prefers-color-scheme: light) { :root { --bg:#f6f8fa; --card:#ffffff; --text:#111827; --muted:#4b5563; --accent:#059669; --accent2:#2563eb; --border:#e5e7eb; } }
-    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
-    a{color:var(--accent2);text-decoration:none} a:hover{text-decoration:underline}
-    .wrap{max-width:1000px;margin:0 auto;padding:32px 20px 56px}
-    header{padding:24px 0 8px} .badge{display:inline-block;padding:4px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:.85rem;margin-right:8px}
-    h1{font-size:clamp(2rem,4vw,3rem);margin:.4rem 0 .2rem;letter-spacing:-.02em} .lead{font-size:1.15rem;color:var(--muted);max-width:70ch;margin:.2rem 0 1rem}
-    .cta{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0 8px}
-    .btn{display:inline-block;padding:10px 16px;border-radius:10px;font-weight:600;border:1px solid var(--border);background:var(--card);color:var(--text)}
-    .btn.primary{background:var(--accent);color:#062016;border-color:transparent} .btn.primary:hover{text-decoration:none;filter:brightness(1.05)}
-    .hero{margin:26px 0 10px} .hero img{width:100%;height:auto;border-radius:14px;border:1px solid var(--border);background:#000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    section{margin-top:34px} h2{font-size:1.4rem;margin:0 0 12px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
-    .card h3{margin:.1rem 0 .35rem;font-size:1.05rem} .card p{margin:0;color:var(--muted);font-size:.97rem}
-    pre{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto;margin:10px 0}
-    code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:.95em}
-    ul{margin:.4rem 0 .2rem 1.2rem;color:var(--muted)} footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:.95rem}
+    :root {
+      --bg: #000;
+      --bg-subtle: #0a0a0a;
+      --surface: rgba(255,255,255,0.03);
+      --surface-hover: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.18);
+      --text: #ededed;
+      --muted: #888;
+      --muted-2: #a1a1a1;
+      --accent: #fff;
+      --blue: #0070f3;
+      --cyan: #50e3c2;
+      --violet: #7928ca;
+      --pink: #ff0080;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 0 0 1px var(--border), 0 8px 40px rgba(0,0,0,0.5);
+      --max: 1120px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+    }
+    /* Background grid + glow */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: -2; pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+    }
+    .bg-glow {
+      position: fixed; inset: -20% -10% auto -10%; height: 70vh; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(600px 300px at 20% 20%, rgba(0,112,243,0.18), transparent 60%),
+        radial-gradient(500px 260px at 80% 10%, rgba(121,40,202,0.16), transparent 60%),
+        radial-gradient(400px 240px at 50% 30%, rgba(255,0,128,0.10), transparent 60%);
+      filter: blur(40px);
+    }
+    a { color: inherit; text-decoration: none; }
+    .container { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+    /* Nav */
+    .nav {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: saturate(180%) blur(12px);
+      -webkit-backdrop-filter: saturate(180%) blur(12px);
+      background: rgba(0,0,0,0.6);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.02em; }
+    .brand-mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: #fff; color: #000; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700;
+    }
+    .nav-links { display: flex; align-items: center; gap: 18px; font-size: 0.9rem; color: var(--muted-2); }
+    .nav-links a:hover { color: var(--text); }
+    /* Hero */
+    .hero { padding: 96px 0 48px; text-align: center; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+    .pill {
+      display: inline-flex; align-items: center; padding: 4px 12px;
+      border: 1px solid var(--border); border-radius: 999px;
+      font-size: 0.8rem; color: var(--muted-2); background: var(--surface);
+    }
+    .pill.accent { border-color: rgba(0,112,243,0.4); color: #7cc4ff; background: rgba(0,112,243,0.08); }
+    h1 {
+      font-size: clamp(2.6rem, 6vw, 4.5rem);
+      line-height: 1.05; margin: 0 0 18px; letter-spacing: -0.04em; font-weight: 700;
+    }
+    .gradient-text {
+      background: linear-gradient(90deg, #fff 20%, #999 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .lead { font-size: 1.2rem; color: var(--muted); max-width: 720px; margin: 0 auto 28px; }
+    .lead strong { color: var(--text); font-weight: 500; }
+    .cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 8px 0 0; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 44px; padding: 0 18px; border-radius: 999px; font-size: 0.95rem; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      transition: all .2s ease; cursor: pointer;
+    }
+    .btn:hover { background: var(--surface-hover); border-color: var(--border-hover); }
+    .btn.primary { background: #fff; color: #000; border-color: #fff; }
+    .btn.primary:hover { background: #eaeaea; border-color: #eaeaea; }
+    .btn svg { width: 16px; height: 16px; }
+    /* Preview */
+    .preview { padding: 28px 0 24px; }
+    .preview-frame {
+      position: relative; border-radius: 16px; padding: 1px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04));
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 30px 80px rgba(0,0,0,0.6);
+    }
+    .preview-inner {
+      border-radius: 15px; overflow: hidden; background: #050505;
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .preview-bar {
+      display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+      border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02);
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #333; }
+    .dot.r { background: #ff5f56; } .dot.y { background: #ffbd2e; } .dot.g { background: #27c93f; }
+    .preview-url { margin-left: 8px; font-size: 0.8rem; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .preview img { display: block; width: 100%; height: auto; }
+    .glow-line {
+      position: absolute; left: 10%; right: 10%; top: -1px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+    }
+    /* Sections */
+    section { padding: 64px 0 8px; }
+    .section-head { text-align: center; margin-bottom: 32px; }
+    .section-head h2 { font-size: 2rem; margin: 0 0 10px; letter-spacing: -0.03em; }
+    .section-head p { margin: 0 auto; color: var(--muted); max-width: 640px; font-size: 1.05rem; }
+    .grid { display: grid; gap: 16px; }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 22px;
+      transition: border-color .2s ease, transform .2s ease, background .2s ease;
+    }
+    .card:hover { border-color: var(--border-hover); background: var(--surface-hover); transform: translateY(-2px); }
+    .card .icon {
+      width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border); margin-bottom: 14px; font-size: 1rem;
+    }
+    .card h3 { margin: 0 0 6px; font-size: 1.05rem; letter-spacing: -0.01em; }
+    .card p { margin: 0; color: var(--muted); font-size: 0.95rem; line-height: 1.55; }
+    /* Code */
+    .code-block {
+      background: #0a0a0a; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    }
+    .code-head {
+      display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+      border-bottom: 1px solid var(--border); color: var(--muted); font-size: 0.8rem;
+    }
+    pre { margin: 0; padding: 16px 18px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.9rem; color: #e5e5e5; }
+    .token-dim { color: #666; } .token-cmd { color: #fff; } .token-flag { color: #79b8ff; } .token-str { color: #50e3c2; }
+    /* List */
+    .feature-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+    .feature-list li {
+      display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+      color: var(--muted-2); font-size: 0.97rem;
+    }
+    .feature-list li strong { color: var(--text); font-weight: 500; }
+    .check { color: var(--cyan); margin-top: 2px; flex: 0 0 auto; }
+    /* Footer */
+    footer { margin-top: 72px; border-top: 1px solid var(--border); padding: 28px 0 40px; color: var(--muted); font-size: 0.9rem; }
+    .footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+    .footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
+    .footer-links a:hover { color: var(--text); }
+    @media (max-width: 960px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 720px) {
+      .hero { padding: 72px 0 32px; }
+      .grid-4, .grid-2 { grid-template-columns: 1fr; }
+      .nav-links .hide-sm { display: none; }
+      .lead { font-size: 1.05rem; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <span class="badge">v0.0.4</span><span class="badge">Rust 2024</span><span class="badge">Linux &amp; *BSD</span><span class="badge">MIT</span>
-      <h1>TinyTop</h1>
-      <p class="lead">Monitor autohospedado y ligero para servidores. Recolecta métricas del sistema y sondea targets HTTP, persiste histórico en SQLite y expone un dashboard web en tiempo real. <strong>Un solo binario</strong>, sin Prometheus ni servicios externos.</p>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="#">
+        <span class="brand-mark">TT</span>
+        <span>TinyTop</span>
+      </a>
+      <div class="nav-links">
+        <a class="hide-sm" href="#features">Características</a>
+        <a class="hide-sm" href="#quickstart">Inicio rápido</a>
+        <a class="hide-sm" href="#compat">Compatibilidad</a>
+        <a href="https://github.com/dev1lsconf/tinytop">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <header class="hero">
+      <div class="eyebrow">
+        <span class="pill accent">v0.0.4</span>
+        <span class="pill">Rust 2024</span>
+        <span class="pill">Linux &amp; *BSD</span>
+        <span class="pill">MIT</span>
+      </div>
+      <h1><span class="gradient-text">Monitor ligero para servidores.</span></h1>
+      <p class="lead">Monitoreo autohospedado de sistema y targets HTTP con histórico en SQLite y dashboard web en tiempo real. <strong>Un solo binario</strong>, sin Prometheus ni servicios externos.</p>
       <div class="cta">
-        <a class="btn primary" href="https://github.com/dev1lsconf/tinytop/releases/latest">Descargar release</a>
-        <a class="btn" href="https://github.com/dev1lsconf/tinytop">Ver en GitHub</a>
+        <a class="btn primary" href="https://github.com/dev1lsconf/tinytop/releases/latest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar release
+        </a>
+        <a class="btn" href="https://github.com/dev1lsconf/tinytop">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.77 5.46.77 11.74c0 4.93 3.19 9.12 7.62 10.6.56.1.77-.24.77-.54v-2.1c-3.1.68-3.75-1.32-3.75-1.32-.5-1.29-1.24-1.64-1.24-1.64-1.01-.69.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15 1 .1 1.66-.71 2.02-1.15.1-.71.39-1.2.71-1.47-2.48-.28-5.08-1.24-5.08-5.52 0-1.22.44-2.22 1.15-3-.12-.28-.5-1.42.11-2.95 0 0 .94-.3 3.08 1.15a10.7 10.7 0 0 1 5.6 0c2.14-1.45 3.08-1.15 3.08-1.15.61 1.53.23 2.67.11 2.95.72.78 1.15 1.78 1.15 3 0 4.29-2.61 5.23-5.1 5.51.4.34.76 1.02.76 2.06v3.05c0 .3.2.65.78.54 4.42-1.48 7.61-5.67 7.61-10.6C23.23 5.46 18.27.5 12 .5z"/></svg>
+          Ver en GitHub
+        </a>
         <a class="btn" href="https://github.com/dev1lsconf/tinytop/pkgs/container/tinytop">Contenedor (GHCR)</a>
       </div>
     </header>
 
-    <div class="hero">
-      <img src="dashboard.png" alt="Dashboard de TinyTop mostrando métricas de CPU, memoria, disco, red y targets" loading="lazy">
+    <div class="preview">
+      <div class="preview-frame">
+        <div class="glow-line"></div>
+        <div class="preview-inner">
+          <div class="preview-bar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span class="preview-url">localhost:9090 — dashboard</span>
+          </div>
+          <img src="dashboard.png" alt="Dashboard de TinyTop con métricas de CPU, memoria, disco, red y targets" loading="lazy">
+        </div>
+      </div>
     </div>
 
-    <section>
-      <h2>Características</h2>
-      <div class="grid">
-        <div class="card"><h3>Sistema</h3><p>CPU, memoria, disco y red (RX/TX acumulado y por segundo). Disco sobre filesystems reales con deduplicación y filtrado de pseudo-FS (Linux y *BSD), colector con refrescos incrementales.</p></div>
-        <div class="card"><h3>Targets HTTP</h3><p>Sondeo concurrente con cliente reutilizado: <code>generic</code>, Spring Boot/Actuator, Quarkus, Micronaut/Micrometer. Latencia, estado normalizado y extracción heurística de requests.</p></div>
-        <div class="card"><h3>Persistencia y API</h3><p>SQLite (WAL, migraciones, pragmas de bajo coste), retención/pruning, histórico por rango. API JSON: <code>/api/health</code>, <code>/api/metrics/latest</code>, <code>/api/metrics/history</code>, <code>/api/config</code>.</p></div>
-        <div class="card"><h3>Dashboard y operación</h3><p>UI embebida con Chart.js local, sin CDN. Apagado ordenado, logging, configuración por archivo/entorno, validación estricta y cabeceras de seguridad HTTP.</p></div>
+    <section id="features">
+      <div class="section-head">
+        <h2>Todo lo que necesitas, sin exceso</h2>
+        <p>Métricas de sistema, sondeo HTTP, histórico y API en un binario único, eficiente y fácil de operar.</p>
+      </div>
+      <div class="grid grid-4">
+        <article class="card">
+          <div class="icon">📈</div>
+          <h3>Sistema</h3>
+          <p>CPU, memoria, disco y red (acumulado y RX/TX por segundo). Discos reales con deduplicación y filtrado de pseudo-FS en Linux y *BSD, con refrescos incrementales.</p>
+        </article>
+        <article class="card">
+          <div class="icon">🎯</div>
+          <h3>Targets HTTP</h3>
+          <p>Sondeo concurrente con cliente reutilizado: <code>generic</code>, Spring Boot/Actuator, Quarkus y Micronaut/Micrometer. Latencia, estado y extracción heurística de requests.</p>
+        </article>
+        <article class="card">
+          <div class="icon">🗄️</div>
+          <h3>Persistencia y API</h3>
+          <p>SQLite con WAL, migraciones y pragmas de bajo coste. Retención/pruning e histórico por rango. API JSON consistente para health, métricas e historial.</p>
+        </article>
+        <article class="card">
+          <div class="icon">🖥️</div>
+          <h3>Dashboard y operación</h3>
+          <p>UI embebida con Chart.js local (sin CDN), apagado ordenado, logging, config por archivo/entorno, validación estricta y cabeceras de seguridad HTTP.</p>
+        </article>
       </div>
     </section>
 
-    <section>
-      <h2>Inicio rápido</h2>
-      <pre><code># Desde código (requiere Rust 1.88+)
-cargo build --release --locked
-./target/release/tinytop
-# http://localhost:9090</code></pre>
-      <pre><code># Docker
-docker compose up -d --build
-# http://localhost:9090</code></pre>
+    <section id="quickstart">
+      <div class="section-head">
+        <h2>Inicio rápido</h2>
+        <p>Compila o levanta el contenedor y accede al dashboard en segundos.</p>
+      </div>
+      <div class="grid grid-2">
+        <div class="code-block">
+          <div class="code-head"><span>Desde código (Rust 1.88+)</span><span>shell</span></div>
+          <pre><code><span class="token-dim"># compilar y ejecutar</span>
+<span class="token-cmd">cargo</span> build <span class="token-flag">--release --locked</span>
+<span class="token-cmd">./target/release/tinytop</span>
+<span class="token-dim"># → http://localhost:9090</span></code></pre>
+        </div>
+        <div class="code-block">
+          <div class="code-head"><span>Docker</span><span>shell</span></div>
+          <pre><code><span class="token-dim"># levantar con compose</span>
+<span class="token-cmd">docker</span> compose up <span class="token-flag">-d --build</span>
+<span class="token-dim"># → http://localhost:9090</span></code></pre>
+        </div>
+      </div>
     </section>
 
-    <section>
-      <h2>Compatibilidad y artefactos</h2>
-      <ul>
-        <li><strong>Plataformas:</strong> Linux y sistemas *BSD (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD).</li>
-        <li><strong>Artefactos oficiales:</strong> tarballs para Linux x86_64, FreeBSD, OpenBSD y NetBSD, más imagen <code>ghcr.io/dev1lsconf/tinytop</code>.</li>
-        <li>En otras plataformas soportadas por las dependencias: compilación desde código.</li>
+    <section id="compat">
+      <div class="section-head">
+        <h2>Compatibilidad y artefactos</h2>
+        <p>Construido para Linux y sistemas *BSD, con binarios oficiales listos para usar.</p>
+      </div>
+      <ul class="feature-list">
+        <li><span class="check">✓</span><div><strong>Plataformas:</strong> Linux y sistemas *BSD (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD) vía <code>sysinfo</code>.</div></li>
+        <li><span class="check">✓</span><div><strong>Artefactos oficiales:</strong> tarballs para Linux x86_64, FreeBSD, OpenBSD y NetBSD, además de la imagen de contenedor <code>ghcr.io/dev1lsconf/tinytop</code>.</div></li>
+        <li><span class="check">✓</span><div><strong>Desde código:</strong> en otras plataformas soportadas por las dependencias, compila con <code>cargo build --release --locked</code>.</div></li>
       </ul>
     </section>
+  </main>
 
-    <footer>
-      <p>TinyTop · <a href="https://github.com/dev1lsconf/tinytop">Repositorio</a> · <a href="https://github.com/dev1lsconf/tinytop/releases">Releases</a> · <a href="https://github.com/dev1lsconf/tinytop/blob/master/CHANGELOG.md">Changelog</a> · Licencia <a href="https://github.com/dev1lsconf/tinytop/blob/master/LICENSE">MIT</a></p>
-    </footer>
-  </div>
+  <footer>
+    <div class="container footer-inner">
+      <div>TinyTop · Monitor ligero en Rust</div>
+      <div class="footer-links">
+        <a href="https://github.com/dev1lsconf/tinytop">Repositorio</a>
+        <a href="https://github.com/dev1lsconf/tinytop/releases">Releases</a>
+        <a href="https://github.com/dev1lsconf/tinytop/blob/master/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/dev1lsconf/tinytop/blob/master/LICENSE">MIT</a>
+      </div>
+    </div>
+  </footer>
 </body>
 </html>
