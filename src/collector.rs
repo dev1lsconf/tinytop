@@ -224,10 +224,7 @@ async fn collect_targets(config: &Config) -> Vec<TargetInfo> {
 }
 
 async fn probe_target(client: &reqwest::Client, target: &crate::config::Target) -> TargetInfo {
-    let kind = target
-        .kind
-        .clone()
-        .unwrap_or_else(|| "generic".to_string());
+    let kind = target.kind.clone().unwrap_or_else(|| "generic".to_string());
     let start = Instant::now();
     match client.get(&target.url).send().await {
         Ok(resp) => {
