@@ -360,14 +360,19 @@ async fn run_collector(
 async fn evaluate_alerts(db: &db::Database, cfg: &Config, snap: &collector::Snapshot) {
     let s = &snap.system;
     let a = &cfg.alerts;
+    let mut changed = false;
     macro_rules! check {
         ($cond:expr, $src:expr, $name:expr, $sev:expr, $msg:expr, $val:expr, $th:expr) => {
             if $cond {
-                let _ = db
-                    .fire_alert($sev, $src, $name, $msg, Some($val), Some($th))
-                    .await;
-            } else {
-                let _ = db.resolve_alert($src, $name).await;
+                if matches!(
+                    db.fire_alert($sev, $src, $name, $msg, Some($val), Some($th))
+                        .await,
+                    Ok(true)
+                ) {
+                    changed = true;
+                }
+            } else if matches!(db.resolve_alert($src, $name).await, Ok(true)) {
+                changed = true;
             }
         };
     }
@@ -465,8 +470,9 @@ async fn evaluate_alerts(db: &db::Database, cfg: &Config, snap: &collector::Snap
             );
         }
     }
-    // notifications on newly firing alerts best-effort
-    dispatch_notifications(db, cfg).await;
+    if changed {
+        dispatch_notifications(db, cfg).await;
+    }
 }
 
 async fn dispatch_notifications(db: &db::Database, cfg: &Config) {

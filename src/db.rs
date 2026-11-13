@@ -319,7 +319,7 @@ impl Database {
         message: &str,
         value: Option<f64>,
         threshold: Option<f64>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         let existing = sqlx::query(
             "SELECT id FROM alerts WHERE status='firing' AND source=? AND name=? LIMIT 1",
         )
@@ -335,15 +335,17 @@ impl Database {
             self.insert_event("warn", "alert_firing", Some(source), message, None)
                 .await
                 .ok();
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
-    pub async fn resolve_alert(&self, source: &str, name: &str) -> anyhow::Result<()> {
+    pub async fn resolve_alert(&self, source: &str, name: &str) -> anyhow::Result<bool> {
         let ts = chrono::Utc::now().to_rfc3339();
         let res = sqlx::query("UPDATE alerts SET status='resolved', resolved_at=? WHERE status='firing' AND source=? AND name=?")
             .bind(ts).bind(source).bind(name).execute(&self.pool).await?;
-        if res.rows_affected() > 0 {
+        let changed = res.rows_affected() > 0;
+        if changed {
             self.insert_event(
                 "info",
                 "alert_resolved",
@@ -354,7 +356,7 @@ impl Database {
             .await
             .ok();
         }
-        Ok(())
+        Ok(changed)
     }
 
     pub async fn list_alerts(
