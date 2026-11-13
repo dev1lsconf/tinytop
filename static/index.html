@@ -91,7 +91,7 @@
         <div class="logo" aria-hidden="true">TT</div>
         <div>
           <h1>TinyTop</h1>
-          <p class="subtitle">Monitor de sistema y targets · <span id="version">v0.0.2</span></p>
+          <p class="subtitle">Monitor de sistema y targets · <span id="version">v0.0.3</span></p>
         </div>
       </div>
       <div class="controls" role="group" aria-label="Controles">
@@ -302,7 +302,7 @@
       try {
         const res = await fetch('/api/health', { cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
-        $('version').textContent = 'v' + (data.version || '0.0.2');
+        $('version').textContent = 'v' + (data.version || '0.0.3');
         if (res.ok && data.ready) setHealth('ok', 'En línea');
         else if (res.ok) setHealth('warn', data.status || 'Iniciando');
         else setHealth('err', data.status || 'Degradado');
