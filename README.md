@@ -7,7 +7,7 @@
 [![rust](https://img.shields.io/badge/Rust-1.88%2B%20(edition%202024)-orange.svg)](https://www.rust-lang.org)
 [![platform](https://img.shields.io/badge/platform-linux%20%7C%20BSD-lightgrey.svg)](https://www.kernel.org)
 
-![TinyTop Dashboard](docs/dashboard.png)
+![TinyTop Dashboard](docs/dashboard.png?v=0.0.4-2)
 
 **TinyTop** es un monitor autohospedado y ligero para servidores. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real. Funciona como **un solo binario**, sin Prometheus ni servicios externos.
 
