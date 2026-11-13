@@ -4,6 +4,19 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [0.0.4] - 2026-11-13
+
+### Añadido
+- Soporte de plataforma para **sistemas *BSD** (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD) vía `sysinfo`, manteniendo Linux.
+- Sección de compatibilidad en el README (binarios oficiales Linux x86_64/contenedor; compilación desde código en plataformas soportadas).
+
+### Cambiado
+- Colector de disco: excluye pseudo-filesystems adicionales presentes en *BSD/Linux (`procfs`, `devfs`, `fdescfs`, `linprocfs`, `linsysfs`, `nullfs`) para contabilizar solo almacenamiento real.
+- Versión del proyecto actualizada a `0.0.4`.
+
+### Corregido
+- Pruebas de base de datos: uso de `std::env::temp_dir()` en lugar de `/tmp` fijo para mayor portabilidad.
+
 ## [0.0.3] - 2026-11-13
 
 ### Añadido

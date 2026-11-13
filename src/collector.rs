@@ -116,11 +116,13 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
         let fs = d.file_system().to_string_lossy().to_ascii_lowercase();
         if matches!(
             fs.as_str(),
+            // Linux pseudo/virtual filesystems
             "tmpfs"
                 | "devtmpfs"
                 | "overlay"
                 | "squashfs"
                 | "proc"
+                | "procfs"
                 | "sysfs"
                 | "cgroup"
                 | "cgroup2"
@@ -141,6 +143,12 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
                 | "binfmt_misc"
                 | "aufs"
                 | "devpts"
+                // BSD pseudo/virtual filesystems
+                | "devfs"
+                | "fdescfs"
+                | "linprocfs"
+                | "linsysfs"
+                | "nullfs"
         ) {
             continue;
         }

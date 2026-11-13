@@ -229,8 +229,10 @@ mod tests {
     use super::*;
 
     async fn test_db() -> Database {
-        let name = format!("/tmp/tinytop-test-{}.db", uuid_like());
-        let db = Database::open(&name).await.unwrap();
+        let path = std::env::temp_dir().join(format!("tinytop-test-{}.db", uuid_like()));
+        let db = Database::open(path.to_str().expect("temp path utf-8"))
+            .await
+            .unwrap();
         db.init().await.unwrap();
         db
     }

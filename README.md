@@ -1,24 +1,24 @@
-# TinyTop v0.0.3 - Monitor ligero en Rust
+# TinyTop v0.0.4 - Monitor ligero en Rust
 
 [![CI](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dev1lsconf/tinytop?display_name=tag)](https://github.com/dev1lsconf/tinytop/releases)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-0.0.3-blue.svg)](Cargo.toml)
+[![version](https://img.shields.io/badge/version-0.0.4-blue.svg)](Cargo.toml)
 [![rust](https://img.shields.io/badge/Rust-1.88%2B%20(edition%202024)-orange.svg)](https://www.rust-lang.org)
-[![platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.kernel.org)
+[![platform](https://img.shields.io/badge/platform-linux%20%7C%20BSD-lightgrey.svg)](https://www.kernel.org)
 
 ![TinyTop Dashboard](docs/dashboard.png)
 
-**TinyTop** es un monitor autohospedado y ligero para servidores/VPS. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real. Funciona como **un solo binario**, sin Prometheus ni servicios externos.
+**TinyTop** es un monitor autohospedado y ligero para servidores. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real. Funciona como **un solo binario**, sin Prometheus ni servicios externos.
 
 ## Características
 
-- **Sistema**: CPU (%), memoria usada/total (%), disco usado/total/disponible (%), red acumulada y **tasas RX/TX por segundo** (con manejo de reinicio/overflow de contadores). El disco contabiliza filesystems reales y deduplica por dispositivo para evitar dobles conteos (bind mounts/subvolúmenes, p. ej. Btrfs/Docker). El colector **reutiliza estado de `sysinfo`** entre ciclos (refrescos incrementales) para menor sobrecarga.
+- **Sistema**: CPU (%), memoria usada/total (%), disco usado/total/disponible (%), red acumulada y **tasas RX/TX por segundo** (con manejo de reinicio/overflow de contadores). El disco contabiliza filesystems reales y deduplica por dispositivo para evitar dobles conteos (bind mounts/subvolúmenes, p. ej. Btrfs/Docker). Excluye pseudo-filesystems de Linux y *BSD (`procfs`/`devfs`/`fdescfs`/`nullfs`/`linprocfs`/`linsysfs`, etc.). El colector **reutiliza estado de `sysinfo`** entre ciclos (refrescos incrementales) para menor sobrecarga.
 - **Targets HTTP**: sondeo concurrente con cliente HTTP reutilizado, `kind` (`generic`, `spring-boot`/`spring`/`actuator`, `quarkus`, `micronaut`/`micrometer`), latencia, estado normalizado, extracción heurística de `http_requests` (JSON/Actuator/texto de métricas) y detalle de error acotado. Resultados en orden estable.
 - **Persistencia y retención**: SQLite (WAL, `foreign_keys`, `synchronous=NORMAL`, `busy_timeout`, `temp_store=MEMORY`, `PRAGMA optimize`) con migraciones integradas y tablas `system_metrics`/`target_metrics`, histórico por rango, pruning automático por retención.
 - **API**: `/api/health` (readiness/db/runtime), `/api/metrics/latest`, `/api/metrics/history`, `/api/config` con errores JSON y códigos HTTP consistentes (404/400/5xx).
 - **Dashboard**: HTML/CSS/JS embebido + Chart.js servido localmente (`/static/vendor/chart.umd.min.js`, sin CDN), controles de rango y auto-refresh, estados vacíos/carga/error, render seguro de targets (DOM + escape), tabla y tarjetas accesibles.
-- **Operación**: apagado ordenado (SIGINT/SIGTERM), logging con `tracing`, configuración por archivo + overrides de entorno, validación estricta (bind/puerto/rangos/nombres únicos/URLs/kinds), cabeceras de seguridad HTTP (`nosniff`, `no-referrer`, `DENY`, `Permissions-Policy`, CSP compatible con la UI embebida).
+- **Operación**: apagado ordenado (SIGINT/SIGTERM en Unix, incluidos *BSD), logging con `tracing`, configuración por archivo + overrides de entorno, validación estricta (bind/puerto/rangos/nombres únicos/URLs/kinds), cabeceras de seguridad HTTP (`nosniff`, `no-referrer`, `DENY`, `Permissions-Policy`, CSP compatible con la UI embebida).
 - **Build/Docker**: binario `release` optimizado (`lto`, `strip`, `panic=abort`), imagen multi-stage, usuario no-root, volumen de datos, `HEALTHCHECK`, `Cargo.lock` para builds reproducibles.
 
 ## Configuración
@@ -87,6 +87,12 @@ docker compose up -d --build
 - Ejecuta como usuario no-root.
 - En contenedor, las métricas de disco priorizan filesystems reales del host/volumen (se excluyen pseudo-FS como `overlay`/`tmpfs`).
 
+## Compatibilidad
+
+- Soporte de plataforma: **Linux** y **sistemas *BSD** (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD) vía `sysinfo`.
+- Binarios/paquetes oficiales actuales: Linux x86_64 (release tarball) e imagen de contenedor `ghcr.io/dev1lsconf/tinytop`.
+- En otras plataformas soportadas por las dependencias se puede compilar desde código (`cargo build --release --locked`).
+
 ## Pruebas y calidad
 
 ```bash
@@ -112,13 +118,6 @@ El workflow de CI ejecuta fmt, clippy, tests, build y E2E en Ubuntu.
 - Las URLs de targets se leen de configuración local/controlada por el operador.
 - `Cargo.lock` incluido para builds reproducibles.
 
-## Licencia
-
-MIT - Copyright (c) 2026 TinyTop Contributors
-
-## Agradecimientos
-
-- [Rust](https://www.rust-lang.org), [Tokio](https://tokio.rs), [Axum](https://github.com/tokio-rs/axum), [SQLx](https://github.com/launchbadge/sqlx), [sysinfo](https://github.com/GuillaumeGomez/sysinfo), [Chart.js](https://www.chartjs.org/)
 ## Changelog
 
 Ver [CHANGELOG.md](CHANGELOG.md).
@@ -128,3 +127,11 @@ Ver [CHANGELOG.md](CHANGELOG.md).
 - Releases y artefactos (`.tar.gz` + `.sha256`): [GitHub Releases](https://github.com/dev1lsconf/tinytop/releases).
 - Paquete de contenedor: `ghcr.io/dev1lsconf/tinytop` (publicado por el workflow de release en tags `v*`).
 - El workflow `.github/workflows/release.yml` construye el binario, empaqueta artefactos, crea/actualiza la release y publica la imagen en GHCR; soporta `workflow_dispatch` para republicar desde un tag.
+
+## Licencia
+
+MIT - Copyright (c) 2026 TinyTop Contributors
+
+## Agradecimientos
+
+- [Rust](https://www.rust-lang.org), [Tokio](https://tokio.rs), [Axum](https://github.com/tokio-rs/axum), [SQLx](https://github.com/launchbadge/sqlx), [sysinfo](https://github.com/GuillaumeGomez/sysinfo), [Chart.js](https://www.chartjs.org/)
