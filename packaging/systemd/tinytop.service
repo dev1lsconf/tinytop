@@ -1,0 +1,26 @@
+[Unit]
+Description=TinyTop - lightweight system and target monitor
+Documentation=https://github.com/dev1lsconf/tinytop
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Ajusta usuario/grupo y rutas según tu instalación (paquete nativo o binario manual)
+User=tinytop
+Group=tinytop
+ExecStart=/usr/bin/tinytop --config /etc/tinytop/config.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+# Persistencia: asegura que db_path apunte a un directorio escribible (p.ej. /var/lib/tinytop/tinytop.db)
+WorkingDirectory=/var/lib/tinytop
+# Hardening básico (ajusta si tu entorno lo requiere)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/tinytop /etc/tinytop
+
+[Install]
+WantedBy=multi-user.target

@@ -17,6 +17,8 @@ Cada tarball incluye: binario `tinytop`, `config.toml`, `static/` y `migrations/
 - `packaging/aur/PKGBUILD`: receta AUR de ejemplo (x86_64/aarch64, tarballs Linux; **reemplazar `sha256sums_*`**).
 - `packaging/bsd/README.md`: notas/guía para ports/pkg (FreeBSD), ports (OpenBSD) y pkgsrc (NetBSD).
 
+- `packaging/systemd/tinytop.service`: unidad systemd de ejemplo (usuario dedicado, recarga por `SIGHUP`, hardening básico).
+
 Las plantillas usan la versión actual del proyecto; al publicar un release, actualiza `version/pkgver` y los hashes.
 
 ## Instalación desde paquetes nativos (Linux x86_64)
@@ -32,6 +34,16 @@ sudo rpm -i tinytop-<version>-1.x86_64.rpm
 - Binario: `/usr/bin/tinytop`
 - Config de ejemplo: `/etc/tinytop/config.toml`
 - Docs/licencia: `/usr/share/doc/tinytop/`
+
+### Servicio systemd (ejemplo)
+
+```bash
+sudo useradd --system --home /var/lib/tinytop --shell /usr/sbin/nologin tinytop || true
+sudo install -d -o tinytop -g tinytop /var/lib/tinytop
+sudo install -m 0644 packaging/systemd/tinytop.service /etc/systemd/system/tinytop.service
+# Ajusta /etc/tinytop/config.toml (db_path en /var/lib/tinytop/...)
+sudo systemctl daemon-reload && sudo systemctl enable --now tinytop
+```
 
 Valida la configuración antes de ejecutar: `tinytop --check-config --config /etc/tinytop/config.toml`.
 
