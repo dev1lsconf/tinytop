@@ -4,6 +4,12 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [Unreleased]
+
+### Añadido
+- Modo **TUI** interactivo en terminal (`--tui`) con vista en vivo de sistema, estado/runtime y targets (sobre la misma base de datos y colector en background). Atajos: `q`/`Esc`/`Ctrl+C` salir, `r` refrescar.
+- Flags de CLI `--help`/`-h` y `--version`/`-V`.
+
 ## [0.0.4] - 2026-11-13
 
 ### Añadido

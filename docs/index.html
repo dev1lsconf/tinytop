@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyTop — Monitor ligero en Rust</title>
-  <meta name="description" content="TinyTop: monitor autohospedado y ligero para servidores Linux y *BSD. Un solo binario, SQLite, dashboard web, sin Prometheus.">
+  <meta name="description" content="TinyTop: monitor autohospedado y ligero para servidores Linux y *BSD. Un solo binario, SQLite, dashboard web y TUI, sin Prometheus.">
   <meta name="theme-color" content="#000000">
   <meta name="color-scheme" content="dark">
   <style>
@@ -212,7 +212,7 @@
         <span class="pill">MIT</span>
       </div>
       <h1><span class="gradient-text">Monitor ligero para servidores.</span></h1>
-      <p class="lead">Monitoreo autohospedado de sistema y targets HTTP con histórico en SQLite y dashboard web en tiempo real. <strong>Un solo binario</strong>, sin Prometheus ni servicios externos.</p>
+      <p class="lead">Monitoreo autohospedado de sistema y targets HTTP con histórico en SQLite, dashboard web en tiempo real y <strong>TUI</strong> interactiva. <strong>Un solo binario</strong>, sin Prometheus ni servicios externos.</p>
       <div class="cta">
         <a class="btn primary" href="https://github.com/dev1lsconf/tinytop/releases/latest">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -262,8 +262,8 @@
         </article>
         <article class="card">
           <div class="icon">🖥️</div>
-          <h3>Dashboard y operación</h3>
-          <p>UI embebida con Chart.js local (sin CDN), apagado ordenado, logging, config por archivo/entorno, validación estricta y cabeceras de seguridad HTTP.</p>
+          <h3>Dashboard, TUI y operación</h3>
+          <p>UI web embebida con Chart.js local (sin CDN) y modo <strong>TUI</strong> en terminal (<code>--tui</code>). Apagado ordenado, logging, config por archivo/entorno, validación estricta y cabeceras de seguridad HTTP.</p>
         </article>
       </div>
     </section>
@@ -276,10 +276,13 @@
       <div class="grid grid-2">
         <div class="code-block">
           <div class="code-head"><span>Desde código (Rust 1.88+)</span><span>shell</span></div>
-          <pre><code><span class="token-dim"># compilar y ejecutar</span>
+          <pre><code><span class="token-dim"># compilar y ejecutar (dashboard web)</span>
 <span class="token-cmd">cargo</span> build <span class="token-flag">--release --locked</span>
 <span class="token-cmd">./target/release/tinytop</span>
-<span class="token-dim"># → http://localhost:9090</span></code></pre>
+<span class="token-dim"># → http://localhost:9090</span>
+
+<span class="token-dim"># modo TUI (terminal)</span>
+<span class="token-cmd">./target/release/tinytop</span> <span class="token-flag">--tui</span></code></pre>
         </div>
         <div class="code-block">
           <div class="code-head"><span>Docker</span><span>shell</span></div>

@@ -9,7 +9,7 @@
 
 ![TinyTop Dashboard](docs/dashboard.png?v=0.0.4-2)
 
-**TinyTop** es un monitor autohospedado y ligero para servidores. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real. Funciona como **un solo binario**, sin Prometheus ni servicios externos.
+**TinyTop** es un monitor autohospedado y ligero para servidores. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real, además de una **TUI** interactiva en terminal. Funciona como **un solo binario**, sin Prometheus ni servicios externos.
 
 ## Características
 
@@ -18,6 +18,7 @@
 - **Persistencia y retención**: SQLite (WAL, `foreign_keys`, `synchronous=NORMAL`, `busy_timeout`, `temp_store=MEMORY`, `PRAGMA optimize`) con migraciones integradas y tablas `system_metrics`/`target_metrics`, histórico por rango, pruning automático por retención.
 - **API**: `/api/health` (readiness/db/runtime), `/api/metrics/latest`, `/api/metrics/history`, `/api/config` con errores JSON y códigos HTTP consistentes (404/400/5xx).
 - **Dashboard**: HTML/CSS/JS embebido + Chart.js servido localmente (`/static/vendor/chart.umd.min.js`, sin CDN), controles de rango y auto-refresh, estados vacíos/carga/error, render seguro de targets (DOM + escape), tabla y tarjetas accesibles.
+- **TUI**: modo terminal interactivo (`--tui`) con vista en vivo de CPU/memoria/disco/red, estado/runtime y tabla de targets (lee la misma base de datos y ejecuta el colector en background). Atajos: `q`/`Esc`/`Ctrl+C` salir, `r` refrescar. También soporta `--help` y `--version`.
 - **Operación**: apagado ordenado (SIGINT/SIGTERM en Unix, incluidos *BSD), logging con `tracing`, configuración por archivo + overrides de entorno, validación estricta (bind/puerto/rangos/nombres únicos/URLs/kinds), cabeceras de seguridad HTTP (`nosniff`, `no-referrer`, `DENY`, `Permissions-Policy`, CSP compatible con la UI embebida).
 - **Build/Docker**: binario `release` optimizado (`lto`, `strip`, `panic=abort`), imagen multi-stage, usuario no-root, volumen de datos, `HEALTHCHECK`, `Cargo.lock` para builds reproducibles.
 
@@ -72,7 +73,14 @@ kind = "generic"
 ```bash
 cargo build --release --locked
 ./target/release/tinytop
-# http://localhost:9090
+# Dashboard web: http://localhost:9090
+
+# Modo TUI (terminal interactiva)
+./target/release/tinytop --tui
+
+# Ayuda y versión
+./target/release/tinytop --help
+./target/release/tinytop --version
 ```
 
 ## Docker
@@ -86,6 +94,7 @@ docker compose up -d --build
 - Healthcheck: `curl -fsS http://localhost:9090/api/health`.
 - Ejecuta como usuario no-root.
 - En contenedor, las métricas de disco priorizan filesystems reales del host/volumen (se excluyen pseudo-FS como `overlay`/`tmpfs`).
+- Para abrir la TUI en un contenedor en ejecución (requiere TTY): `docker exec -it tinytop tinytop --tui` (o el nombre de tu contenedor). Use la misma config/DB montada.
 
 ## Compatibilidad
 
