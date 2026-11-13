@@ -198,7 +198,7 @@ async fn api_endpoints_and_export_prometheus() {
     assert_eq!(res.status(), StatusCode::OK);
     let body = res.into_body().collect().await.unwrap().to_bytes();
     let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert!(v["points"].as_array().unwrap().len() >= 1);
+    assert!(!v["points"].as_array().unwrap().is_empty());
 
     let res = app
         .clone()
