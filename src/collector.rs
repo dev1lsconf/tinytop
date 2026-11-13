@@ -778,15 +778,103 @@ fn shorten(s: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn extracts_actuator_count() {
         let v: serde_json::Value = serde_json::json!({"name":"http.server.requests","measurements":[{"statistic":"COUNT","value":42.0}]});
         assert_eq!(extract_requests_count(Some(&v)), Some(42));
     }
+
     #[test]
-    fn interprets_generic_up() {
+    fn extracts_requests_from_common_keys() {
+        let v: serde_json::Value = serde_json::json!({"http_requests": 7});
+        assert_eq!(extract_requests_count(Some(&v)), Some(7));
+        let v2: serde_json::Value = serde_json::json!({"metrics":{"requests": 9}});
+        assert_eq!(extract_requests_count(Some(&v2)), Some(9));
+    }
+
+    #[test]
+    fn extracts_text_metrics_count() {
+        let body = "# HELP x\nhttp_server_requests_seconds_count{uri=\"/\"} 123\n";
+        assert_eq!(extract_text_metrics_requests(body), Some(123));
+    }
+
+    #[test]
+    fn as_i64_parses_number_and_string() {
+        assert_eq!(as_i64(&serde_json::json!(5)), Some(5));
+        assert_eq!(as_i64(&serde_json::json!("6")), Some(6));
+        assert_eq!(as_i64(&serde_json::json!(7.9)), Some(7));
+        assert_eq!(as_i64(&serde_json::json!("nope")), None);
+    }
+
+    #[test]
+    fn interprets_generic_up_down_and_degraded() {
         let (st, _, _) =
             interpret_response("generic", reqwest::StatusCode::OK, "{\"status\":\"ok\"}");
         assert_eq!(st, "up");
+        let (st, _, _) =
+            interpret_response("generic", reqwest::StatusCode::OK, "{\"status\":\"error\"}");
+        assert_eq!(st, "down");
+        // unknown status string: degraded when HTTP is ok, down when HTTP is not ok
+        let (st, _, _) =
+            interpret_response("generic", reqwest::StatusCode::OK, "{\"status\":\"weird\"}");
+        assert_eq!(st, "degraded");
+        let (st, _, _) = interpret_response(
+            "generic",
+            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            "{\"status\":\"weird\"}",
+        );
+        assert_eq!(st, "down");
+        let (st, _, _) = interpret_response(
+            "generic",
+            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            "oops",
+        );
+        assert_eq!(st, "down");
+    }
+
+    #[test]
+    fn interprets_spring_status() {
+        let (st, _, d) = interpret_response(
+            "spring-boot",
+            reqwest::StatusCode::OK,
+            "{\"status\":\"UP\"}",
+        );
+        assert_eq!(st, "up");
+        assert!(d.unwrap_or_default().contains("UP"));
+        let (st, _, _) = interpret_response(
+            "actuator",
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
+            "{\"status\":\"DOWN\"}",
+        );
+        assert_eq!(st, "down");
+    }
+
+    #[test]
+    fn interprets_micrometer_like() {
+        let (st, _, _) =
+            interpret_response("quarkus", reqwest::StatusCode::OK, "{\"status\":\"UP\"}");
+        assert_eq!(st, "up");
+        let (st, _, d) = interpret_response(
+            "micrometer",
+            reqwest::StatusCode::OK,
+            "{\"name\":\"http.server.requests\",\"measurements\":[]}",
+        );
+        assert_eq!(st, "up");
+        assert!(d.unwrap_or_default().contains("metric="));
+    }
+
+    #[test]
+    fn shorten_and_extract_host_port() {
+        assert_eq!(shorten("  hello\nworld  ", 5), "hello…");
+        assert_eq!(shorten("ok", 5), "ok");
+        assert_eq!(
+            extract_host_port("https://example.com:8443/path"),
+            Some(("example.com".to_string(), 8443))
+        );
+        assert_eq!(
+            extract_host_port("http://example.com/x"),
+            Some(("example.com".to_string(), 80))
+        );
     }
 }
