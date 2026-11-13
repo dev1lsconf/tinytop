@@ -501,12 +501,16 @@ async fn probe_tls(target: &Target, timeout: Duration) -> TargetInfo {
     // handshake/connect as liveness + cert days via blocking helper in spawn_blocking? keep simple: try tcp connect then parse cert days best-effort
     let res = tokio::time::timeout(timeout, tokio::net::TcpStream::connect(&addr)).await;
     let latency_ms = start.elapsed().as_secs_f64() * 1000.0;
-    let days = tokio::task::spawn_blocking({
-        let h = host.clone();
-        move || tls_days_left(&h, port).ok()
-    })
+    let days = tokio::time::timeout(
+        timeout,
+        tokio::task::spawn_blocking({
+            let h = host.clone();
+            move || tls_days_left(&h, port).ok()
+        }),
+    )
     .await
     .ok()
+    .and_then(|r| r.ok())
     .flatten();
     match res {
         Ok(Ok(_)) => TargetInfo {
@@ -913,5 +917,61 @@ mod tests {
         let down = probe_tcp(&down_target, Duration::from_secs(1)).await;
         assert_eq!(down.status, "down");
         assert_eq!(down.check_type, "tcp");
+    }
+
+    #[tokio::test]
+    async fn probe_tls_reports_connectivity_best_effort() {
+        use std::net::TcpListener as StdTcpListener;
+
+        let listener = StdTcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let up_target = Target {
+            name: "tls-up".into(),
+            url: String::new(),
+            kind: None,
+            check_type: "tls".into(),
+            host: Some("127.0.0.1".into()),
+            port: Some(port),
+            latency_warn_ms: None,
+            cert_expiry_warn_days: None,
+        };
+        let up = probe_tls(&up_target, Duration::from_secs(1)).await;
+        assert_eq!(up.status, "up");
+        assert_eq!(up.check_type, "tls");
+        assert!(up.latency_ms.is_some());
+        // plain TCP listener: cert parsing is best-effort/unavailable
+        assert!(up.cert_days_left.is_none());
+
+        drop(listener);
+        let down_target = Target {
+            name: "tls-down".into(),
+            url: String::new(),
+            kind: None,
+            check_type: "tls".into(),
+            host: Some("127.0.0.1".into()),
+            port: Some(port),
+            latency_warn_ms: None,
+            cert_expiry_warn_days: None,
+        };
+        let down = probe_tls(&down_target, Duration::from_secs(1)).await;
+        assert_eq!(down.status, "down");
+        assert_eq!(down.check_type, "tls");
+    }
+
+    #[tokio::test]
+    async fn probe_ping_is_best_effort() {
+        let target = Target {
+            name: "ping-local".into(),
+            url: String::new(),
+            kind: None,
+            check_type: "ping".into(),
+            host: Some("127.0.0.1".into()),
+            port: None,
+            latency_warn_ms: None,
+            cert_expiry_warn_days: None,
+        };
+        let res = probe_ping(&target, Duration::from_secs(1)).await;
+        assert_eq!(res.check_type, "ping");
+        assert!(matches!(res.status.as_str(), "up" | "down" | "error"));
     }
 }
