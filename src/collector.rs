@@ -1,5 +1,6 @@
 use crate::config::Config;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use sysinfo::{Disks, Networks, System};
@@ -85,7 +86,14 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
     let disks = Disks::new_with_refreshed_list();
     let mut disk_total = 0.0f64;
     let mut disk_available = 0.0f64;
+    let mut seen_devices = HashSet::new();
     for d in &disks {
+        // Deduplicate by device name to avoid double-counting bind mounts/subvolumes
+        // (e.g. btrfs subvols or Docker bind mounts of the same underlying filesystem).
+        let name = d.name().to_string_lossy().to_string();
+        if !name.is_empty() && !seen_devices.insert(name) {
+            continue;
+        }
         disk_total += d.total_space() as f64 / 1024.0 / 1024.0;
         disk_available += d.available_space() as f64 / 1024.0 / 1024.0;
     }
@@ -108,16 +116,8 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
     let (net_rx_bytes_per_sec, net_tx_bytes_per_sec) = if let Some((prx, ptx, at)) = state.last_net
     {
         let dt = now.duration_since(at).as_secs_f64().max(0.001);
-        let rx_delta = if net_rx_bytes >= prx {
-            net_rx_bytes - prx
-        } else {
-            0
-        };
-        let tx_delta = if net_tx_bytes >= ptx {
-            net_tx_bytes - ptx
-        } else {
-            0
-        };
+        let rx_delta = net_rx_bytes.saturating_sub(prx);
+        let tx_delta = net_tx_bytes.saturating_sub(ptx);
         (rx_delta as f64 / dt, tx_delta as f64 / dt)
     } else {
         (0.0, 0.0)
