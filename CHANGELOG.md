@@ -8,7 +8,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ### Añadido
 - Modo **TUI** interactivo en terminal (`--tui`) con vista en vivo de sistema, estado/runtime y targets (sobre la misma base de datos y colector en background). Atajos: `q`/`Esc`/`Ctrl+C` salir, `r` refrescar.
-- Flags de CLI `--help`/`-h` y `--version`/`-V`.
+- Flags de CLI `--help`/`-h`, `--version`/`-V`, `--config <PATH>`, `--check-config` (validación de configuración).
+- Métricas de sistema extendidas (best-effort según plataforma): load average, swap, uptime, I/O de disco, temperatura y top de procesos.
+- Checks de targets adicionales: `tcp`, `ping` y `tls` (con latencia y días restantes de certificado en TLS/HTTPS best-effort).
+- Alertas e incidentes configurables (CPU/mem/disco/temperatura, target caído/degradado, latencia, expiración de certificado) con historial en base de datos y eventos.
+- Notificaciones opcionales ante transiciones de alerta: webhook genérico, Telegram y ntfy.
+- API: `/api/alerts`, `/api/events`, `/api/export` (JSON/CSV), `/metrics` (Prometheus) y campos extendidos en métricas/latest/history/config.
+- Autenticación opcional (token Bearer/`X-API-Key`/`?token=` o Basic Auth) con configuración sensible redactada en `/api/config`.
+- Recarga de configuración en caliente por `SIGHUP` (Unix) y rollups/agregación periódica de métricas en SQLite (migración `20241202000002_extended_metrics`).
 
 ## [0.0.4] - 2026-11-13
 

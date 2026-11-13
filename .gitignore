@@ -6,3 +6,6 @@ node_modules
 /tests/*.png
 *.db
 /docs/dashboard-*.png
+
+# Local roadmap (tracked separately)
+ROADMAP.md
