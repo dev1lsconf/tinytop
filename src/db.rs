@@ -577,6 +577,42 @@ mod tests {
         )
         .await
         .unwrap();
-        let _ = db.compute_rollups(300).await.unwrap();
+        db.insert_system_metric(
+            20.0,
+            600.0,
+            1024.0,
+            60.0,
+            1200.0,
+            2000.0,
+            800.0,
+            60.0,
+            200,
+            300,
+            11.0,
+            22.0,
+            Some(0.8),
+            Some(0.6),
+            Some(0.4),
+            Some(128.0),
+            Some(256.0),
+            Some(50.0),
+            Some(200),
+            Some(10),
+            Some(20),
+            Some(1.0),
+            Some(2.0),
+            Some(41.0),
+            None,
+        )
+        .await
+        .unwrap();
+        let created = db.compute_rollups(300).await.unwrap();
+        assert!(created >= 1);
+        let hist = db.system_history(48).await.unwrap();
+        assert!(!hist.is_empty());
+
+        let pruned = db.prune_older_than_hours(9999).await.unwrap();
+        assert_eq!(pruned.system_deleted, 0);
+        assert_eq!(pruned.target_deleted, 0);
     }
 }

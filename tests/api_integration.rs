@@ -158,9 +158,74 @@ async fn api_endpoints_and_export_prometheus() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
+    let ct = res
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    assert!(ct.contains("text/csv"), "content-type was {ct}");
     let body = res.into_body().collect().await.unwrap().to_bytes();
     let s = String::from_utf8(body.to_vec()).unwrap();
-    assert!(s.contains("timestamp"));
+    assert!(s.contains("timestamp,cpu_percent,mem_used_percent"));
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/export?target=system&format=json&range=24")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["target"], "system");
+    assert!(v["points"].as_array().is_some());
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/export?target=t1&format=json&range=24")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(v["points"].as_array().unwrap().len() >= 1);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/export?target=t1&format=csv&range=24")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let s = String::from_utf8(body.to_vec()).unwrap();
+    assert!(s.contains("timestamp,target,check_type,status"));
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/export?target=missing&format=json&range=24")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::NOT_FOUND);
 
     let res = app
         .clone()
