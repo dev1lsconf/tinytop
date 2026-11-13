@@ -579,9 +579,10 @@ fn render_alerts(f: &mut Frame, area: Rect, data: &AppData) {
     ];
     let firing = data.alerts.iter().filter(|a| a.status == "firing").count();
     let table = Table::new(rows, widths).header(header).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(format!("Alerts (firing {firing} / total {})", data.alerts.len())),
+        Block::default().borders(Borders::ALL).title(format!(
+            "Alerts (firing {firing} / total {})",
+            data.alerts.len()
+        )),
     );
     f.render_widget(table, area);
 }
@@ -648,7 +649,10 @@ fn render_footer(f: &mut Frame, area: Rect, cfg: &Config, data: &AppData, ui: &U
     f.render_widget(p, area);
 }
 
-fn sparkline<F: Fn(&crate::db::SystemMetric) -> f64>(hist: &[crate::db::SystemMetric], f: F) -> String {
+fn sparkline<F: Fn(&crate::db::SystemMetric) -> f64>(
+    hist: &[crate::db::SystemMetric],
+    f: F,
+) -> String {
     if hist.is_empty() {
         return "-".to_string();
     }
