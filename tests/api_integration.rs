@@ -247,6 +247,21 @@ async fn api_endpoints_and_export_prometheus() {
         .clone()
         .oneshot(
             Request::builder()
+                .uri("/api/export?target=%20&format=json&range=24")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["error"]["code"], "invalid_target");
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
                 .uri("/metrics")
                 .body(Body::empty())
                 .unwrap(),

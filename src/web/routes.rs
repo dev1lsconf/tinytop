@@ -333,6 +333,15 @@ async fn export_data(
 ) -> impl IntoResponse {
     let cfg = state.cfg.read().await.clone();
     let target = params.target.unwrap_or_else(|| "system".into());
+    let target = target.trim();
+    if target.is_empty() {
+        return api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_target",
+            "target must not be empty",
+        );
+    }
+    let target = target.to_string();
     let max_range = cfg.max_history_hours.max(1).min(cfg.retention_hours as i64);
     let range = params.range.unwrap_or(24).clamp(1, max_range);
     let format = params.format.unwrap_or_else(|| "json".into());
