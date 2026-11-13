@@ -1,10 +1,10 @@
 pub mod routes;
 
-use crate::{config::Config, db::Database, RuntimeStatus};
+use crate::{RuntimeStatus, config::Config, db::Database};
 use axum::Router;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 use tokio::sync::RwLock;
 
