@@ -108,8 +108,16 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
     let (net_rx_bytes_per_sec, net_tx_bytes_per_sec) = if let Some((prx, ptx, at)) = state.last_net
     {
         let dt = now.duration_since(at).as_secs_f64().max(0.001);
-        let rx_delta = if net_rx_bytes >= prx { net_rx_bytes - prx } else { 0 };
-        let tx_delta = if net_tx_bytes >= ptx { net_tx_bytes - ptx } else { 0 };
+        let rx_delta = if net_rx_bytes >= prx {
+            net_rx_bytes - prx
+        } else {
+            0
+        };
+        let tx_delta = if net_tx_bytes >= ptx {
+            net_tx_bytes - ptx
+        } else {
+            0
+        };
         (rx_delta as f64 / dt, tx_delta as f64 / dt)
     } else {
         (0.0, 0.0)
@@ -197,7 +205,9 @@ fn interpret_response(
     let mut detail = None;
 
     let status = match kind.to_ascii_lowercase().as_str() {
-        "spring-boot" | "spring" | "actuator" => interpret_spring(ok_http, parsed.as_ref(), &mut detail),
+        "spring-boot" | "spring" | "actuator" => {
+            interpret_spring(ok_http, parsed.as_ref(), &mut detail)
+        }
         "quarkus" | "micronaut" | "micrometer" => {
             interpret_micrometer_like(ok_http, parsed.as_ref(), &mut detail)
         }

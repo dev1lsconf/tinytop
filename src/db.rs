@@ -69,7 +69,10 @@ impl Database {
 
     pub async fn init(&self) -> anyhow::Result<()> {
         sqlx::migrate!("./migrations").run(&self.pool).await?;
-        sqlx::query("PRAGMA optimize").execute(&self.pool).await.ok();
+        sqlx::query("PRAGMA optimize")
+            .execute(&self.pool)
+            .await
+            .ok();
         Ok(())
     }
 
