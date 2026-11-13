@@ -168,6 +168,7 @@ port = 443
 - **Recarga**: en Unix `SIGHUP`; en otros entornos reinicia el proceso.
 - **Persistencia**: SQLite en WAL con rollups y pruning por `retention_hours`; persiste `db_path` en volumen.
 - **Ejemplos**: [`examples/`](examples/README.md) incluye configs básica y avanzada (targets tcp/ping/tls/http, alertas, notificaciones, auth).
+- **Guía avanzada**: [docs/ADVANCED.md](docs/ADVANCED.md) (checks/alertas/notificaciones/auth, API/export, operación, troubleshooting).
 
 ## Contribución y release
 
