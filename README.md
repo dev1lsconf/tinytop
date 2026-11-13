@@ -7,28 +7,30 @@
 
 ![TinyTop Dashboard](docs/dashboard.png)
 
-**TinyTop** es un monitor autohospedado y ligero para servidores/VPS. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real.
+**TinyTop** es un monitor autohospedado y ligero para servidores/VPS. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real. Funciona como **un solo binario**, sin Prometheus ni servicios externos.
 
 ## Características
 
-- **Sistema**: CPU (%), memoria usada/total (%), disco usado/total/disponible (%), red acumulada y **tasas RX/TX por segundo** calculadas entre muestras.
-- **Targets HTTP**: chequeo por endpoint con `kind` (`generic`, `spring-boot`/`spring`, `quarkus`, `micronaut`/`micrometer`), latencia, estado normalizado, extracción heurística de `http_requests` (JSON/Actuator/texto de métricas) y detalle de error acotado.
-- **Persistencia y retención**: SQLite (WAL) con tablas separadas `system_metrics` y `target_metrics`, histórico por rango (`/api/metrics/history?range=&target=system|<name>`), pruning automático por retención.
+- **Sistema**: CPU (%), memoria usada/total (%), disco usado/total/disponible (%), red acumulada y **tasas RX/TX por segundo** (con manejo de reinicio/overflow de contadores). El disco contabiliza filesystems reales y deduplica por dispositivo para evitar dobles conteos (bind mounts/subvolúmenes, p. ej. Btrfs/Docker).
+- **Targets HTTP**: sondeo concurrente con cliente HTTP reutilizado, `kind` (`generic`, `spring-boot`/`spring`/`actuator`, `quarkus`, `micronaut`/`micrometer`), latencia, estado normalizado, extracción heurística de `http_requests` (JSON/Actuator/texto de métricas) y detalle de error acotado. Resultados en orden estable.
+- **Persistencia y retención**: SQLite (WAL, `foreign_keys`, `synchronous=NORMAL`, `busy_timeout`, `temp_store=MEMORY`, `PRAGMA optimize`) con migraciones integradas y tablas `system_metrics`/`target_metrics`, histórico por rango, pruning automático por retención.
 - **API**: `/api/health` (readiness/db/runtime), `/api/metrics/latest`, `/api/metrics/history`, `/api/config` con errores JSON y códigos HTTP consistentes (404/400/5xx).
 - **Dashboard**: HTML/CSS/JS embebido + Chart.js servido localmente (`/static/vendor/chart.umd.min.js`, sin CDN), controles de rango y auto-refresh, estados vacíos/carga/error, render seguro de targets (DOM + escape), tabla y tarjetas accesibles.
-- **Operación**: apagado ordenado (SIGINT/SIGTERM), logging con `tracing`, configuración por archivo + overrides de entorno, validación de config (puerto/rangos/nombres únicos/URLs).
-- **Docker**: imagen multi-stage, usuario no-root, volumen de datos, `HEALTHCHECK`, variables de entorno para config y DB.
+- **Operación**: apagado ordenado (SIGINT/SIGTERM), logging con `tracing`, configuración por archivo + overrides de entorno, validación estricta (bind/puerto/rangos/nombres únicos/URLs/kinds), cabeceras de seguridad HTTP (`nosniff`, `no-referrer`, `DENY`, `Permissions-Policy`, CSP compatible con la UI embebida).
+- **Build/Docker**: binario `release` optimizado (`lto`, `strip`, `panic=abort`), imagen multi-stage, usuario no-root, volumen de datos, `HEALTHCHECK`, `Cargo.lock` para builds reproducibles.
 
 ## Configuración
 
 `config.toml` (ejemplo):
 
 ```toml
+bind = "0.0.0.0"
 port = 9090
 db_path = "tinytop.db"
 interval_seconds = 30
 retention_hours = 168
 request_timeout_secs = 5
+max_history_hours = 168
 
 [[targets]]
 name = "localhost"
@@ -46,10 +48,12 @@ kind = "generic"
 | Variable | Descripción | Default |
 |---|---|---|
 | `TINYTOP_CONFIG` | Ruta al archivo de configuración | `config.toml` |
+| `TINYTOP_BIND` | Dirección de escucha HTTP | `0.0.0.0` |
 | `TINYTOP_PORT` | Puerto HTTP | `9090` |
 | `TINYTOP_DB_PATH` | Ruta de la base SQLite | `tinytop.db` |
 | `TINYTOP_INTERVAL` | Intervalo de recolección (segundos) | `30` |
 | `TINYTOP_RETENTION_HOURS` | Retención de histórico (horas) | `168` |
+| `TINYTOP_MAX_HISTORY_HOURS` | Máximo de horas consultables en historial (acotado por retención) | `168` |
 | `TINYTOP_REQUEST_TIMEOUT_SECS` | Timeout de sondeo de targets (segundos) | `5` |
 
 ## API
@@ -57,9 +61,9 @@ kind = "generic"
 - `GET /` — dashboard web
 - `GET /api/health` — estado/readiness (`db.ok`, `runtime`, última colección, errores, versión)
 - `GET /api/metrics/latest` — `{ system: {...} | null, targets: [...] }`
-- `GET /api/metrics/history?range=24&target=system` — `{ target, range_hours, points: [...] }` (sistema)
+- `GET /api/metrics/history?range=24&target=system` — `{ target, range_hours, points: [...] }` (sistema; `range` se acota a `max_history_hours`/retención)
 - `GET /api/metrics/history?range=24&target=<name>` — histórico del target (404 si no existe)
-- `GET /api/config` — configuración efectiva
+- `GET /api/config` — configuración efectiva (`bind`, `port`, `db_path`, intervalos, retención, `max_history_hours`, timeout, targets)
 
 ## Ejecución local
 
@@ -79,6 +83,7 @@ docker compose up -d --build
 - DB persistida en volumen (`/app/data/tinytop.db` por defecto en la imagen/compose).
 - Healthcheck: `curl -fsS http://localhost:9090/api/health`.
 - Ejecuta como usuario no-root.
+- En contenedor, las métricas de disco priorizan filesystems reales del host/volumen (se excluyen pseudo-FS como `overlay`/`tmpfs`).
 
 ## Pruebas y calidad
 
@@ -101,6 +106,7 @@ El workflow de CI ejecuta fmt, clippy, tests, build y E2E en Ubuntu.
 ## Seguridad y notas
 
 - Sin autenticación incorporada: expón el servicio detrás de reverse proxy con TLS/auth si es accesible públicamente.
+- Respuestas con cabeceras de seguridad; la UI embebida usa scripts/estilos inline y Chart.js local (CSP acorde). Para endurecer más, sirve detrás de proxy con políticas adicionales según tu entorno.
 - Las URLs de targets se leen de configuración local/controlada por el operador.
 - `Cargo.lock` incluido para builds reproducibles.
 
