@@ -171,9 +171,9 @@ port = 443
 ## Contribución y release
 
 - Guía: [CONTRIBUTING.md](CONTRIBUTING.md). `ROADMAP.md` se mantiene local como guía de trabajo.
-- Releases y artefactos (`.tar.gz` + `.sha256`): [GitHub Releases](https://github.com/dev1lsconf/tinytop/releases).
-- Paquete de contenedor: `ghcr.io/dev1lsconf/tinytop` (multi-arch, tags `v*`).
-- Workflow `.github/workflows/release.yml`: Linux (x86_64, aarch64, musl) y *BSD (FreeBSD, OpenBSD, NetBSD), release y imagen multi-arch en GHCR.
+- Releases y artefactos: [GitHub Releases](https://github.com/dev1lsconf/tinytop/releases) — tarballs Linux (x86_64, aarch64, musl) y *BSD (`.tar.gz` + `.sha256`), paquetes nativos **.deb/.rpm** (x86_64) e imagen `ghcr.io/dev1lsconf/tinytop` (multi-arch amd64/arm64).
+- Plantillas y notas de empaquetado: [`packaging/`](packaging/README.md) (Homebrew, AUR, *BSD).
+- Workflow `.github/workflows/release.yml`: construye y publica artefactos, paquetes nativos e imagen multi-arch en tags `v*` (o `workflow_dispatch`).
 
 ## Changelog y licencia
 
