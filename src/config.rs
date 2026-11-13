@@ -442,4 +442,81 @@ mod tests {
         };
         assert!(cfg.validate().is_err());
     }
+
+    #[test]
+    fn accepts_tcp_and_tls_and_ping_targets() {
+        let cfg = Config {
+            targets: vec![
+                Target {
+                    name: "tcp1".into(),
+                    url: "".into(),
+                    kind: None,
+                    check_type: "tcp".into(),
+                    host: Some("127.0.0.1".into()),
+                    port: Some(22),
+                    latency_warn_ms: None,
+                    cert_expiry_warn_days: None,
+                },
+                Target {
+                    name: "tls1".into(),
+                    url: "".into(),
+                    kind: None,
+                    check_type: "tls".into(),
+                    host: Some("example.com".into()),
+                    port: Some(443),
+                    latency_warn_ms: None,
+                    cert_expiry_warn_days: None,
+                },
+                Target {
+                    name: "ping1".into(),
+                    url: "".into(),
+                    kind: None,
+                    check_type: "ping".into(),
+                    host: Some("127.0.0.1".into()),
+                    port: None,
+                    latency_warn_ms: None,
+                    cert_expiry_warn_days: None,
+                },
+            ],
+            ..Config::default()
+        };
+        assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
+    fn rejects_tcp_without_host_port() {
+        let cfg = Config {
+            targets: vec![Target {
+                name: "tcp1".into(),
+                url: "".into(),
+                kind: None,
+                check_type: "tcp".into(),
+                host: Some("127.0.0.1".into()),
+                port: None,
+                latency_warn_ms: None,
+                cert_expiry_warn_days: None,
+            }],
+            ..Config::default()
+        };
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn redacts_sensitive_auth_and_notifications() {
+        let mut cfg = Config::default();
+        cfg.auth = Some(AuthConfig {
+            token: Some("secret".into()),
+            basic_user: Some("u".into()),
+            basic_password: Some("p".into()),
+            allow_health_unauth: true,
+        });
+        cfg.notifications.webhook_url = Some("https://hook".into());
+        cfg.notifications.telegram_bot_token = Some("tok".into());
+        let r = cfg.redacted();
+        let a = r.auth.unwrap();
+        assert_eq!(a.token.as_deref(), Some("***"));
+        assert_eq!(a.basic_password.as_deref(), Some("***"));
+        assert_eq!(r.notifications.webhook_url.as_deref(), Some("***"));
+        assert_eq!(r.notifications.telegram_bot_token.as_deref(), Some("***"));
+    }
 }

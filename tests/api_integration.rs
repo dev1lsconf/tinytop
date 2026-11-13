@@ -178,3 +178,103 @@ async fn api_endpoints_and_export_prometheus() {
     assert!(s.contains("tinytop_up"));
     assert!(s.contains("tinytop_target_up"));
 }
+
+async fn test_app_with_auth() -> (axum::Router, tempfile::TempDir) {
+    let dir = tempdir().unwrap();
+    let db_path = dir.path().join("test.db");
+    let cfg = tinytop::config::Config {
+        db_path: db_path.to_str().unwrap().to_string(),
+        auth: Some(tinytop::config::AuthConfig {
+            token: Some("secret".into()),
+            basic_user: None,
+            basic_password: None,
+            allow_health_unauth: true,
+        }),
+        targets: vec![tinytop::config::Target {
+            name: "t1".into(),
+            url: "http://127.0.0.1:9/".into(),
+            kind: Some("generic".into()),
+            check_type: "http".into(),
+            host: None,
+            port: None,
+            latency_warn_ms: None,
+            cert_expiry_warn_days: None,
+        }],
+        ..Default::default()
+    };
+    cfg.validate().unwrap();
+    let db = Arc::new(tinytop::db::Database::open(&cfg.db_path).await.unwrap());
+    db.init().await.unwrap();
+    let runtime = Arc::new(RwLock::new(tinytop::RuntimeStatus::new(&cfg)));
+    {
+        let mut rt = runtime.write().await;
+        rt.last_collection_ok = Some(true);
+        rt.collections_total = 1;
+    }
+    let cfgs = Arc::new(RwLock::new(cfg));
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let app = tinytop::web::create_router(db, cfgs, runtime, shutdown);
+    (app, dir)
+}
+
+#[tokio::test]
+async fn api_auth_and_config_redaction() {
+    let (app, _dir) = test_app_with_auth().await;
+
+    // health allowed unauth
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // protected endpoint requires auth
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/latest")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+
+    // with bearer token ok
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/latest")
+                .header("Authorization", "Bearer secret")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // config is redacted
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/config")
+                .header("X-API-Key", "secret")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["auth_enabled"], true);
+}

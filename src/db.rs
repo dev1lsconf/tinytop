@@ -523,4 +523,60 @@ mod tests {
         let latest = db.latest_target("app").await.unwrap().unwrap();
         assert_eq!(latest.status, "up");
     }
+
+    #[tokio::test]
+    async fn alerts_events_and_rollups_work() {
+        let db = test_db().await;
+        assert!(
+            db.fire_alert("warn", "system", "cpu", "high", Some(95.0), Some(90.0))
+                .await
+                .unwrap()
+        );
+        // firing again should not duplicate
+        assert!(
+            !db.fire_alert("warn", "system", "cpu", "high", Some(96.0), Some(90.0))
+                .await
+                .unwrap()
+        );
+        let alerts = db.list_alerts(Some("firing"), 10).await.unwrap();
+        assert_eq!(alerts.len(), 1);
+        assert!(db.resolve_alert("system", "cpu").await.unwrap());
+        let firing = db.list_alerts(Some("firing"), 10).await.unwrap();
+        assert!(firing.is_empty());
+        db.insert_event("info", "test", Some("src"), "msg", None)
+            .await
+            .unwrap();
+        let events = db.list_events(10).await.unwrap();
+        assert!(!events.is_empty());
+        db.insert_system_metric(
+            10.0,
+            512.0,
+            1024.0,
+            50.0,
+            1000.0,
+            2000.0,
+            1000.0,
+            50.0,
+            100,
+            200,
+            10.0,
+            20.0,
+            Some(0.5),
+            Some(0.4),
+            Some(0.3),
+            Some(0.0),
+            Some(0.0),
+            Some(0.0),
+            Some(100),
+            None,
+            None,
+            None,
+            None,
+            Some(40.0),
+            None,
+        )
+        .await
+        .unwrap();
+        let _ = db.compute_rollups(300).await.unwrap();
+    }
 }
