@@ -914,6 +914,21 @@ mod tests {
             latency_warn_ms: None,
             cert_expiry_warn_days: None,
         };
+        // ensure port is no longer accepting connections (avoids rare reuse races)
+        let deadline = tokio::time::Instant::now() + Duration::from_millis(500);
+        loop {
+            match tokio::time::timeout(
+                Duration::from_millis(50),
+                tokio::net::TcpStream::connect(("127.0.0.1", port)),
+            )
+            .await
+            {
+                Ok(Ok(_)) if tokio::time::Instant::now() < deadline => {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                _ => break,
+            }
+        }
         let down = probe_tcp(&down_target, Duration::from_secs(1)).await;
         assert_eq!(down.status, "down");
         assert_eq!(down.check_type, "tcp");

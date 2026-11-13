@@ -422,3 +422,169 @@ pub async fn shutdown_wait(shutdown: Arc<AtomicBool>) {
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::collector::{Snapshot, SystemMetrics, TargetInfo};
+    use crate::config::{AlertConfig, Config, Target};
+    use tempfile::tempdir;
+
+    async fn test_db() -> (db::Database, tempfile::TempDir) {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("t.db");
+        let db = db::Database::open(path.to_str().unwrap()).await.unwrap();
+        db.init().await.unwrap();
+        (db, dir)
+    }
+
+    fn base_cfg() -> Config {
+        Config {
+            alerts: AlertConfig {
+                enabled: true,
+                cpu_percent_warn: 90.0,
+                mem_percent_warn: 90.0,
+                disk_percent_warn: 90.0,
+                temp_celsius_warn: 80.0,
+                target_latency_ms_warn: 500.0,
+                cert_expiry_days_warn: 14,
+            },
+            targets: vec![Target {
+                name: "svc".into(),
+                url: "http://127.0.0.1:9".into(),
+                kind: Some("generic".into()),
+                check_type: "http".into(),
+                host: None,
+                port: None,
+                latency_warn_ms: None,
+                cert_expiry_warn_days: None,
+            }],
+            ..Default::default()
+        }
+    }
+
+    fn snap(sys: SystemMetrics, targets: Vec<TargetInfo>) -> Snapshot {
+        Snapshot {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            system: sys,
+            targets,
+        }
+    }
+
+    fn ok_system() -> SystemMetrics {
+        SystemMetrics {
+            cpu_percent: 10.0,
+            mem_used_mb: 100.0,
+            mem_total_mb: 1000.0,
+            mem_used_percent: 10.0,
+            disk_used_mb: 10.0,
+            disk_total_mb: 100.0,
+            disk_available_mb: 90.0,
+            disk_used_percent: 10.0,
+            net_rx_bytes: 0,
+            net_tx_bytes: 0,
+            net_rx_bytes_per_sec: 0.0,
+            net_tx_bytes_per_sec: 0.0,
+            load1: None,
+            load5: None,
+            load15: None,
+            swap_used_mb: None,
+            swap_total_mb: None,
+            swap_used_percent: None,
+            uptime_seconds: None,
+            disk_read_bytes: None,
+            disk_write_bytes: None,
+            disk_read_bytes_per_sec: None,
+            disk_write_bytes_per_sec: None,
+            temp_celsius: Some(40.0),
+            top_processes: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn evaluate_alerts_fires_resolves_and_dedups() {
+        let (db, _dir) = test_db().await;
+        let cfg = base_cfg();
+
+        let mut sys = ok_system();
+        sys.cpu_percent = 95.0;
+        sys.mem_used_percent = 95.0;
+        sys.disk_used_percent = 95.0;
+        sys.temp_celsius = Some(90.0);
+        evaluate_alerts(&db, &cfg, &snap(sys, vec![])).await;
+        let firing = db.list_alerts(Some("firing"), 50).await.unwrap();
+        assert!(firing.iter().any(|a| a.name == "cpu_high"));
+        assert!(firing.iter().any(|a| a.name == "mem_high"));
+        assert!(firing.iter().any(|a| a.name == "disk_high"));
+        assert!(firing.iter().any(|a| a.name == "temp_high"));
+
+        // duplicate condition should not create duplicate firing alerts
+        let mut sys2 = ok_system();
+        sys2.cpu_percent = 96.0;
+        sys2.mem_used_percent = 96.0;
+        sys2.disk_used_percent = 96.0;
+        sys2.temp_celsius = Some(91.0);
+        evaluate_alerts(&db, &cfg, &snap(sys2, vec![])).await;
+        let firing2 = db.list_alerts(Some("firing"), 50).await.unwrap();
+        let cpu_count = firing2.iter().filter(|a| a.name == "cpu_high").count();
+        assert_eq!(cpu_count, 1);
+
+        // recover -> resolves
+        evaluate_alerts(&db, &cfg, &snap(ok_system(), vec![])).await;
+        let firing3 = db.list_alerts(Some("firing"), 50).await.unwrap();
+        assert!(firing3.is_empty());
+        let resolved = db.list_alerts(Some("resolved"), 50).await.unwrap();
+        assert!(resolved.len() >= 4);
+    }
+
+    #[tokio::test]
+    async fn evaluate_alerts_target_down_latency_and_cert() {
+        let (db, _dir) = test_db().await;
+        let cfg = base_cfg();
+        let sys = ok_system();
+
+        let t_down = TargetInfo {
+            name: "svc".into(),
+            kind: "generic".into(),
+            url: "http://127.0.0.1:9".into(),
+            status: "down".into(),
+            latency_ms: Some(800.0),
+            http_requests: None,
+            detail: None,
+            cert_days_left: Some(5),
+            check_type: "http".into(),
+        };
+        evaluate_alerts(&db, &cfg, &snap(sys.clone(), vec![t_down])).await;
+        let firing = db.list_alerts(Some("firing"), 50).await.unwrap();
+        assert!(
+            firing
+                .iter()
+                .any(|a| a.name == "down" && a.source == "target:svc")
+        );
+        assert!(
+            firing
+                .iter()
+                .any(|a| a.name == "latency_high" && a.source == "target:svc")
+        );
+        assert!(
+            firing
+                .iter()
+                .any(|a| a.name == "cert_expiry" && a.source == "target:svc")
+        );
+
+        let t_ok = TargetInfo {
+            name: "svc".into(),
+            kind: "generic".into(),
+            url: "http://127.0.0.1:9".into(),
+            status: "up".into(),
+            latency_ms: Some(10.0),
+            http_requests: None,
+            detail: None,
+            cert_days_left: Some(90),
+            check_type: "http".into(),
+        };
+        evaluate_alerts(&db, &cfg, &snap(sys, vec![t_ok])).await;
+        let firing2 = db.list_alerts(Some("firing"), 50).await.unwrap();
+        assert!(firing2.is_empty());
+    }
+}
