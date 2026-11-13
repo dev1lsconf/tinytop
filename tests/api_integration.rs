@@ -198,6 +198,7 @@ async fn api_endpoints_and_export_prometheus() {
     assert_eq!(res.status(), StatusCode::OK);
     let body = res.into_body().collect().await.unwrap().to_bytes();
     let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["target"], "t1");
     assert!(!v["points"].as_array().unwrap().is_empty());
 
     let res = app
@@ -226,6 +227,21 @@ async fn api_endpoints_and_export_prometheus() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::NOT_FOUND);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/export?target=system&format=xml&range=24")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["error"]["code"], "invalid_format");
 
     let res = app
         .clone()

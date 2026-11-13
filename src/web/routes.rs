@@ -336,6 +336,13 @@ async fn export_data(
     let max_range = cfg.max_history_hours.max(1).min(cfg.retention_hours as i64);
     let range = params.range.unwrap_or(24).clamp(1, max_range);
     let format = params.format.unwrap_or_else(|| "json".into());
+    if !format.eq_ignore_ascii_case("json") && !format.eq_ignore_ascii_case("csv") {
+        return api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_format",
+            "format must be 'json' or 'csv'",
+        );
+    }
     if target == "system" {
         match state.db.export_system_history(range).await {
             Ok(rows) => export_rows_system(rows, &format),
@@ -354,7 +361,7 @@ async fn export_data(
             );
         }
         match state.db.export_target_history(&target, range).await {
-            Ok(rows) => export_rows_target(rows, &format),
+            Ok(rows) => export_rows_target(&target, rows, &format),
             Err(e) => api_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "db_error",
@@ -397,7 +404,7 @@ fn export_rows_system(rows: Vec<crate::db::SystemMetric>, format: &str) -> Respo
             .into_response()
     }
 }
-fn export_rows_target(rows: Vec<crate::db::TargetMetric>, format: &str) -> Response {
+fn export_rows_target(target: &str, rows: Vec<crate::db::TargetMetric>, format: &str) -> Response {
     if format.eq_ignore_ascii_case("csv") {
         let mut out = String::from(
             "timestamp,target,check_type,status,latency_ms,http_requests,cert_days_left,detail\n",
@@ -422,7 +429,11 @@ fn export_rows_target(rows: Vec<crate::db::TargetMetric>, format: &str) -> Respo
         )
             .into_response()
     } else {
-        (StatusCode::OK, Json(json!({"points":rows}))).into_response()
+        (
+            StatusCode::OK,
+            Json(json!({"target": target, "points": rows})),
+        )
+            .into_response()
     }
 }
 
