@@ -366,7 +366,7 @@ fn fmt_bytes(bytes_per_sec: f64) -> String {
     } else if b >= 1024.0 {
         format!("{:.1} KB", b / 1024.0)
     } else {
-        format!("{:.0} B", b)
+        format!("{b:.0} B")
     }
 }
 
@@ -379,6 +379,6 @@ fn fmt_bytes_total(bytes: i64) -> String {
     } else if b >= 1024.0 {
         format!("{:.1} KB", b / 1024.0)
     } else {
-        format!("{:.0} B", b)
+        format!("{b:.0} B")
     }
 }
