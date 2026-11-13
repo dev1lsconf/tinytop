@@ -13,14 +13,15 @@
 
 ## Características
 
-- **Sistema**: CPU (%), memoria usada/total (%), disco usado/total/disponible (%), red acumulada y **tasas RX/TX por segundo** (con manejo de reinicio/overflow de contadores). Métricas extendidas best-effort: load average, swap, uptime, I/O de disco, temperatura y top de procesos. El disco contabiliza filesystems reales y deduplica por dispositivo para evitar dobles conteos (bind mounts/subvolúmenes, p. ej. Btrfs/Docker). Excluye pseudo-filesystems de Linux y *BSD. El colector **reutiliza estado de `sysinfo`** entre ciclos (refrescos incrementales) para menor sobrecarga.
-- **Targets (checks)**: sondeo concurrente con cliente reutilizado. Tipos `check_type`: `http` (con `kind` `generic`, `spring-boot`/`actuator`, `quarkus`, `micrometer`, etc., latencia y extracción heurística de `http_requests`), `tcp` (conectividad host:puerto), `ping` (best-effort vía `ping` del sistema) y `tls` (handshake/connectividad y días restantes de certificado). Estado normalizado, latencia, detalle acotado y resultados en orden estable.
-- **Persistencia y retención**: SQLite (WAL, `foreign_keys`, `synchronous=NORMAL`, `busy_timeout`, `temp_store=MEMORY`, `PRAGMA optimize`) con migraciones integradas y tablas `system_metrics`/`target_metrics`, histórico por rango, pruning automático por retención.
-- **API**: `/api/health` (readiness/db/runtime), `/api/metrics/latest`, `/api/metrics/history`, `/api/config` con errores JSON y códigos HTTP consistentes (404/400/5xx).
-- **Dashboard**: HTML/CSS/JS embebido + Chart.js servido localmente (`/static/vendor/chart.umd.min.js`, sin CDN), controles de rango y auto-refresh, estados vacíos/carga/error, render seguro de targets (DOM + escape), tabla y tarjetas accesibles.
-- **TUI**: modo terminal interactivo (`--tui`) con vista en vivo de CPU/memoria/disco/red, estado/runtime y tabla de targets (lee la misma base de datos y ejecuta el colector en background). Atajos: `q`/`Esc`/`Ctrl+C` salir, `r` refrescar. También soporta `--help` y `--version`.
-- **Operación**: apagado ordenado (SIGINT/SIGTERM en Unix, incluidos *BSD), logging con `tracing`, configuración por archivo + overrides de entorno, validación estricta (bind/puerto/rangos/nombres únicos/URLs/kinds), cabeceras de seguridad HTTP (`nosniff`, `no-referrer`, `DENY`, `Permissions-Policy`, CSP compatible con la UI embebida).
-- **Build/Docker**: binario `release` optimizado (`lto`, `strip`, `panic=abort`), imagen multi-stage, usuario no-root, volumen de datos, `HEALTHCHECK`, `Cargo.lock` para builds reproducibles.
+- **Sistema**: CPU (%), memoria y disco (filesystems reales, deduplicados), red RX/TX y tasas; métricas extendidas best-effort (load, swap, uptime, I/O de disco, temperatura, top procesos). Colector con refrescos incrementales.
+- **Targets (checks)**: sondeo concurrente con `check_type` `http` (integraciones compatibles), `tcp`, `ping` (best-effort) y `tls` (handshake y días de certificado, best-effort). Estado, latencia, detalle y resultados estables.
+- **Persistencia**: SQLite (WAL, pragmas) con migraciones, histórico por rango, rollups/downsampling para rangos largos, alertas/eventos y pruning automático.
+- **Alertas y notificaciones**: umbrales configurables (sistema/targets/latencia/cert), historial de incidentes y notificaciones opcionales ante transiciones (webhook, Telegram, ntfy, best-effort).
+- **API**: `/api/health`, `/api/metrics/latest`, `/api/metrics/history`, `/api/config` (redactada), `/api/alerts`, `/api/events`, `/api/export` (JSON/CSV) y `/metrics` (Prometheus).
+- **Dashboard**: HTML/CSS/JS embebido + Chart.js local (sin CDN), métricas extendidas e histórico, alertas/eventos, exportación y render seguro.
+- **TUI**: `--tui` con vistas sistema/targets/alertas/eventos, métricas extendidas, sparklines y selección de rango/target (`Tab/1-4`, `+/-`, `↑/↓`, `r`, `q`).
+- **Operación**: apagado ordenado, logging, config por archivo/env/CLI, `--config`/`--check-config`, recarga por `SIGHUP` (Unix), auth opcional (token/Basic) y cabeceras de seguridad.
+- **Build/Release**: binario optimizado, imagen multi-stage no-root; releases con Linux (x86_64/aarch64/musl) y BSD, e imagen Docker multi-arch (amd64/arm64).
 
 ## Configuración
 
@@ -63,10 +64,13 @@ kind = "generic"
 
 - `GET /` — dashboard web
 - `GET /api/health` — estado/readiness (`db.ok`, `runtime`, última colección, errores, versión)
-- `GET /api/metrics/latest` — `{ system: {...} | null, targets: [...] }`
-- `GET /api/metrics/history?range=24&target=system` — `{ target, range_hours, points: [...] }` (sistema; `range` se acota a `max_history_hours`/retención)
-- `GET /api/metrics/history?range=24&target=<name>` — histórico del target (404 si no existe)
-- `GET /api/config` — configuración efectiva (`bind`, `port`, `db_path`, intervalos, retención, `max_history_hours`, timeout, targets)
+- `GET /api/metrics/latest` — `{ system, targets }` (métricas extendidas y estado de checks/TLS)
+- `GET /api/metrics/history?range=24&target=system|<name>` — histórico (downsampling en rangos largos)
+- `GET /api/config` — configuración efectiva (valores sensibles redactados)
+- `GET /api/alerts` — incidentes/alertas (`?status=&limit=`)
+- `GET /api/events` — eventos recientes (`?limit=`)
+- `GET /api/export?target=system|<name>&format=json|csv&range=24` — exportación
+- `GET /metrics` — formato Prometheus
 
 ## Ejecución local
 

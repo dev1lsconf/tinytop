@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag de release a publicar (ej. v0.0.4)"
+        description: "Tag de release a publicar (ej. v0.0.5)"
         required: true
         type: string
 
@@ -16,12 +16,25 @@ permissions:
   packages: write
 
 jobs:
-  linux:
-    name: Linux release and container package
-    runs-on: ubuntu-latest
-    env:
-      REGISTRY: ghcr.io
-      IMAGE_NAME: ${{ github.repository }}
+  linux-binaries:
+    name: Linux binaries (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            arch_label: linux-x86_64
+            use_cross: false
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            arch_label: linux-aarch64
+            use_cross: true
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            arch_label: linux-x86_64-musl
+            use_cross: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,28 +53,40 @@ jobs:
           VERSION="${TAG#v}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "archive=tinytop-${TAG}-linux-x86_64.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "archive=tinytop-${TAG}-${{ matrix.arch_label }}.tar.gz" >> "$GITHUB_OUTPUT"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.88"
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
 
-      - name: Install system dependencies
+      - name: Install host deps
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libsqlite3-dev
 
-      - name: Build release binary
-        run: cargo build --release --locked
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross --git https://github.com/cross-rs/cross --locked || cargo install cross --locked
+
+      - name: Build (native)
+        if: ${{ !matrix.use_cross }}
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: matrix.use_cross
+        run: cross build --release --locked --target ${{ matrix.target }}
 
       - name: Package binary artifacts
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp target/release/tinytop dist/tinytop
+          cp target/${{ matrix.target }}/release/tinytop dist/tinytop
           cp config.toml dist/config.toml
           cp -r static dist/static
           cp -r migrations dist/migrations
@@ -84,6 +109,35 @@ jobs:
               --generate-notes
           fi
 
+  docker:
+    name: Multi-arch container image
+    needs: linux-binaries
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Set version
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -104,11 +158,12 @@ jobs:
             type=raw,value=${{ steps.vars.outputs.tag }}
             type=raw,value=latest
 
-      - name: Build and push container image
+      - name: Build and push multi-arch container image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -116,7 +171,7 @@ jobs:
 
   bsd:
     name: BSD release artifacts (${{ matrix.os }})
-    needs: linux
+    needs: docker
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
