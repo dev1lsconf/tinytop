@@ -877,4 +877,41 @@ mod tests {
             Some(("example.com".to_string(), 80))
         );
     }
+
+    #[tokio::test]
+    async fn probe_tcp_reports_up_and_down() {
+        use std::net::TcpListener as StdTcpListener;
+
+        let listener = StdTcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let up_target = Target {
+            name: "tcp-up".into(),
+            url: String::new(),
+            kind: None,
+            check_type: "tcp".into(),
+            host: Some("127.0.0.1".into()),
+            port: Some(port),
+            latency_warn_ms: None,
+            cert_expiry_warn_days: None,
+        };
+        let up = probe_tcp(&up_target, Duration::from_secs(1)).await;
+        assert_eq!(up.status, "up");
+        assert_eq!(up.check_type, "tcp");
+        assert!(up.latency_ms.is_some());
+
+        drop(listener);
+        let down_target = Target {
+            name: "tcp-down".into(),
+            url: String::new(),
+            kind: None,
+            check_type: "tcp".into(),
+            host: Some("127.0.0.1".into()),
+            port: Some(port),
+            latency_warn_ms: None,
+            cert_expiry_warn_days: None,
+        };
+        let down = probe_tcp(&down_target, Duration::from_secs(1)).await;
+        assert_eq!(down.status, "down");
+        assert_eq!(down.check_type, "tcp");
+    }
 }
