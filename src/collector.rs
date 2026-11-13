@@ -88,10 +88,15 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
     let mut disk_available = 0.0f64;
     let mut seen_devices = HashSet::new();
     for d in &disks {
-        // Deduplicate by device name to avoid double-counting bind mounts/subvolumes
-        // (e.g. btrfs subvols or Docker bind mounts of the same underlying filesystem).
-        let name = d.name().to_string_lossy().to_string();
-        if !name.is_empty() && !seen_devices.insert(name) {
+        // Deduplicate by device identity to avoid double-counting bind mounts/subvolumes
+        // (e.g. btrfs subvolumes or Docker bind mounts on the same underlying filesystem).
+        let name = d.name().to_string_lossy();
+        let key = if name.is_empty() {
+            d.mount_point().to_string_lossy().into_owned()
+        } else {
+            name.into_owned()
+        };
+        if !seen_devices.insert(key) {
             continue;
         }
         disk_total += d.total_space() as f64 / 1024.0 / 1024.0;
