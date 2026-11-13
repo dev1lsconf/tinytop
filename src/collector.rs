@@ -1,7 +1,10 @@
 use crate::config::Config;
 use serde::Serialize;
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use sysinfo::{Disks, Networks, System};
+
+static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct SystemMetrics {
@@ -50,6 +53,20 @@ pub async fn collect(config: &Config, state: &mut CollectorState) -> anyhow::Res
         system,
         targets,
     })
+}
+
+fn http_client(timeout_secs: u64) -> reqwest::Client {
+    HTTP_CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .timeout(Duration::from_secs(timeout_secs.max(1)))
+                .pool_max_idle_per_host(4)
+                .tcp_keepalive(Duration::from_secs(30))
+                .user_agent(format!("tinytop/{}", env!("CARGO_PKG_VERSION")))
+                .build()
+                .expect("failed to build http client")
+        })
+        .clone()
 }
 
 fn collect_system(state: &mut CollectorState) -> SystemMetrics {
@@ -117,16 +134,24 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
 }
 
 async fn collect_targets(config: &Config) -> Vec<TargetInfo> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(config.request_timeout_secs.max(1)))
-        .user_agent(format!("tinytop/{}", env!("CARGO_PKG_VERSION")))
-        .build()
-        .unwrap_or_default();
+    let client = http_client(config.request_timeout_secs);
+    let mut set = tokio::task::JoinSet::new();
+    for target in config.targets.clone() {
+        let client = client.clone();
+        set.spawn(async move { probe_target(&client, &target).await });
+    }
 
     let mut results = Vec::with_capacity(config.targets.len());
-    for target in &config.targets {
-        results.push(probe_target(&client, target).await);
+    while let Some(res) = set.join_next().await {
+        match res {
+            Ok(info) => results.push(info),
+            Err(e) => {
+                tracing::warn!(error = %e, "target probe task failed");
+            }
+        }
     }
+    // keep stable order by configured name for UI/API consistency
+    results.sort_by(|a, b| a.name.cmp(&b.name));
     results
 }
 
