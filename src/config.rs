@@ -158,10 +158,10 @@ impl Config {
             if !(url.starts_with("http://") || url.starts_with("https://")) {
                 bail!("target '{}' has invalid url: {}", t.name, t.url);
             }
-            if let Some(kind) = &t.kind {
-                if kind.trim().is_empty() {
-                    bail!("target '{}' has empty kind", t.name);
-                }
+            if let Some(kind) = &t.kind
+                && kind.trim().is_empty()
+            {
+                bail!("target '{}' has empty kind", t.name);
             }
         }
         Ok(())

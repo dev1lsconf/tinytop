@@ -47,10 +47,10 @@ pub struct RetentionResult {
 
 impl Database {
     pub async fn open(path: &str) -> anyhow::Result<Self> {
-        if let Some(parent) = Path::new(path).parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)?;
-            }
+        if let Some(parent) = Path::new(path).parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)?;
         }
 
         let opts = SqliteConnectOptions::from_str(&format!("sqlite://{path}"))?
