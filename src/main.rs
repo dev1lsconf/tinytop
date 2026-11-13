@@ -1,6 +1,7 @@
 mod collector;
 mod config;
 mod db;
+mod tui;
 mod web;
 
 use collector::CollectorState;
@@ -49,29 +50,61 @@ impl RuntimeStatus {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .with_target(false)
-        .compact()
-        .init();
+    let args: Vec<String> = std::env::args().collect();
+    let tui_mode = args.iter().any(|a| a == "--tui");
+    let show_help = args.iter().any(|a| a == "--help" || a == "-h");
+    let show_version = args.iter().any(|a| a == "--version" || a == "-V");
+
+    if show_help {
+        println!(
+            "TinyTop v{} - lightweight system & target monitor",
+            env!("CARGO_PKG_VERSION")
+        );
+        println!();
+        println!("Usage: tinytop [OPTIONS]");
+        println!();
+        println!("Options:");
+        println!("  --tui        Run interactive terminal UI (instead of web server)");
+        println!("  -h, --help   Print help");
+        println!("  -V, --version Print version");
+        println!();
+        println!("Environment/config: see config.toml and TINYTOP_* variables.");
+        return Ok(());
+    }
+    if show_version {
+        println!("tinytop {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
+    if !tui_mode {
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+            )
+            .with_target(false)
+            .compact()
+            .init();
+    }
 
     let cfg = config::Config::load()?;
-    tracing::info!(
-        version = env!("CARGO_PKG_VERSION"),
-        bind = %cfg.bind,
-        port = cfg.port,
-        db_path = %cfg.db_path,
-        interval_seconds = cfg.interval_seconds,
-        retention_hours = cfg.retention_hours,
-        targets = cfg.targets.len(),
-        "starting tinytop"
-    );
+    if !tui_mode {
+        tracing::info!(
+            version = env!("CARGO_PKG_VERSION"),
+            bind = %cfg.bind,
+            port = cfg.port,
+            db_path = %cfg.db_path,
+            interval_seconds = cfg.interval_seconds,
+            retention_hours = cfg.retention_hours,
+            targets = cfg.targets.len(),
+            "starting tinytop"
+        );
+    }
 
     let db = Arc::new(db::Database::open(&cfg.db_path).await?);
     db.init().await?;
-    if let Err(e) = db.prune_older_than_hours(cfg.retention_hours).await {
+    if let Err(e) = db.prune_older_than_hours(cfg.retention_hours).await
+        && !tui_mode
+    {
         tracing::warn!("initial retention prune failed: {e}");
     }
 
@@ -91,6 +124,12 @@ async fn main() -> anyhow::Result<()> {
         )
         .await;
     });
+
+    if tui_mode {
+        tui::run(db.clone(), cfg.clone(), runtime.clone(), shutdown.clone()).await?;
+        db.pool.close().await;
+        return Ok(());
+    }
 
     let app = web::create_router(db.clone(), cfg.clone(), runtime.clone(), shutdown.clone());
     let addr = format!("{}:{}", cfg.bind, cfg.port);
