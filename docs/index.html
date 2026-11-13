@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyTop — Monitor ligero en Rust</title>
+  <meta name="description" content="TinyTop: monitor autohospedado y ligero para servidores Linux y *BSD. Un solo binario, SQLite, dashboard web, sin Prometheus.">
+  <meta name="color-scheme" content="dark light">
+  <style>
+    :root { --bg:#0b0d10; --card:#12161c; --text:#e8edf2; --muted:#a7b1bb; --accent:#6ee7b7; --accent2:#60a5fa; --border:#232a33; }
+    @media (prefers-color-scheme: light) { :root { --bg:#f6f8fa; --card:#ffffff; --text:#111827; --muted:#4b5563; --accent:#059669; --accent2:#2563eb; --border:#e5e7eb; } }
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+    a{color:var(--accent2);text-decoration:none} a:hover{text-decoration:underline}
+    .wrap{max-width:1000px;margin:0 auto;padding:32px 20px 56px}
+    header{padding:24px 0 8px} .badge{display:inline-block;padding:4px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:.85rem;margin-right:8px}
+    h1{font-size:clamp(2rem,4vw,3rem);margin:.4rem 0 .2rem;letter-spacing:-.02em} .lead{font-size:1.15rem;color:var(--muted);max-width:70ch;margin:.2rem 0 1rem}
+    .cta{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0 8px}
+    .btn{display:inline-block;padding:10px 16px;border-radius:10px;font-weight:600;border:1px solid var(--border);background:var(--card);color:var(--text)}
+    .btn.primary{background:var(--accent);color:#062016;border-color:transparent} .btn.primary:hover{text-decoration:none;filter:brightness(1.05)}
+    .hero{margin:26px 0 10px} .hero img{width:100%;height:auto;border-radius:14px;border:1px solid var(--border);background:#000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    section{margin-top:34px} h2{font-size:1.4rem;margin:0 0 12px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+    .card h3{margin:.1rem 0 .35rem;font-size:1.05rem} .card p{margin:0;color:var(--muted);font-size:.97rem}
+    pre{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto;margin:10px 0}
+    code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:.95em}
+    ul{margin:.4rem 0 .2rem 1.2rem;color:var(--muted)} footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:.95rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge">v0.0.4</span><span class="badge">Rust 2024</span><span class="badge">Linux &amp; *BSD</span><span class="badge">MIT</span>
+      <h1>TinyTop</h1>
+      <p class="lead">Monitor autohospedado y ligero para servidores. Recolecta métricas del sistema y sondea targets HTTP, persiste histórico en SQLite y expone un dashboard web en tiempo real. <strong>Un solo binario</strong>, sin Prometheus ni servicios externos.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/dev1lsconf/tinytop/releases/latest">Descargar release</a>
+        <a class="btn" href="https://github.com/dev1lsconf/tinytop">Ver en GitHub</a>
+        <a class="btn" href="https://github.com/dev1lsconf/tinytop/pkgs/container/tinytop">Contenedor (GHCR)</a>
+      </div>
+    </header>
+
+    <div class="hero">
+      <img src="dashboard.png" alt="Dashboard de TinyTop mostrando métricas de CPU, memoria, disco, red y targets" loading="lazy">
+    </div>
+
+    <section>
+      <h2>Características</h2>
+      <div class="grid">
+        <div class="card"><h3>Sistema</h3><p>CPU, memoria, disco y red (RX/TX acumulado y por segundo). Disco sobre filesystems reales con deduplicación y filtrado de pseudo-FS (Linux y *BSD), colector con refrescos incrementales.</p></div>
+        <div class="card"><h3>Targets HTTP</h3><p>Sondeo concurrente con cliente reutilizado: <code>generic</code>, Spring Boot/Actuator, Quarkus, Micronaut/Micrometer. Latencia, estado normalizado y extracción heurística de requests.</p></div>
+        <div class="card"><h3>Persistencia y API</h3><p>SQLite (WAL, migraciones, pragmas de bajo coste), retención/pruning, histórico por rango. API JSON: <code>/api/health</code>, <code>/api/metrics/latest</code>, <code>/api/metrics/history</code>, <code>/api/config</code>.</p></div>
+        <div class="card"><h3>Dashboard y operación</h3><p>UI embebida con Chart.js local, sin CDN. Apagado ordenado, logging, configuración por archivo/entorno, validación estricta y cabeceras de seguridad HTTP.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Inicio rápido</h2>
+      <pre><code># Desde código (requiere Rust 1.88+)
+cargo build --release --locked
+./target/release/tinytop
+# http://localhost:9090</code></pre>
+      <pre><code># Docker
+docker compose up -d --build
+# http://localhost:9090</code></pre>
+    </section>
+
+    <section>
+      <h2>Compatibilidad y artefactos</h2>
+      <ul>
+        <li><strong>Plataformas:</strong> Linux y sistemas *BSD (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD).</li>
+        <li><strong>Artefactos oficiales:</strong> tarballs para Linux x86_64, FreeBSD, OpenBSD y NetBSD, más imagen <code>ghcr.io/dev1lsconf/tinytop</code>.</li>
+        <li>En otras plataformas soportadas por las dependencias: compilación desde código.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>TinyTop · <a href="https://github.com/dev1lsconf/tinytop">Repositorio</a> · <a href="https://github.com/dev1lsconf/tinytop/releases">Releases</a> · <a href="https://github.com/dev1lsconf/tinytop/blob/master/CHANGELOG.md">Changelog</a> · Licencia <a href="https://github.com/dev1lsconf/tinytop/blob/master/LICENSE">MIT</a></p>
+    </footer>
+  </div>
+</body>
+</html>
