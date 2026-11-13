@@ -1,0 +1,62 @@
+# Ejemplo avanzado: checks variados, alertas, notificaciones y auth opcional
+bind = "0.0.0.0"
+port = 9090
+db_path = "/var/lib/tinytop/tinytop.db"
+interval_seconds = 30
+retention_hours = 168
+request_timeout_secs = 5
+max_history_hours = 168
+
+# Auth opcional (protege API/dashboard; /api/health puede quedar exento según config)
+# [auth]
+# enabled = true
+# token = "cambia-este-token"        # Bearer / X-API-Key / ?token=
+# # username = "admin"               # o Basic auth
+# # password = "cambia-esta-clave"
+
+# Umbrales/alertas (ejemplos; ajusta a tu entorno)
+[alerts]
+cpu_percent = 90.0
+memory_percent = 90.0
+disk_percent = 90.0
+temperature_celsius = 85.0
+target_latency_ms = 1500
+cert_days_remaining = 14
+
+# Notificaciones best-effort ante transiciones (configura las que uses)
+# [notifications]
+# webhook_url = "https://hooks.example.com/tinytop"
+# telegram_bot_token = "123456:ABC..."
+# telegram_chat_id = "-100123456"
+# ntfy_url = "https://ntfy.sh/mi-topic"
+
+# Targets HTTP (integraciones compatibles)
+[[targets]]
+name = "spring-local"
+url = "http://localhost:8080/actuator/health"
+kind = "spring-boot"
+
+[[targets]]
+name = "api-health"
+url = "https://api.example.com/health"
+kind = "generic"
+
+# Checks TCP
+[[targets]]
+name = "postgres"
+check_type = "tcp"
+host = "db.internal"
+port = 5432
+
+# Checks ping (best-effort, requiere `ping`)
+[[targets]]
+name = "gateway"
+check_type = "ping"
+host = "10.0.0.1"
+
+# Checks TLS (handshake + días de cert, best-effort, requiere `openssl`)
+[[targets]]
+name = "edge-tls"
+check_type = "tls"
+host = "example.com"
+port = 443

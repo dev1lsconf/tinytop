@@ -2,6 +2,11 @@
 name = "tinytop"
 version = "0.1.0"
 edition = "2024"
+description = "Lightweight self-hosted system and target monitor (single binary, SQLite, web dashboard and TUI)"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/dev1lsconf/tinytop"
+homepage = "https://github.com/dev1lsconf/tinytop"
 
 [dependencies]
 axum = "0.7"
