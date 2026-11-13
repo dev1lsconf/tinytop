@@ -1,0 +1,25 @@
+# Maintainer: TinyTop Contributors <noreply@commandcode.ai>
+pkgname=tinytop
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Lightweight self-hosted system and target monitor (single binary, SQLite, web dashboard and TUI)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/dev1lsconf/tinytop"
+license=('MIT')
+depends=('sqlite' 'gcc-libs')
+provides=('tinytop')
+conflicts=('tinytop')
+source_x86_64=("tinytop-v${pkgver}-linux-x86_64.tar.gz::${url}/releases/download/v${pkgver}/tinytop-v${pkgver}-linux-x86_64.tar.gz")
+source_aarch64=("tinytop-v${pkgver}-linux-aarch64.tar.gz::${url}/releases/download/v${pkgver}/tinytop-v${pkgver}-linux-aarch64.tar.gz")
+sha256sums_x86_64=('REPLACE_WITH_SHA256')
+sha256sums_aarch64=('REPLACE_WITH_SHA256')
+
+package() {
+  cd "$srcdir"
+  install -Dm755 tinytop "$pkgdir/usr/bin/tinytop"
+  install -Dm644 config.toml "$pkgdir/etc/tinytop/config.toml"
+  install -d "$pkgdir/usr/share/tinytop"
+  cp -r static migrations "$pkgdir/usr/share/tinytop/"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/tinytop/README.md" 2>/dev/null || true
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/tinytop/LICENSE" 2>/dev/null || true
+}

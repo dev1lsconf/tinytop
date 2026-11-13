@@ -50,6 +50,16 @@ test.describe('TinyTop dashboard', () => {
     await expect(page.locator('#targetsTable tr')).toHaveCount(2, { timeout: 20_000 });
     await expect(page.locator('#targetsTable')).toContainText(/localhost|api/i);
 
+    // extended sections
+    await expect(page.getByTestId('alerts-card')).toBeVisible();
+    await expect(page.getByTestId('events-card')).toBeVisible();
+    await expect(page.locator('#alertsTable')).toBeVisible();
+    await expect(page.locator('#eventsTable')).toBeVisible();
+    await expect(page.getByTestId('export-json')).toBeVisible();
+    await expect(page.getByTestId('export-csv')).toBeVisible();
+    await expect(page.locator('#kvLoad')).toBeVisible();
+    await expect(page.locator('#kvUptime')).toBeVisible();
+
     const history = await page.evaluate(async () => {
       const r = await fetch('/api/metrics/history?range=24&target=system');
       const d = await r.json();
@@ -62,7 +72,7 @@ test.describe('TinyTop dashboard', () => {
     expect(consoleErrors, 'console errors').toEqual([]);
   });
 
-  test('expone endpoints API principales', async ({ request }) => {
+  test('expone endpoints API principales y nuevos', async ({ request }) => {
     await expect.poll(async () => (await request.get('/api/health')).status(), { timeout: 30_000 }).toBe(200);
 
     const health = await request.get('/api/health');
@@ -86,6 +96,26 @@ test.describe('TinyTop dashboard', () => {
     expect(data.system).toBeTruthy();
     expect(Array.isArray(data.targets)).toBeTruthy();
     expect(typeof data.system.cpu_percent).toBe('number');
+
+    const alerts = await request.get('/api/alerts?limit=10');
+    expect(alerts.ok()).toBeTruthy();
+    const alertsJson = await alerts.json();
+    expect(Array.isArray(alertsJson.alerts)).toBeTruthy();
+
+    const events = await request.get('/api/events?limit=10');
+    expect(events.ok()).toBeTruthy();
+    const eventsJson = await events.json();
+    expect(Array.isArray(eventsJson.events)).toBeTruthy();
+
+    const expJson = await request.get('/api/export?target=system&format=json&range=24');
+    expect(expJson.ok()).toBeTruthy();
+    const expCsv = await request.get('/api/export?target=system&format=csv&range=24');
+    expect(expCsv.ok()).toBeTruthy();
+    expect(await expCsv.text()).toContain('timestamp');
+
+    const prom = await request.get('/metrics');
+    expect(prom.ok()).toBeTruthy();
+    expect(await prom.text()).toContain('tinytop_up');
 
     const badHistory = await request.get('/api/metrics/history?range=24&target=__missing__');
     expect(badHistory.status()).toBe(404);
