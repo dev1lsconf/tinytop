@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 #[derive(Clone)]
 pub struct AppState {
     pub db: Arc<Database>,
-    pub cfg: Config,
+    pub cfg: Arc<RwLock<Config>>,
     pub runtime: Arc<RwLock<RuntimeStatus>>,
     pub shutdown: Arc<AtomicBool>,
 }
@@ -24,7 +24,7 @@ impl AppState {
 
 pub fn create_router(
     db: Arc<Database>,
-    cfg: Config,
+    cfg: Arc<RwLock<Config>>,
     runtime: Arc<RwLock<RuntimeStatus>>,
     shutdown: Arc<AtomicBool>,
 ) -> Router {

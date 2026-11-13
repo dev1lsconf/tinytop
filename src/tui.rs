@@ -24,7 +24,7 @@ use tokio::sync::RwLock;
 
 pub async fn run(
     db: Arc<Database>,
-    cfg: Config,
+    cfg: Arc<RwLock<Config>>,
     runtime: Arc<RwLock<RuntimeStatus>>,
     shutdown: Arc<AtomicBool>,
 ) -> anyhow::Result<()> {
@@ -78,6 +78,8 @@ async fn load_data(db: &Database, cfg: &Config, runtime: &Arc<RwLock<RuntimeStat
                 latency_ms: None,
                 http_requests: None,
                 detail: Some("no data yet".to_string()),
+                cert_days_left: None,
+                check_type: Some(t.check_type.clone()),
             }),
             Err(e) => {
                 last_error = Some(format!("db: {e}"));
@@ -96,16 +98,17 @@ async fn load_data(db: &Database, cfg: &Config, runtime: &Arc<RwLock<RuntimeStat
 async fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     db: Arc<Database>,
-    cfg: Config,
+    cfg: Arc<RwLock<Config>>,
     runtime: Arc<RwLock<RuntimeStatus>>,
     shutdown: Arc<AtomicBool>,
 ) -> anyhow::Result<()> {
-    let mut data = load_data(&db, &cfg, &runtime).await;
+    let mut cfg_snap = cfg.read().await.clone();
+    let mut data = load_data(&db, &cfg_snap, &runtime).await;
     let tick_rate = Duration::from_secs(1);
     let mut last_tick = Instant::now();
 
     loop {
-        terminal.draw(|f| ui(f, &cfg, &data))?;
+        terminal.draw(|f| ui(f, &cfg_snap, &data))?;
 
         let timeout = tick_rate.saturating_sub(last_tick.elapsed());
         if event::poll(timeout)?
@@ -126,7 +129,9 @@ async fn run_app(
                     break;
                 }
                 KeyCode::Char('r') => {
-                    data = load_data(&db, &cfg, &runtime).await;
+                    let cs = cfg.read().await.clone();
+                    data = load_data(&db, &cs, &runtime).await;
+                    cfg_snap = cs;
                 }
                 _ => {}
             }
@@ -136,7 +141,9 @@ async fn run_app(
             break;
         }
         if last_tick.elapsed() >= tick_rate {
-            data = load_data(&db, &cfg, &runtime).await;
+            let cs = cfg.read().await.clone();
+            data = load_data(&db, &cs, &runtime).await;
+            cfg_snap = cs;
             last_tick = Instant::now();
         }
     }

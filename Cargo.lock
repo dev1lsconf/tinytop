@@ -2207,6 +2207,7 @@ version = "0.0.4"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.22.1",
  "chrono",
  "crossterm",
  "ratatui",
@@ -2219,6 +2220,7 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
