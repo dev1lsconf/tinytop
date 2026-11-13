@@ -503,15 +503,20 @@ mod tests {
 
     #[test]
     fn redacts_sensitive_auth_and_notifications() {
-        let mut cfg = Config::default();
-        cfg.auth = Some(AuthConfig {
-            token: Some("secret".into()),
-            basic_user: Some("u".into()),
-            basic_password: Some("p".into()),
-            allow_health_unauth: true,
-        });
-        cfg.notifications.webhook_url = Some("https://hook".into());
-        cfg.notifications.telegram_bot_token = Some("tok".into());
+        let cfg = Config {
+            auth: Some(AuthConfig {
+                token: Some("secret".into()),
+                basic_user: Some("u".into()),
+                basic_password: Some("p".into()),
+                allow_health_unauth: true,
+            }),
+            notifications: NotificationConfig {
+                webhook_url: Some("https://hook".into()),
+                telegram_bot_token: Some("tok".into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         let r = cfg.redacted();
         let a = r.auth.unwrap();
         assert_eq!(a.token.as_deref(), Some("***"));
