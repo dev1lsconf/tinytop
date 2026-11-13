@@ -164,7 +164,12 @@ async fn api_endpoints_and_export_prometheus() {
 
     let res = app
         .clone()
-        .oneshot(Request::builder().uri("/metrics").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/metrics")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
