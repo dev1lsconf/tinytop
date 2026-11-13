@@ -8,20 +8,20 @@ class Tinytop < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/dev1lsconf/tinytop/releases/download/v#{version}/tinytop-v#{version}-linux-aarch64.tar.gz"
-      sha256 "REPLACE_WITH_LINUX_AARCH64_SHA256"
+      sha256 "e90b677d2c75f6ca70feea53eb167c63652480a6ef78678244e4001f8c530ee9"
     else
       url "https://github.com/dev1lsconf/tinytop/releases/download/v#{version}/tinytop-v#{version}-linux-x86_64.tar.gz"
-      sha256 "REPLACE_WITH_LINUX_X86_64_SHA256"
+      sha256 "a879c8ae13235460fa92de53914bee4141c6f6850920a4b5c0372573783f009b"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/dev1lsconf/tinytop/releases/download/v#{version}/tinytop-v#{version}-linux-aarch64.tar.gz"
-      sha256 "REPLACE_WITH_LINUX_AARCH64_SHA256"
+      sha256 "e90b677d2c75f6ca70feea53eb167c63652480a6ef78678244e4001f8c530ee9"
     else
       url "https://github.com/dev1lsconf/tinytop/releases/download/v#{version}/tinytop-v#{version}-linux-x86_64.tar.gz"
-      sha256 "REPLACE_WITH_LINUX_X86_64_SHA256"
+      sha256 "a879c8ae13235460fa92de53914bee4141c6f6850920a4b5c0372573783f009b"
     end
   end
 
