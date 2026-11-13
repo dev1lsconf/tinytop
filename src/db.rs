@@ -49,73 +49,27 @@ impl Database {
     pub async fn open(path: &str) -> anyhow::Result<Self> {
         if let Some(parent) = Path::new(path).parent() {
             if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent).ok();
+                std::fs::create_dir_all(parent)?;
             }
         }
 
         let opts = SqliteConnectOptions::from_str(&format!("sqlite://{path}"))?
             .create_if_missing(true)
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(sqlx::sqlite::SqliteSynchronous::Normal)
+            .foreign_keys(true)
             .busy_timeout(std::time::Duration::from_secs(5));
 
         let pool = SqlitePool::connect_with(opts).await?;
+        sqlx::query("PRAGMA temp_store = MEMORY")
+            .execute(&pool)
+            .await?;
         Ok(Self { pool })
     }
 
     pub async fn init(&self) -> anyhow::Result<()> {
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS system_metrics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT NOT NULL,
-                cpu_percent REAL NOT NULL,
-                mem_used_mb REAL NOT NULL,
-                mem_total_mb REAL NOT NULL,
-                mem_used_percent REAL NOT NULL,
-                disk_used_mb REAL NOT NULL,
-                disk_total_mb REAL NOT NULL,
-                disk_available_mb REAL NOT NULL,
-                disk_used_percent REAL NOT NULL,
-                net_rx_bytes INTEGER NOT NULL,
-                net_tx_bytes INTEGER NOT NULL,
-                net_rx_bytes_per_sec REAL NOT NULL,
-                net_tx_bytes_per_sec REAL NOT NULL
-            )",
-        )
-        .execute(&self.pool)
-        .await?;
-
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS target_metrics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT NOT NULL,
-                target TEXT NOT NULL,
-                kind TEXT NOT NULL,
-                url TEXT NOT NULL,
-                status TEXT NOT NULL,
-                latency_ms REAL,
-                http_requests INTEGER,
-                detail TEXT
-            )",
-        )
-        .execute(&self.pool)
-        .await?;
-
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_system_metrics_ts ON system_metrics(timestamp)",
-        )
-        .execute(&self.pool)
-        .await?;
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_target_metrics_target_ts ON target_metrics(target, timestamp)",
-        )
-        .execute(&self.pool)
-        .await?;
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_target_metrics_ts ON target_metrics(timestamp)",
-        )
-        .execute(&self.pool)
-        .await?;
-
+        sqlx::migrate!("./migrations").run(&self.pool).await?;
+        sqlx::query("PRAGMA optimize").execute(&self.pool).await.ok();
         Ok(())
     }
 

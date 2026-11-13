@@ -1,14 +1,32 @@
-CREATE TABLE IF NOT EXISTS metrics (
+CREATE TABLE IF NOT EXISTS system_metrics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    target TEXT NOT NULL,
     timestamp TEXT NOT NULL,
-    cpu REAL NOT NULL,
-    memory_mb REAL NOT NULL,
-    disk_mb REAL NOT NULL,
-    network_rx INTEGER NOT NULL,
-    network_tx INTEGER NOT NULL,
-    latency_ms REAL,
-    http_requests INTEGER
+    cpu_percent REAL NOT NULL,
+    mem_used_mb REAL NOT NULL,
+    mem_total_mb REAL NOT NULL,
+    mem_used_percent REAL NOT NULL,
+    disk_used_mb REAL NOT NULL,
+    disk_total_mb REAL NOT NULL,
+    disk_available_mb REAL NOT NULL,
+    disk_used_percent REAL NOT NULL,
+    net_rx_bytes INTEGER NOT NULL,
+    net_tx_bytes INTEGER NOT NULL,
+    net_rx_bytes_per_sec REAL NOT NULL,
+    net_tx_bytes_per_sec REAL NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_metrics_target_ts ON metrics(target, timestamp);
+CREATE TABLE IF NOT EXISTS target_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    target TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    url TEXT NOT NULL,
+    status TEXT NOT NULL,
+    latency_ms REAL,
+    http_requests INTEGER,
+    detail TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_system_metrics_ts ON system_metrics(timestamp);
+CREATE INDEX IF NOT EXISTS idx_target_metrics_target_ts ON target_metrics(target, timestamp);
+CREATE INDEX IF NOT EXISTS idx_target_metrics_ts ON target_metrics(timestamp);
