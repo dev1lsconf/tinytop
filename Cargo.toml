@@ -30,3 +30,27 @@ panic = "abort"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
 tempfile = "3"
+
+[package.metadata.deb]
+maintainer = "TinyTop Contributors <noreply@commandcode.ai>"
+copyright = "2026, TinyTop Contributors"
+license-file = ["LICENSE", "0"]
+extended-description = "TinyTop - lightweight self-hosted system and target monitor (single binary, SQLite, web dashboard and TUI)."
+section = "utils"
+priority = "optional"
+assets = [
+  ["target/release/tinytop", "usr/bin/", "755"],
+  ["config.toml", "etc/tinytop/config.toml", "644"],
+  ["README.md", "usr/share/doc/tinytop/README.md", "644"],
+  ["CHANGELOG.md", "usr/share/doc/tinytop/CHANGELOG.md", "644"],
+  ["LICENSE", "usr/share/doc/tinytop/LICENSE", "644"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+  { source = "target/release/tinytop", dest = "/usr/bin/tinytop", mode = "755" },
+  { source = "config.toml", dest = "/etc/tinytop/config.toml", mode = "644", config = true },
+  { source = "README.md", dest = "/usr/share/doc/tinytop/README.md", mode = "644", doc = true },
+  { source = "CHANGELOG.md", dest = "/usr/share/doc/tinytop/CHANGELOG.md", mode = "644", doc = true },
+  { source = "LICENSE", dest = "/usr/share/doc/tinytop/LICENSE", mode = "644", doc = true },
+]

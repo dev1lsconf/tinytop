@@ -93,6 +93,16 @@ jobs:
           tar -czf "${{ steps.vars.outputs.archive }}" -C dist tinytop config.toml static migrations
           sha256sum "${{ steps.vars.outputs.archive }}" > "${{ steps.vars.outputs.archive }}.sha256"
 
+      - name: Build native packages (.deb/.rpm)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install cargo-deb --locked || cargo install cargo-deb
+          cargo install cargo-generate-rpm --locked || cargo install cargo-generate-rpm
+          cargo deb --no-build --target ${{ matrix.target }}
+          cargo generate-rpm --target ${{ matrix.target }}
+
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -101,10 +111,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          FILES=("$ARCHIVE" "$ARCHIVE.sha256")
+          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ]; then
+            shopt -s nullglob
+            FILES+=(target/${{ matrix.target }}/debian/*.deb target/${{ matrix.target }}/generate-rpm/*.rpm)
+          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$ARCHIVE" "$ARCHIVE.sha256" --clobber
+            gh release upload "$TAG" "${FILES[@]}" --clobber
           else
-            gh release create "$TAG" "$ARCHIVE" "$ARCHIVE.sha256" \
+            gh release create "$TAG" "${FILES[@]}" \
               --title "TinyTop $TAG" \
               --generate-notes
           fi
