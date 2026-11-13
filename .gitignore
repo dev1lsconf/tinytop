@@ -9,3 +9,6 @@ node_modules
 
 # Local roadmap (tracked separately)
 ROADMAP.md
+
+# Local Command Code settings/taste
+.commandcode/
