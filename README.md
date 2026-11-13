@@ -1,7 +1,7 @@
-# TinyTop v0.0.1 - Monitor ligero de VPS en Rust
+# TinyTop v0.0.2 - Monitor ligero de VPS en Rust
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-0.0.1-blue.svg)](Cargo.toml)
+[![version](https://img.shields.io/badge/version-0.0.2-blue.svg)](Cargo.toml)
 [![rust](https://img.shields.io/badge/Rust-1.88%2B-orange.svg)](https://www.rust-lang.org)
 [![platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.kernel.org)
 

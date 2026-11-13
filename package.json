@@ -1,6 +1,6 @@
 {
   "name": "tinytop",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Monitor ligero de VPS en Rust (Axum + SQLite) con dashboard web",
   "main": "index.js",
   "scripts": {
