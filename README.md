@@ -25,7 +25,7 @@
 
 ## Configuración
 
-`config.toml` (ejemplo):
+`config.toml` (ejemplo, ver más en [`examples/`](examples/README.md)):
 
 ```toml
 bind = "0.0.0.0"
@@ -167,6 +167,7 @@ port = 443
 - **Sin datos / “starting”**: espera `interval_seconds`, revisa `/api/health` y logs; valida con `--check-config`.
 - **Recarga**: en Unix `SIGHUP`; en otros entornos reinicia el proceso.
 - **Persistencia**: SQLite en WAL con rollups y pruning por `retention_hours`; persiste `db_path` en volumen.
+- **Ejemplos**: [`examples/`](examples/README.md) incluye configs básica y avanzada (targets tcp/ping/tls/http, alertas, notificaciones, auth).
 
 ## Contribución y release
 
