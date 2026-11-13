@@ -505,7 +505,7 @@ async fn prometheus_metrics(State(state): State<AppState>) -> impl IntoResponse 
         StatusCode::OK,
         [(
             header::CONTENT_TYPE,
-            "text/plain; version=0.0.4; charset=utf-8",
+            "text/plain; version=0.0.5; charset=utf-8",
         )],
         out,
     )

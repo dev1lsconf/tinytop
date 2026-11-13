@@ -1,13 +1,13 @@
-# TinyTop v0.0.4 - Monitor ligero en Rust
+# TinyTop v0.0.5 - Monitor ligero en Rust
 
 [![CI](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dev1lsconf/tinytop?display_name=tag)](https://github.com/dev1lsconf/tinytop/releases)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-0.0.4-blue.svg)](Cargo.toml)
+[![version](https://img.shields.io/badge/version-0.0.5-blue.svg)](Cargo.toml)
 [![rust](https://img.shields.io/badge/Rust-1.88%2B%20(edition%202024)-orange.svg)](https://www.rust-lang.org)
 [![platform](https://img.shields.io/badge/platform-linux%20%7C%20BSD-lightgrey.svg)](https://www.kernel.org)
 
-![TinyTop Dashboard](docs/dashboard.png?v=0.0.4-2)
+![TinyTop Dashboard](docs/dashboard.png?v=0.0.5)
 
 **TinyTop** es un monitor autohospedado y ligero para servidores. Recolecta métricas del sistema y sondea targets HTTP configurables, persiste histórico en SQLite y expone un dashboard web con gráficos en tiempo real, además de una **TUI** interactiva en terminal. Funciona como **un solo binario**, sin Prometheus ni servicios externos.
 
@@ -72,38 +72,29 @@ kind = "generic"
 - `GET /api/export?target=system|<name>&format=json|csv&range=24` — exportación
 - `GET /metrics` — formato Prometheus
 
-## Ejecución local
+## Ejecución rápida
 
 ```bash
 cargo build --release --locked
-./target/release/tinytop
-# Dashboard web: http://localhost:9090
-
-# Modo TUI (terminal interactiva)
-./target/release/tinytop --tui
-
-# Ayuda y versión
-./target/release/tinytop --help
-./target/release/tinytop --version
+./target/release/tinytop --check-config
+./target/release/tinytop            # Dashboard web: http://localhost:9090
+./target/release/tinytop --tui      # TUI
 ```
 
-## Docker
+### Docker / Docker Compose
 
 ```bash
 docker compose up -d --build
 # http://localhost:9090
 ```
 
-- DB persistida en volumen (`/app/data/tinytop.db` por defecto en la imagen/compose).
-- Healthcheck: `curl -fsS http://localhost:9090/api/health`.
-- Ejecuta como usuario no-root.
-- En contenedor, las métricas de disco priorizan filesystems reales del host/volumen (se excluyen pseudo-FS como `overlay`/`tmpfs`).
-- Para abrir la TUI en un contenedor en ejecución (requiere TTY): `docker exec -it tinytop tinytop --tui` (o el nombre de tu contenedor). Use la misma config/DB montada.
+- Monta `config.toml` como solo lectura y persiste la DB (`db_path`) en un volumen.
+- La imagen expone `9090` y la TUI requiere TTY: `docker exec -it tinytop-dev tinytop --tui` (ajusta el nombre).
 
 ## Compatibilidad
 
 - Soporte de plataforma: **Linux** y **sistemas *BSD** (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD) vía `sysinfo`.
-- Artefactos oficiales de release: Linux x86_64 (tarball) e imagen de contenedor `ghcr.io/dev1lsconf/tinytop`, además de tarballs para **FreeBSD**, **OpenBSD** y **NetBSD** (x86_64) generados por el workflow de release.
+- Artefactos de release: Linux x86_64, aarch64 y musl (tarballs) e imagen de contenedor `ghcr.io/dev1lsconf/tinytop` multi-arch (amd64/arm64), además de tarballs para **FreeBSD**, **OpenBSD** y **NetBSD** (x86_64).
 - En otras plataformas soportadas por las dependencias se puede compilar desde código (`cargo build --release --locked`).
 
 ## Pruebas y calidad
@@ -124,26 +115,70 @@ BASE_URL=http://localhost:9090 npx playwright test
 
 El workflow de CI ejecuta fmt, clippy, tests, build y E2E en Ubuntu.
 
-## Seguridad y notas
+## Configuración avanzada (ejemplo)
 
-- Sin autenticación incorporada: expón el servicio detrás de reverse proxy con TLS/auth si es accesible públicamente.
-- Respuestas con cabeceras de seguridad; la UI embebida usa scripts/estilos inline y Chart.js local (CSP acorde). Para endurecer más, sirve detrás de proxy con políticas adicionales según tu entorno.
-- Las URLs de targets se leen de configuración local/controlada por el operador.
-- `Cargo.lock` incluido para builds reproducibles.
+```toml
+# Recarga en caliente (Unix): kill -HUP <pid> | --config /ruta/config.toml
 
-## Changelog
+[auth]
+token = "mi-token"           # o basic_user/basic_password
+allow_health_unauth = true
 
-Ver [CHANGELOG.md](CHANGELOG.md).
+[alerts]
+cpu_percent_warn = 90.0
+mem_percent_warn = 90.0
+disk_percent_warn = 90.0
+temp_celsius_warn = 85.0
+target_latency_ms_warn = 1000.0
+cert_expiry_days_warn = 14
 
-## Release y paquete
+[notifications]
+webhook_url = "https://hooks.example/..."
+# telegram_bot_token = "..." ; telegram_chat_id = "..."
+# ntfy_url = "https://ntfy.sh" ; ntfy_topic = "tinytop"
 
+[[targets]]
+name = "web"
+url = "https://example.com/health"
+check_type = "http"
+
+[[targets]]
+name = "db"
+check_type = "tcp"
+host = "db.internal"
+port = 5432
+
+[[targets]]
+name = "gateway"
+check_type = "ping"
+host = "10.0.0.1"
+
+[[targets]]
+name = "api-tls"
+check_type = "tls"
+host = "example.com"
+port = 443
+```
+
+## Notas operativas y troubleshooting
+
+- **Seguridad**: auth opcional (`[auth]`, token Bearer/`X-API-Key`/`?token=` o Basic); sin auth la API queda abierta — usar red privada/reverse proxy con TLS. Config sensible redactada en `/api/config`.
+- **Checks best-effort**: `ping` y días de certificado TLS requieren `ping`/`openssl` en el entorno; pueden no estar disponibles en contenedores mínimos.
+- **Sin datos / “starting”**: espera `interval_seconds`, revisa `/api/health` y logs; valida con `--check-config`.
+- **Recarga**: en Unix `SIGHUP`; en otros entornos reinicia el proceso.
+- **Persistencia**: SQLite en WAL con rollups y pruning por `retention_hours`; persiste `db_path` en volumen.
+
+## Contribución y release
+
+- Guía: [CONTRIBUTING.md](CONTRIBUTING.md). `ROADMAP.md` se mantiene local como guía de trabajo.
 - Releases y artefactos (`.tar.gz` + `.sha256`): [GitHub Releases](https://github.com/dev1lsconf/tinytop/releases).
-- Paquete de contenedor: `ghcr.io/dev1lsconf/tinytop` (publicado por el workflow de release en tags `v*`).
-- El workflow `.github/workflows/release.yml` construye y publica artefactos para Linux x86_64 y *BSD (FreeBSD, OpenBSD, NetBSD), crea/actualiza la release y publica la imagen en GHCR; soporta `workflow_dispatch` para republicar desde un tag.
+- Paquete de contenedor: `ghcr.io/dev1lsconf/tinytop` (multi-arch, tags `v*`).
+- Workflow `.github/workflows/release.yml`: Linux (x86_64, aarch64, musl) y *BSD (FreeBSD, OpenBSD, NetBSD), release y imagen multi-arch en GHCR.
 
-## Licencia
+## Changelog y licencia
 
-MIT - Copyright (c) 2026 TinyTop Contributors
+- Ver [CHANGELOG.md](CHANGELOG.md).
+- Licencia: MIT - Copyright (c) 2026 TinyTop Contributors.
 
 ## Agradecimientos
 
