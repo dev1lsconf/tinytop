@@ -41,9 +41,33 @@ pub struct Snapshot {
     pub targets: Vec<TargetInfo>,
 }
 
-#[derive(Debug, Clone, Default)]
 pub struct CollectorState {
+    sys: System,
+    disks: Disks,
+    networks: Networks,
     last_net: Option<(u64, u64, Instant)>,
+}
+
+impl Default for CollectorState {
+    fn default() -> Self {
+        let mut sys = System::new_all();
+        // first CPU refresh establishes baseline for global_cpu_usage deltas
+        sys.refresh_cpu_all();
+        Self {
+            sys,
+            disks: Disks::new_with_refreshed_list(),
+            networks: Networks::new_with_refreshed_list(),
+            last_net: None,
+        }
+    }
+}
+
+impl std::fmt::Debug for CollectorState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CollectorState")
+            .field("last_net", &self.last_net)
+            .finish_non_exhaustive()
+    }
 }
 
 pub async fn collect(config: &Config, state: &mut CollectorState) -> anyhow::Result<Snapshot> {
@@ -71,23 +95,24 @@ fn http_client(timeout_secs: u64) -> reqwest::Client {
 }
 
 fn collect_system(state: &mut CollectorState) -> SystemMetrics {
-    let mut sys = System::new_all();
-    sys.refresh_all();
+    state.sys.refresh_cpu_all();
+    state.sys.refresh_memory();
+    state.disks.refresh(true);
+    state.networks.refresh(true);
 
-    let cpu_percent = f64::from(sys.global_cpu_usage());
-    let mem_total = sys.total_memory() as f64 / 1024.0 / 1024.0;
-    let mem_used = sys.used_memory() as f64 / 1024.0 / 1024.0;
+    let cpu_percent = f64::from(state.sys.global_cpu_usage());
+    let mem_total = state.sys.total_memory() as f64 / 1024.0 / 1024.0;
+    let mem_used = state.sys.used_memory() as f64 / 1024.0 / 1024.0;
     let mem_used_percent = if mem_total > 0.0 {
         (mem_used / mem_total) * 100.0
     } else {
         0.0
     };
 
-    let disks = Disks::new_with_refreshed_list();
     let mut disk_total = 0.0f64;
     let mut disk_available = 0.0f64;
     let mut seen_devices = HashSet::new();
-    for d in &disks {
+    for d in &state.disks {
         let fs = d.file_system().to_string_lossy().to_ascii_lowercase();
         if matches!(
             fs.as_str(),
@@ -141,10 +166,9 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
         0.0
     };
 
-    let networks = Networks::new_with_refreshed_list();
     let mut net_rx_bytes = 0u64;
     let mut net_tx_bytes = 0u64;
-    for (_name, data) in &networks {
+    for (_name, data) in &state.networks {
         net_rx_bytes = net_rx_bytes.saturating_add(data.total_received());
         net_tx_bytes = net_tx_bytes.saturating_add(data.total_transmitted());
     }
@@ -200,7 +224,10 @@ async fn collect_targets(config: &Config) -> Vec<TargetInfo> {
 }
 
 async fn probe_target(client: &reqwest::Client, target: &crate::config::Target) -> TargetInfo {
-    let kind = target.kind.clone().unwrap_or_else(|| "generic".to_string());
+    let kind = target
+        .kind
+        .clone()
+        .unwrap_or_else(|| "generic".to_string());
     let start = Instant::now();
     match client.get(&target.url).send().await {
         Ok(resp) => {
@@ -326,27 +353,27 @@ fn interpret_generic(
     parsed: Option<&serde_json::Value>,
     detail: &mut Option<String>,
 ) -> String {
-    if let Some(v) = parsed {
-        if let Some(s) = v.get("status").and_then(|x| x.as_str()) {
-            *detail = Some(format!("status={s}"));
-            let up = matches!(
-                s.to_ascii_lowercase().as_str(),
-                "up" | "ok" | "healthy" | "pass" | "available"
-            );
-            let down = matches!(
-                s.to_ascii_lowercase().as_str(),
-                "down" | "error" | "fail" | "unhealthy"
-            );
-            return if up {
-                "up".to_string()
-            } else if down {
-                "down".to_string()
-            } else if ok_http {
-                "degraded".to_string()
-            } else {
-                "down".to_string()
-            };
-        }
+    if let Some(v) = parsed
+        && let Some(s) = v.get("status").and_then(|x| x.as_str())
+    {
+        *detail = Some(format!("status={s}"));
+        let up = matches!(
+            s.to_ascii_lowercase().as_str(),
+            "up" | "ok" | "healthy" | "pass" | "available"
+        );
+        let down = matches!(
+            s.to_ascii_lowercase().as_str(),
+            "down" | "error" | "fail" | "unhealthy"
+        );
+        return if up {
+            "up".to_string()
+        } else if down {
+            "down".to_string()
+        } else if ok_http {
+            "degraded".to_string()
+        } else {
+            "down".to_string()
+        };
     }
     if ok_http {
         "up".to_string()
@@ -361,10 +388,10 @@ fn extract_requests_count(v: Option<&serde_json::Value>) -> Option<i64> {
     if let Some(measurements) = v.get("measurements").and_then(|m| m.as_array()) {
         for m in measurements {
             let stat = m.get("statistic").and_then(|s| s.as_str()).unwrap_or("");
-            if stat.eq_ignore_ascii_case("count") || stat.eq_ignore_ascii_case("value") {
-                if let Some(n) = m.get("value").and_then(as_i64) {
-                    return Some(n);
-                }
+            if (stat.eq_ignore_ascii_case("count") || stat.eq_ignore_ascii_case("value"))
+                && let Some(n) = m.get("value").and_then(as_i64)
+            {
+                return Some(n);
             }
         }
         if let Some(n) = measurements
@@ -408,17 +435,15 @@ fn extract_text_metrics_requests(body: &str) -> Option<i64> {
         if line.starts_with('#') || line.is_empty() {
             continue;
         }
-        if line.contains("http_server_requests_seconds_count")
+        if (line.contains("http_server_requests_seconds_count")
             || line.contains("http_requests_total")
-            || line.contains("requests_count")
+            || line.contains("requests_count"))
+            && let Some(val) = line.split_whitespace().last()
+            && let Ok(f) = val.parse::<f64>()
+            && f.is_finite()
+            && f >= 0.0
         {
-            if let Some(val) = line.split_whitespace().last() {
-                if let Ok(f) = val.parse::<f64>() {
-                    if f.is_finite() && f >= 0.0 {
-                        return Some(f as i64);
-                    }
-                }
-            }
+            return Some(f as i64);
         }
     }
     None
