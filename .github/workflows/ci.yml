@@ -81,7 +81,7 @@ jobs:
           cat tinytop.log || true
           exit 1
         env:
-          TINYTOP_CONFIG: ./config.toml
+          TINYTOP_CONFIG: ./tests/e2e.config.toml
           TINYTOP_DB_PATH: ./data/tinytop.db
           TINYTOP_INTERVAL: "2"
           TINYTOP_RETENTION_HOURS: "24"
