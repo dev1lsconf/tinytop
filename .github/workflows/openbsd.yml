@@ -19,6 +19,7 @@ jobs:
       - name: Build and smoke test on OpenBSD
         uses: vmactions/openbsd-vm@v1
         with:
+          release: "7.9"
           usesh: true
           prepare: |
             pkg_add rust sqlite3 curl bash
