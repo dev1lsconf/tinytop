@@ -2,6 +2,8 @@
 
 TinyTop targets FreeBSD, OpenBSD and NetBSD (via `sysinfo`) and the release workflow publishes x86_64 tarballs for each (`tinytop-v<version>-<os>-x86_64.tar.gz`).
 
+> Guía paso a paso de instalación/configuración: [docs/INSTALLATION.md](../../docs/INSTALLATION.md). Requisitos por plataforma (librerías/ABI, OpenBSD 7.9): [`requirements/`](../../requirements/README.md).
+
 This directory contains template rc/service scripts as a starting point for native packages:
 - `tinytop.rc.freebsd` — FreeBSD `rc.d` script (daemonized, `reload` via `SIGHUP`, `configtest`).
 - `tinytop.rc.openbsd` — OpenBSD `rc.d` script.

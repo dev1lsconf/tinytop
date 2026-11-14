@@ -120,6 +120,21 @@ TinyTop es un binario único escrito en Rust (edition 2024). Las dependencias de
 
 > **OpenBSD 7.9 (y otros *BSD):** si el binario precompilado falla por librerías no encontradas o ABI incompatible, instala `sqlite3` y verifica con `ldd ./tinytop`; si el soname no coincide con tu release, **compila nativamente** en tu sistema (`pkg_add rust sqlite3 && cargo build --release --locked`). Detalles en [`requirements/openbsd-amd64.txt`](requirements/openbsd-amd64.txt) y [`packaging/bsd/README.md`](packaging/bsd/README.md).
 
+## Instalación
+
+Guía detallada por plataforma (Linux, Docker, FreeBSD, OpenBSD, NetBSD, compilación desde código): **[docs/INSTALLATION.md](docs/INSTALLATION.md)**. Requisitos por arquitectura: [`requirements/`](requirements/README.md).
+
+| Plataforma | Referencia rápida |
+|---|---|
+| Debian/Ubuntu (amd64, `.deb`) | [guía](docs/INSTALLATION.md#debian--ubuntu-deb-amd64) · [requisitos](requirements/debian-ubuntu-amd64.txt) |
+| RHEL/Fedora (x86_64, `.rpm`) | [guía](docs/INSTALLATION.md#rhel--fedora--centos-stream-rpm-x86_64) · [requisitos](requirements/rhel-fedora-x86_64.txt) |
+| Linux tarball (gnu/musl) | [guía](docs/INSTALLATION.md#tarball-genérico-glibcmusl-x86_64-y-aarch64) · [requisitos](requirements/linux-x86_64-gnu.txt) |
+| Docker | [guía](docs/INSTALLATION.md#docker) · [requisitos](requirements/docker.txt) |
+| FreeBSD (amd64) | [guía](docs/INSTALLATION.md#freebsd-amd64) · [requisitos](requirements/freebsd-amd64.txt) |
+| OpenBSD (amd64, ej. 7.9) | [guía](docs/INSTALLATION.md#openbsd-amd64-ej-79) · [requisitos](requirements/openbsd-amd64.txt) |
+| NetBSD (amd64) | [guía](docs/INSTALLATION.md#netbsd-amd64) · [requisitos](requirements/netbsd-amd64.txt) |
+| Compilar desde código | [guía](docs/INSTALLATION.md#compilar-desde-código) · [requisitos](requirements/build-from-source.txt) |
+
 ## Ejecución rápida
 
 ```bash
@@ -143,7 +158,7 @@ docker compose up -d --build
 
 - Soporte de plataforma: **Linux** y **sistemas *BSD** (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD) vía `sysinfo`.
 - Artefactos de release: Linux x86_64, aarch64 y musl (tarballs) e imagen de contenedor `ghcr.io/dev1lsconf/tinytop` multi-arch (amd64/arm64), además de tarballs para **FreeBSD**, **OpenBSD** y **NetBSD** (x86_64).
-- En otras plataformas soportadas por las dependencias se puede compilar desde código (`cargo build --release --locked`).
+- En otras plataformas soportadas por las dependencias se puede compilar desde código (`cargo build --release --locked`). Ver [instalación](docs/INSTALLATION.md) y [requisitos](requirements/README.md).
 
 ## Pruebas y calidad
 

@@ -60,8 +60,11 @@ curl -s http://localhost:9090/metrics
 
 ## 4. Operación
 
+- **Instalación por plataforma**: pasos detallados para Linux, Docker, FreeBSD, OpenBSD y NetBSD en [INSTALLATION.md](INSTALLATION.md).
+- **Base de datos y permisos**: la DB/esquema se crean automáticamente al iniciar si el usuario del proceso puede escribir en el directorio de `db_path` (SQLite WAL genera `*.db-wal`/`*.db-shm`). Usa `db_path` absoluto y un usuario dedicado sin privilegios (no requiere root salvo puertos <1024).
 - **Recarga (Unix)**: `SIGHUP` recarga configuración sin reiniciar el proceso (según campos soportados). En otros entornos, reinicia el servicio.
 - **systemd**: plantilla en [`packaging/systemd/tinytop.service`](../packaging/systemd/tinytop.service). Ajusta `User/Group`, `--config`, `db_path` (directorio escribible, p.ej. `/var/lib/tinytop/`) y permisos.
+- **FreeBSD/OpenBSD/NetBSD**: plantillas rc.d y notas en [`packaging/bsd/`](../packaging/bsd/README.md). En OpenBSD (p.ej. 7.9), si el binario precompilado falla por librerías/ABI, compila nativamente (`pkg_add rust sqlite3 && cargo build --release --locked`).
 - **Contenedor**: imagen `ghcr.io/dev1lsconf/tinytop` (multi-arch). Persiste `db_path` en volumen; expón el puerto configurado; monta/provee `config.toml` si hace falta.
 - **Persistencia**: SQLite en WAL con migraciones, rollups y pruning por `retention_hours`. Haz backup del archivo de base de datos si lo necesitas.
 - **Reverse proxy/TLS**: recomendado exponer detrás de un proxy (nginx/caddy/traefik) con TLS y, si aplica, auth adicional.
@@ -78,6 +81,7 @@ curl -s http://localhost:9090/metrics
 | Cambios de config no aplican | En Unix envía `SIGHUP` al proceso; si no, reinicia. Verifica que el servicio use el `--config` esperado. |
 | Notificaciones no llegan | Best-effort y solo en transiciones; valida URL/token/chat/topic y conectividad saliente desde el host. |
 | TUI no inicia | Requiere TTY interactiva; ejecuta en una terminal real (`tinytop --tui`). |
+| No se crea la DB / sin datos | Verifica permisos de escritura en el directorio de `db_path` (usuario del servicio), usa ruta absoluta y revisa logs/`/api/health`. En OpenBSD, si el binario no corre por librerías/ABI, compila nativamente. |
 
 Logs: TinyTop usa `tracing`; controla verbosidad con `RUST_LOG` (p.ej. `RUST_LOG=info,tinytop=debug`).
 
