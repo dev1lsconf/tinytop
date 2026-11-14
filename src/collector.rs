@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::collections::HashSet;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
+#[cfg(not(target_os = "openbsd"))]
 use sysinfo::{Components, Disks, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 
 static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
@@ -57,6 +58,7 @@ pub struct Snapshot {
     pub targets: Vec<TargetInfo>,
 }
 
+#[cfg(not(target_os = "openbsd"))]
 pub struct CollectorState {
     sys: System,
     disks: Disks,
@@ -66,6 +68,15 @@ pub struct CollectorState {
     last_disk_io: Option<(u64, u64, Instant)>,
 }
 
+#[cfg(target_os = "openbsd")]
+#[derive(Default)]
+pub struct CollectorState {
+    last_net: Option<(u64, u64, Instant)>,
+    last_cpu: Option<(u64, u64, u64, u64, u64, Instant)>, // user,nice,sys,spin,intr,idle,t?
+    last_disk_io: Option<(u64, u64, Instant)>,
+}
+
+#[cfg(not(target_os = "openbsd"))]
 impl Default for CollectorState {
     fn default() -> Self {
         let mut sys = System::new_all();
@@ -112,6 +123,18 @@ fn http_client(timeout_secs: u64) -> reqwest::Client {
 }
 
 fn collect_system(state: &mut CollectorState) -> SystemMetrics {
+    #[cfg(target_os = "openbsd")]
+    {
+        collect_system_openbsd(state)
+    }
+    #[cfg(not(target_os = "openbsd"))]
+    {
+        collect_system_sysinfo(state)
+    }
+}
+
+#[cfg(not(target_os = "openbsd"))]
+fn collect_system_sysinfo(state: &mut CollectorState) -> SystemMetrics {
     state.sys.refresh_cpu_all();
     state.sys.refresh_memory();
     state.sys.refresh_processes_specifics(
@@ -309,6 +332,295 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
         disk_write_bytes_per_sec,
         temp_celsius,
         top_processes: top,
+    }
+}
+
+#[cfg(target_os = "openbsd")]
+fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
+    use std::process::Command;
+
+    fn sysctl_n(name: &str) -> Option<String> {
+        let out = Command::new("sysctl").arg("-n").arg(name).output().ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    }
+
+    fn run(cmd: &str, args: &[&str]) -> Option<String> {
+        let out = Command::new(cmd).args(args).output().ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        Some(String::from_utf8_lossy(&out.stdout).to_string())
+    }
+
+    let now = Instant::now();
+
+    // Load average
+    let loadavg = sysctl_n("vm.loadavg").unwrap_or_default();
+    // format: "{ 1.23 0.45 0.67 }" or "1.23 0.45 0.67"
+    let load_parts: Vec<f64> = loadavg
+        .replace(['{', '}'], " ")
+        .split_whitespace()
+        .filter_map(|s| s.parse::<f64>().ok())
+        .collect();
+    let load1 = load_parts.first().copied();
+    let load5 = load_parts.get(1).copied();
+    let load15 = load_parts.get(2).copied();
+
+    // Uptime from boottime
+    let uptime_seconds = sysctl_n("kern.boottime").and_then(|s| {
+        // "sec usec" or "sec" depending; extract first int
+        s.split(|c: char| !c.is_ascii_digit() && c != '-')
+            .find(|p| !p.is_empty())
+            .and_then(|p| p.parse::<i64>().ok())
+            .map(|boot| (chrono::Utc::now().timestamp() - boot).max(0))
+    });
+
+    // CPU from kern.cp_time: user nice sys spin intr idle
+    let cpu_percent = if let Some(ct) = sysctl_n("kern.cp_time") {
+        let vals: Vec<u64> = ct
+            .split(|c: char| !c.is_ascii_digit())
+            .filter(|p| !p.is_empty())
+            .filter_map(|p| p.parse::<u64>().ok())
+            .collect();
+        if vals.len() >= 5 {
+            let user = vals[0];
+            let nice = vals[1];
+            let sysc = vals[2];
+            let spin = *vals.get(3).unwrap_or(&0);
+            let intr = *vals.get(4).unwrap_or(&0);
+            let idle = *vals.get(5).unwrap_or(&0);
+            let total = user + nice + sysc + spin + intr + idle;
+            let busy = total.saturating_sub(idle);
+            let pct = if let Some((pb, pt, at)) = state.last_cpu {
+                let dt_busy = busy.saturating_sub(pb);
+                let dt_total = total.saturating_sub(pt);
+                let _ = at; // time not needed, ticks are cumulative
+                if dt_total > 0 {
+                    (dt_busy as f64 / dt_total as f64) * 100.0
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
+            };
+            state.last_cpu = Some((busy, total, 0, 0, 0, now));
+            pct
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    };
+
+    // Memory (best-effort via sysctl)
+    let physmem = sysctl_n("hw.physmem64")
+        .or_else(|| sysctl_n("hw.physmem"))
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(0);
+    let pagesize = sysctl_n("hw.pagesize")
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(4096);
+    let uvm = sysctl_n("vm.uvmexp").unwrap_or_default();
+    // uvmexp: key=value pairs (pagesize npages free active inactive wired ...)
+    fn uvm_val(s: &str, key: &str) -> Option<u64> {
+        for part in s.split_whitespace() {
+            if let Some(v) = part.strip_prefix(&format!("{key}=")) {
+                return v.parse::<u64>().ok();
+            }
+            // sometimes "key=val,"
+        }
+        // fallback: "key val"
+        let mut it = s.split_whitespace();
+        while let Some(k) = it.next() {
+            if k.trim_end_matches('=') == key || k == key {
+                if let Some(v) = it.next() {
+                    return v.trim_matches(|c: char| c == '=' || c == ',').parse().ok();
+                }
+            }
+        }
+        None
+    }
+    let mem_total_mb = physmem as f64 / 1024.0 / 1024.0;
+    let (mem_used_mb, mem_used_percent) = if !uvm.is_empty() {
+        let active = uvm_val(&uvm, "active").unwrap_or(0);
+        let wired = uvm_val(&uvm, "wired").unwrap_or(0);
+        let used_pages = active.saturating_add(wired);
+        let used = (used_pages * pagesize) as f64 / 1024.0 / 1024.0;
+        let pct = if mem_total_mb > 0.0 { (used / mem_total_mb) * 100.0 } else { 0.0 };
+        (used.min(mem_total_mb), pct.min(100.0))
+    } else {
+        (0.0, 0.0)
+    };
+
+    // Swap via swapctl -sk (1K-blocks)
+    let (swap_total_mb, swap_used_mb, swap_used_percent) = if let Some(out) = run("swapctl", &["-sk"]) {
+        // "total: 1048576 1K-blocks allocated, 12345 used, 1036231 available"
+        let nums: Vec<f64> = out
+            .split(|c: char| !(c.is_ascii_digit() || c == '.'))
+            .filter(|p| !p.is_empty())
+            .filter_map(|p| p.parse::<f64>().ok())
+            .collect();
+        if nums.len() >= 2 {
+            let total_kb = nums[0];
+            let used_kb = nums[1];
+            let total = total_kb / 1024.0;
+            let used = used_kb / 1024.0;
+            let pct = if total > 0.0 { Some((used / total) * 100.0) } else { None };
+            (Some(total), Some(used), pct)
+        } else {
+            (Some(0.0), Some(0.0), None)
+        }
+    } else {
+        (None, None, None)
+    };
+
+    // Disk usage via df -k (local filesystems)
+    let (disk_total_mb, disk_available_mb, disk_used_mb, disk_used_percent) = if let Some(out) = run("df", &["-k"]) {
+        let mut total: f64 = 0.0;
+        let mut avail: f64 = 0.0;
+        let mut seen: HashSet<String> = HashSet::new();
+        for line in out.lines().skip(1) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 6 {
+                continue;
+            }
+            let fs = parts[0].to_string();
+            let mnt = parts.last().copied().unwrap_or("");
+            // skip pseudo
+            if fs.starts_with("procfs") || fs.starts_with("mfs") || mnt.starts_with("/dev") || mnt == "/kern" {
+                continue;
+            }
+            if !seen.insert(fs) {
+                continue;
+            }
+            // 1K-blocks total, used, avail, cap, mounted
+            let t = parts.get(1).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+            let a = parts.get(3).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+            total += t;
+            avail += a;
+        }
+        let used = (total - avail).max(0.0);
+        let total_mb = total / 1024.0;
+        let avail_mb = avail / 1024.0;
+        let used_mb = used / 1024.0;
+        let pct = if total_mb > 0.0 { (used_mb / total_mb) * 100.0 } else { 0.0 };
+        (total_mb, avail_mb, used_mb, pct)
+    } else {
+        (0.0, 0.0, 0.0, 0.0)
+    };
+
+    // Network totals via netstat -ibn
+    let (net_rx_bytes, net_tx_bytes) = if let Some(out) = run("netstat", &["-ibn"]) {
+        let mut rx: u64 = 0;
+        let mut tx: u64 = 0;
+        let mut seen_if: HashSet<String> = HashSet::new();
+        for line in out.lines().skip(1) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 10 {
+                continue;
+            }
+            let iface = parts[0].trim_end_matches('*').to_string();
+            // header per-if sometimes appears; take Link/# lines
+            if parts.get(2).copied() != Some("<Link>") && !parts.get(2).map(|s| s.contains(':')).unwrap_or(false) {
+                // heuristic: some formats vary; try to detect numeric Ibytes/Obytes near end
+            }
+            // OpenBSD netstat -ibn: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes Colls
+            if parts.len() >= 10 && parts.get(2).copied() == Some("<Link>") {
+                if !seen_if.insert(iface.clone()) {
+                    continue;
+                }
+                let ibytes = parts.get(6).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+                let obytes = parts.get(9).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+                rx = rx.saturating_add(ibytes);
+                tx = tx.saturating_add(obytes);
+            }
+        }
+        (rx, tx)
+    } else {
+        (0, 0)
+    };
+    let (net_rx_bytes_per_sec, net_tx_bytes_per_sec) = if let Some((prx, ptx, at)) = state.last_net {
+        let dt = now.duration_since(at).as_secs_f64().max(0.001);
+        (
+            net_rx_bytes.saturating_sub(prx) as f64 / dt,
+            net_tx_bytes.saturating_sub(ptx) as f64 / dt,
+        )
+    } else {
+        (0.0, 0.0)
+    };
+    state.last_net = Some((net_rx_bytes, net_tx_bytes, now));
+
+    // Top processes via ps (best-effort)
+    let top_processes = run("ps", &["-axo", "comm,%cpu,rss", "-r"]).and_then(|out| {
+        let mut procs = Vec::new();
+        for line in out.lines().skip(1).take(5) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 3 {
+                let name = parts[0].to_string();
+                let cpu = parts[1].parse::<f64>().unwrap_or(0.0);
+                let mem_kb = parts[2].parse::<f64>().unwrap_or(0.0);
+                procs.push(serde_json::json!({"name":name,"cpu":cpu,"mem_mb":mem_kb / 1024.0}));
+            }
+        }
+        if procs.is_empty() { None } else { serde_json::to_string(&procs).ok() }
+    });
+
+    // Temperature best-effort via sysctl hw.sensors
+    let temp_celsius = run("sysctl", &["hw.sensors"]).and_then(|out| {
+        let mut temps: Vec<f64> = Vec::new();
+        for line in out.lines() {
+            // ...temp0=45.00 degC
+            if line.contains("degC") || line.contains("temp") {
+                for tok in line.split_whitespace() {
+                    if let Some(v) = tok.strip_suffix("degC") {
+                        if let Ok(t) = v.trim_end_matches(|c: char| c == '=' || c == ',').parse::<f64>() {
+                            if t > -50.0 && t < 150.0 { temps.push(t); }
+                        }
+                    }
+                }
+                // also "temp0=45.00"
+                if let Some(idx) = line.find("degC") {
+                    let before = &line[..idx];
+                    if let Some(eq) = before.rfind('=') {
+                        if let Ok(t) = before[eq + 1..].trim().parse::<f64>() {
+                            if t > -50.0 && t < 150.0 { temps.push(t); }
+                        }
+                    }
+                }
+            }
+        }
+        if temps.is_empty() { None } else { Some(temps.iter().sum::<f64>() / temps.len() as f64) }
+    });
+
+    SystemMetrics {
+        cpu_percent,
+        mem_used_mb,
+        mem_total_mb,
+        mem_used_percent,
+        disk_used_mb,
+        disk_total_mb,
+        disk_available_mb,
+        disk_used_percent,
+        net_rx_bytes,
+        net_tx_bytes,
+        net_rx_bytes_per_sec,
+        net_tx_bytes_per_sec,
+        load1,
+        load5,
+        load15,
+        swap_used_mb,
+        swap_total_mb,
+        swap_used_percent,
+        uptime_seconds,
+        disk_read_bytes: None,
+        disk_write_bytes: None,
+        disk_read_bytes_per_sec: None,
+        disk_write_bytes_per_sec: None,
+        temp_celsius,
+        top_processes,
     }
 }
 
