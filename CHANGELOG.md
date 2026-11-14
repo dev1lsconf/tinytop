@@ -4,6 +4,11 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.2] - 2026-11-14
+
+### Corregido
+- Build de release OpenBSD fijada a **OpenBSD 7.9** en CI (`vmactions/openbsd-vm`) para evitar incompatibilidades de ABI/sonames (p. ej. `ld.so: ... can't load library 'libc++abi.so.10.0'`) al ejecutar el binario en 7.9.
+
 ## [1.0.1] - 2026-11-14
 
 ### Corregido

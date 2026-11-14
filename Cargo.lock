@@ -2241,7 +2241,7 @@ dependencies = [
 
 [[package]]
 name = "tinytop"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "axum",

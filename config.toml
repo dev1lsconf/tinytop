@@ -7,11 +7,6 @@ request_timeout_secs = 5
 max_history_hours = 168
 
 [[targets]]
-name = "localhost"
-url = "http://localhost:8080/actuator/health"
-kind = "spring-boot"
-
-[[targets]]
-name = "api"
-url = "http://localhost:3000/api/health"
+name = "freellmapi"
+url = "http://freellmapi:3001/"
 kind = "generic"

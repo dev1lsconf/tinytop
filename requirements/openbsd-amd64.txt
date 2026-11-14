@@ -10,6 +10,7 @@ formato=tar.gz
 openbsd=versión compatible con el binario del release (IMPORTANTE: ABI/sonames pueden variar entre releases, p.ej. 7.9)
 sqlite3=runtime de SQLite3 si el binario enlaza libsqlite3 dinámicamente (comprobar con ldd)
 ca-certificates=certificados raíz del sistema (base), recomendados para HTTPS saliente
+# Nota: desde v1.0.1 el binario OpenBSD de release se construye en OpenBSD 7.9 (amd64) en CI.
 
 [runtime-opcional]
 ping=incluido en base system
