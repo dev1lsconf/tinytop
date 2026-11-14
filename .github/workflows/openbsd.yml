@@ -1,0 +1,83 @@
+name: OpenBSD
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and smoke test on OpenBSD
+        uses: vmactions/openbsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg_add rust sqlite3 curl bash
+          run: |
+            set -euo pipefail
+            export PATH="/usr/local/bin:$PATH"
+            rustc --version
+            cargo --version
+
+            cargo build --release --locked
+
+            mkdir -p /tmp/tt
+            cat > /tmp/tt/config.toml <<'CFG'
+            bind = "127.0.0.1"
+            port = 19090
+            db_path = "/tmp/tt/tinytop.db"
+            interval_seconds = 2
+            retention_hours = 24
+            max_history_hours = 24
+            request_timeout_secs = 5
+            CFG
+
+            ./target/release/tinytop --check-config --config /tmp/tt/config.toml
+
+            ./target/release/tinytop --config /tmp/tt/config.toml > /tmp/tt/tinytop.log 2>&1 &
+            PID=$!
+
+            ok=0
+            for i in $(seq 1 60); do
+              if curl -fsS http://127.0.0.1:19090/api/health >/tmp/tt/health.json 2>/dev/null; then
+                ok=1
+                break
+              fi
+              sleep 1
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "server failed to start"
+              cat /tmp/tt/tinytop.log || true
+              kill "$PID" || true
+              exit 1
+            fi
+
+            # allow at least one collection cycle
+            sleep 5
+
+            curl -fsS http://127.0.0.1:19090/api/health | tee /tmp/tt/health.json
+            curl -fsS http://127.0.0.1:19090/api/metrics/latest | tee /tmp/tt/latest.json
+
+            echo "---"
+            cat /tmp/tt/health.json
+            echo
+            echo "---"
+            cat /tmp/tt/latest.json
+            echo
+
+            # basic assertions (best-effort): db ok and system metrics object present
+            grep -q '"db"' /tmp/tt/health.json
+            grep -q '"system"' /tmp/tt/latest.json
+            grep -q '"mem_total_mb"' /tmp/tt/latest.json
+
+            kill "$PID" || true
+            wait "$PID" || true
