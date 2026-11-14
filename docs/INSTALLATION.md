@@ -68,7 +68,7 @@ Artefacto: `tinytop_<version>_amd64.deb` ([Releases](https://github.com/dev1lsco
 ```bash
 sudo apt-get update
 sudo apt-get install -y sqlite3 libsqlite3-0 ca-certificates iputils-ping openssl
-sudo dpkg -i tinytop_1.0.0_amd64.deb
+sudo dpkg -i tinytop_1.0.1_amd64.deb
 
 # Configuración y datos
 sudo install -d -o root -g root /etc/tinytop
@@ -87,7 +87,7 @@ Artefacto: `tinytop-<version>-1.x86_64.rpm`.
 
 ```bash
 sudo dnf install -y sqlite sqlite-libs ca-certificates iputils openssl
-sudo rpm -i tinytop-1.0.0-1.x86_64.rpm
+sudo rpm -i tinytop-1.0.1-1.x86_64.rpm
 
 tinytop --check-config --config /etc/tinytop/config.toml
 ```
@@ -99,8 +99,8 @@ Verifica dependencias con `ldd /usr/bin/tinytop` si es necesario.
 Artefactos: `tinytop-v<version>-linux-x86_64.tar.gz`, `linux-aarch64.tar.gz`, `linux-x86_64-musl.tar.gz`. Contienen `tinytop`, `config.toml`, `static/`, `migrations/`.
 
 ```bash
-tar xzf tinytop-v1.0.0-linux-x86_64.tar.gz
-cd tinytop-v1.0.0-linux-x86_64  # o el directorio extraído
+tar xzf tinytop-v1.0.1-linux-x86_64.tar.gz
+cd tinytop-v1.0.1-linux-x86_64  # o el directorio extraído
 
 # Dependencias runtime (ej. Debian/Ubuntu)
 sudo apt-get install -y sqlite3 libsqlite3-0 ca-certificates iputils-ping openssl
@@ -138,7 +138,7 @@ Recarga de config (Unix): `sudo systemctl reload tinytop` (SIGHUP).
 Requisitos: [`requirements/docker.txt`](../requirements/docker.txt). Imagen multi-arch: `ghcr.io/dev1lsconf/tinytop` (linux/amd64, linux/arm64).
 
 ```bash
-docker pull ghcr.io/dev1lsconf/tinytop:1.0.0
+docker pull ghcr.io/dev1lsconf/tinytop:1.0.1
 
 docker run -d --name tinytop \
   -p 9090:9090 \
@@ -147,7 +147,7 @@ docker run -d --name tinytop \
   -e TINYTOP_CONFIG=/app/config.toml \
   -e TINYTOP_DB_PATH=/app/data/tinytop.db \
   --restart unless-stopped \
-  ghcr.io/dev1lsconf/tinytop:1.0.0
+  ghcr.io/dev1lsconf/tinytop:1.0.1
 ```
 
 Con Docker Compose (repositorio): `docker compose up -d --build` (ver `docker-compose.yml`).
@@ -166,7 +166,7 @@ Requisitos: [`requirements/freebsd-amd64.txt`](../requirements/freebsd-amd64.txt
 # como root
 pkg install sqlite3 ca_root_nss
 
-tar xzf tinytop-v1.0.0-freebsd-x86_64.tar.gz
+tar xzf tinytop-v1.0.1-freebsd-x86_64.tar.gz
 install -m 0555 tinytop /usr/local/bin/tinytop
 install -d /usr/local/etc/tinytop
 install -m 0644 config.toml /usr/local/etc/tinytop/config.toml
@@ -199,7 +199,7 @@ Requisitos: [`requirements/openbsd-amd64.txt`](../requirements/openbsd-amd64.txt
 # como root
 pkg_add sqlite3
 
-tar xzf tinytop-v1.0.0-openbsd-x86_64.tar.gz
+tar xzf tinytop-v1.0.1-openbsd-x86_64.tar.gz
 install -m 0555 tinytop /usr/local/bin/tinytop
 install -d -m 0755 /etc/tinytop
 install -m 0644 config.toml /etc/tinytop/config.toml
@@ -267,7 +267,7 @@ Requisitos: [`requirements/netbsd-amd64.txt`](../requirements/netbsd-amd64.txt).
 pkg_add sqlite3 mozilla-rootcerts
 /usr/sbin/mozilla-rootcerts install || true
 
-tar xzf tinytop-v1.0.0-netbsd-x86_64.tar.gz
+tar xzf tinytop-v1.0.1-netbsd-x86_64.tar.gz
 install -m 0555 tinytop /usr/pkg/bin/tinytop || install -m 0555 tinytop /usr/local/bin/tinytop
 install -d /usr/pkg/etc/tinytop
 install -m 0644 config.toml /usr/pkg/etc/tinytop/config.toml

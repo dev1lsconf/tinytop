@@ -4,6 +4,13 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.1] - 2026-11-14
+
+### Corregido
+- Colector de métricas nativo para **OpenBSD** (vía `sysctl`, `df`, `netstat`, `swapctl`, `ps`) para obtener CPU/RAM/disco/red/carga/swap/uptime/procesos/temperatura; el colector basado en `sysinfo` se mantiene sin cambios en Linux y otros sistemas.
+- Documentación de instalación/configuración por plataforma (Linux, Docker, FreeBSD, OpenBSD, NetBSD), requisitos por arquitectura y troubleshooting de OpenBSD 7.9 (permisos/`db_path`, librerías/ABI).
+- CI: workflow de smoke test en OpenBSD.
+
 ## [1.0.0] - 2026-11-13
 
 > Primera versión estable (SemVer 1.0.0): API/configuración, instalación y documentación consolidadas.

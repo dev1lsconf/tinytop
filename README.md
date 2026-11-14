@@ -1,13 +1,13 @@
-# TinyTop v1.0.0 - Monitor ligero en Rust
+# TinyTop v1.0.1 - Monitor ligero en Rust
 
 [![CI](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dev1lsconf/tinytop?display_name=tag)](https://github.com/dev1lsconf/tinytop/releases)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-1.0.0-blue.svg)](Cargo.toml)
+[![version](https://img.shields.io/badge/version-1.0.1-blue.svg)](Cargo.toml)
 [![rust](https://img.shields.io/badge/Rust-1.88%2B%20(edition%202024)-orange.svg)](https://www.rust-lang.org)
 [![platform](https://img.shields.io/badge/platform-linux%20%7C%20BSD-lightgrey.svg)](https://www.kernel.org)
 
-![TinyTop Dashboard](docs/dashboard.png?v=1.0.0)
+![TinyTop Dashboard](docs/dashboard.png?v=1.0.1)
 
 **TUI (terminal):**
 

@@ -1,7 +1,7 @@
 class Tinytop < Formula
   desc "Lightweight self-hosted system and target monitor (single binary, SQLite, web dashboard and TUI)"
   homepage "https://github.com/dev1lsconf/tinytop"
-  version "1.0.0"
+  version "1.0.1"
   license "MIT"
 
   # Plantilla: en macOS usa artefactos nativos cuando existan; mientras tanto, ajustar URLs/checksums al release publicado.

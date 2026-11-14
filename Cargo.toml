@@ -1,6 +1,6 @@
 [package]
 name = "tinytop"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 description = "Lightweight self-hosted system and target monitor (single binary, SQLite, web dashboard and TUI)"
 license = "MIT"

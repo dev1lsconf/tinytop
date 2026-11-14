@@ -1,6 +1,6 @@
 # Maintainer: TinyTop Contributors <noreply@commandcode.ai>
 pkgname=tinytop
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc="Lightweight self-hosted system and target monitor (single binary, SQLite, web dashboard and TUI)"
 arch=('x86_64' 'aarch64')
