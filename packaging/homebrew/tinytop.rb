@@ -8,20 +8,20 @@ class Tinytop < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/dev1lsconf/tinytop/releases/download/v#{version}/tinytop-v#{version}-linux-aarch64.tar.gz"
-      sha256 "e90b677d2c75f6ca70feea53eb167c63652480a6ef78678244e4001f8c530ee9"
+      sha256 "49c9fa1df394d9f9dd72c48f4a0c51baf26576e5dcf969a2a616e48daab33930"
     else
       url "https://github.com/dev1lsconf/tinytop/releases/download/v#{version}/tinytop-v#{version}-linux-x86_64.tar.gz"
-      sha256 "a879c8ae13235460fa92de53914bee4141c6f6850920a4b5c0372573783f009b"
+      sha256 "4827042a981a3af75a71c061554b945f71377bbba71c95667f35ce90b16b8318"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/dev1lsconf/tinytop/releases/download/v#{version}/tinytop-v#{version}-linux-aarch64.tar.gz"
-      sha256 "e90b677d2c75f6ca70feea53eb167c63652480a6ef78678244e4001f8c530ee9"
+      sha256 "49c9fa1df394d9f9dd72c48f4a0c51baf26576e5dcf969a2a616e48daab33930"
     else
       url "https://github.com/dev1lsconf/tinytop/releases/download/v#{version}/tinytop-v#{version}-linux-x86_64.tar.gz"
-      sha256 "a879c8ae13235460fa92de53914bee4141c6f6850920a4b5c0372573783f009b"
+      sha256 "4827042a981a3af75a71c061554b945f71377bbba71c95667f35ce90b16b8318"
     end
   end
 
