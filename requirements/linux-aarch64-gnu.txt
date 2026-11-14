@@ -1,0 +1,27 @@
+# TinyTop - requisitos: Linux aarch64 (glibc)
+# Artefacto: tinytop-v<version>-linux-aarch64.tar.gz
+
+[artefacto]
+arquitectura=aarch64 (arm64)
+libc=glibc (GNU/Linux)
+formato=tar.gz
+
+[runtime-requerido]
+kernel=Linux (aarch64) compatible con glibc del release
+loader=ld-linux-aarch64.so.1 (glibc)
+libc=libc.so.6 (glibc)
+sqlite3=libsqlite3.so.0 si el binario enlaza SQLite dinámicamente (verificar: ldd ./tinytop)
+ca-certificates=certificados raíz del sistema (recomendado)
+
+[runtime-opcional]
+iputils-ping=provee `ping` (check_type=ping)
+openssl=provee CLI `openssl` (días de certificado TLS)
+
+[instalacion-ejemplo-debian-ubuntu-arm64]
+sudo apt-get update
+sudo apt-get install -y sqlite3 libsqlite3-0 ca-certificates iputils-ping openssl
+
+[verificacion]
+ldd ./tinytop
+./tinytop --check-config --config ./config.toml
+./tinytop --version

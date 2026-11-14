@@ -76,6 +76,50 @@ kind = "generic"
 - `GET /api/export?target=system|<name>&format=json|csv&range=24` — exportación
 - `GET /metrics` — formato Prometheus
 
+## Dependencias
+
+TinyTop es un binario único escrito en Rust (edition 2024). Las dependencias de crates se gestionan con Cargo (`Cargo.toml`/`Cargo.lock`, `--locked`); **no hay `requirements.txt` de Python/pip**: los requisitos por plataforma/arquitectura (equivalentes para instalación y despliegue) están en [`requirements/`](requirements/README.md).
+
+### Requisitos por plataforma y arquitectura (instalación/ejecución)
+
+| Plataforma / artefacto | Archivo de requisitos |
+|---|---|
+| Común (runtime) | [`requirements/common.txt`](requirements/common.txt) |
+| Linux x86_64 (glibc, tarball) | [`requirements/linux-x86_64-gnu.txt`](requirements/linux-x86_64-gnu.txt) |
+| Linux aarch64 (glibc, tarball) | [`requirements/linux-aarch64-gnu.txt`](requirements/linux-aarch64-gnu.txt) |
+| Linux x86_64 (musl, tarball) | [`requirements/linux-x86_64-musl.txt`](requirements/linux-x86_64-musl.txt) |
+| Debian/Ubuntu amd64 (.deb) | [`requirements/debian-ubuntu-amd64.txt`](requirements/debian-ubuntu-amd64.txt) |
+| RHEL/Fedora x86_64 (.rpm) | [`requirements/rhel-fedora-x86_64.txt`](requirements/rhel-fedora-x86_64.txt) |
+| FreeBSD amd64 | [`requirements/freebsd-amd64.txt`](requirements/freebsd-amd64.txt) |
+| OpenBSD amd64 (ej. 7.9) | [`requirements/openbsd-amd64.txt`](requirements/openbsd-amd64.txt) |
+| NetBSD amd64 | [`requirements/netbsd-amd64.txt`](requirements/netbsd-amd64.txt) |
+| Docker (linux/amd64, linux/arm64) | [`requirements/docker.txt`](requirements/docker.txt) |
+| Compilar desde código (todas) | [`requirements/build-from-source.txt`](requirements/build-from-source.txt) |
+
+### Dependencias de ejecución (runtime)
+
+- **Binario**: `tinytop` con loader/libc compatibles con el artefacto de la plataforma (glibc, musl o libc del *BSD). Verifica con `ldd ./tinytop` (donde aplique).
+- **SQLite3**: el binario puede requerir `libsqlite3` del sistema según el artefacto/build (p.ej. en *BSD es habitual). Si falta o el soname no coincide con tu release, instálala (`pkg_add sqlite3` en OpenBSD, `pkg install sqlite3` en FreeBSD, etc.) o compila nativamente (ver requisitos de tu plataforma).
+- **Certificados raíz (CA)**: recomendados para checks HTTPS salientes (`ca-certificates` / `ca_root_nss` / `mozilla-rootcerts` según sistema).
+- **Archivos y permisos**: `config.toml` legible y directorio de `db_path` escribible (SQLite en modo WAL). Puerto TCP de escucha disponible (9090 por defecto). **TTY** solo si usas `--tui`.
+- **Opcionales, best-effort** (si faltan, solo se omiten esas capacidades):
+  - `ping` en `PATH`: necesario para `check_type = "ping"` (latencia/estado ICMP).
+  - `openssl` en `PATH`: necesario para obtener los días restantes de certificado en checks `tls` (el handshake TLS usa el stack del sistema/rustls según check; el cálculo de expiración es best-effort vía CLI).
+
+### Dependencias para compilar desde código
+
+- **Rust 1.88+** (edition 2024), `cargo`, compilador/enlazador C (`gcc`/`clang`), `pkg-config`.
+- **SQLite3 (desarrollo)**: headers y librería (`libsqlite3-dev` / `sqlite3-devel` / `sqlite3`) para enlazar `libsqlite3-sys`.
+- Comandos: `cargo build --release --locked` (ver [`requirements/build-from-source.txt`](requirements/build-from-source.txt) por SO).
+- Crates principales (resueltas por Cargo): `tokio`, `axum`, `reqwest` (rustls-tls), `sqlx` (sqlite), `sysinfo`, `ratatui`/`crossterm`, `serde`, `tracing`, `chrono`, `toml`.
+
+### Dependencias de desarrollo y pruebas
+
+- **Calidad**: `rustfmt`, `clippy` (toolchain Rust).
+- **E2E (Playwright, dashboard web)**: Node.js + `npm ci` y `npx playwright install --with-deps chromium` (ver [Pruebas y calidad](#pruebas-y-calidad)).
+
+> **OpenBSD 7.9 (y otros *BSD):** si el binario precompilado falla por librerías no encontradas o ABI incompatible, instala `sqlite3` y verifica con `ldd ./tinytop`; si el soname no coincide con tu release, **compila nativamente** en tu sistema (`pkg_add rust sqlite3 && cargo build --release --locked`). Detalles en [`requirements/openbsd-amd64.txt`](requirements/openbsd-amd64.txt) y [`packaging/bsd/README.md`](packaging/bsd/README.md).
+
 ## Ejecución rápida
 
 ```bash

@@ -1,0 +1,32 @@
+# TinyTop - requisitos: FreeBSD (amd64/x86_64)
+# Artefacto: tinytop-v<version>-freebsd-x86_64.tar.gz
+
+[artefacto]
+arquitectura=x86_64 (amd64)
+sistema=FreeBSD
+formato=tar.gz
+
+[runtime-requerido]
+freebsd=versión compatible con el binario del release (verificar en el sistema destino)
+sqlite3=paquete/runtime de SQLite3 si el binario enlaza libsqlite3 dinámicamente (comprobar: ldd ./tinytop)
+ca_root_nss=certificados raíz (recomendado para HTTPS saliente)
+
+[runtime-opcional]
+ping=incluido en base system (habitualmente disponible)
+openssl=base system o paquete (CLI para días de certificado TLS)
+
+[instalacion-ejemplo]
+# Como root (o con doas/sudo según configuración)
+pkg install sqlite3 ca_root_nss
+# Extraer artefacto y ubicar binario/config (ver packaging/bsd/README.md y tinytop.rc.freebsd)
+
+[notas]
+# - Si falta una librería al ejecutar (p.ej. soname de libsqlite3 incompatible con tu release),
+#   instala la dependencia indicada por `ldd` o compila TinyTop nativamente en tu versión de FreeBSD
+#   (ver requirements/build-from-source.txt).
+# - Servicio rc.d de ejemplo: packaging/bsd/tinytop.rc.freebsd
+
+[verificacion]
+ldd ./tinytop
+./tinytop --check-config --config ./config.toml
+./tinytop --version

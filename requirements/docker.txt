@@ -1,0 +1,28 @@
+# TinyTop - requisitos: Docker / contenedor
+# Imagen: ghcr.io/dev1lsconf/tinytop:<version|latest> (multi-arch linux/amd64, linux/arm64)
+
+[runtime-requerido]
+docker=Docker Engine / Docker Compose v2 (o compatible)
+plataforma=linux/amd64 o linux/arm64
+volumen=almacenamiento persistente para db_path (p.ej. /app/data/tinytop.db)
+config=config.toml montado o provisto (TINYTOP_CONFIG)
+puerto=exposición del puerto HTTP (por defecto 9090)
+
+[runtime-opcional-en-contenedor]
+ping=instalado en la imagen para checks ping (best-effort; si falta, check ping no disponible)
+openssl=instalado en la imagen para días de certificado TLS (best-effort)
+
+[ejecucion]
+docker pull ghcr.io/dev1lsconf/tinytop:1.0.0
+docker run -d --name tinytop -p 9090:9090 \
+  -v "$PWD/config.toml:/app/config.toml:ro" \
+  -v tinytop-data:/app/data \
+  ghcr.io/dev1lsconf/tinytop:1.0.0
+
+[compose]
+# Ver docker-compose.yml del repositorio.
+docker compose up -d
+
+[notas]
+# - La TUI requiere TTY: docker exec -it <contenedor> tinytop --tui --config /app/config.toml
+# - Healthcheck: GET /api/health

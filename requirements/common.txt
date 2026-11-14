@@ -1,0 +1,20 @@
+# TinyTop - Requisitos comunes (runtime)
+# Consultar también: requirements/<plataforma>.txt
+
+[aplicacion]
+# Binario único (tinytop), dashboard web embebido, TUI (--tui), SQLite local.
+config=archivo config.toml accesible (por defecto ./config.toml o TINYTOP_CONFIG)
+db=directorio escribible para db_path (SQLite, modo WAL)
+red=puerto TCP de escucha para el dashboard/API (por defecto 9090)
+tty=terminal interactiva requerida solo para modo TUI (--tui)
+
+[dependencias-runtime-opcionales]
+# Best-effort: si no están instaladas, solo se omiten esas capacidades.
+ping=binario `ping` en PATH (check_type=ping, latencia/estado ICMP)
+openssl=binario `openssl` en PATH (días restantes de certificado en check TLS)
+
+[notas]
+# - TLS de clientes HTTP usa rustls (no depende de libssl para requests HTTP).
+# - Comandos auxiliares CLI (curl, etc.) no son requeridos por tinytop.
+# - Validar configuración: tinytop --check-config --config <ruta>
+# - Recarga en caliente (Unix): SIGHUP.

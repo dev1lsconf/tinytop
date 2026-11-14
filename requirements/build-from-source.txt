@@ -1,0 +1,56 @@
+# TinyTop - requisitos: compilación desde código fuente
+# Aplica a Linux, *BSD y otras plataformas soportadas por las dependencias.
+
+[herramientas-requeridas]
+rust=Rust 1.88+ (edition 2024)
+cargo=cargo (incluido con Rust)
+toolchain-c=C compiler + linker (gcc/clang + binutils/lld según plataforma)
+pkg-config=pkg-config
+git=para clonar el repositorio (opcional si se usa tarball de fuentes)
+
+[librerias-desarrollo]
+sqlite3=headers/librería de desarrollo de SQLite3 (libsqlite3-dev / sqlite3-devel / sqlite3)
+# libsqlite3-sys (sqlx sqlite) puede enlazar con la SQLite del sistema; disponer de -lsqlite3 y headers simplifica builds nativos.
+
+[dependencias-rust]
+# Gestionadas por Cargo (ver Cargo.toml y Cargo.lock, usar --locked):
+# - runtime async/web: tokio, axum, reqwest (rustls-tls, sin OpenSSL)
+# - DB: sqlx (sqlite, runtime-tokio-rustls, chrono)
+# - sistema: sysinfo
+# - TUI: ratatui, crossterm
+# - utilidades: serde/serde_json, tracing, anyhow, chrono, toml, base64, url
+
+[linux-debian-ubuntu]
+sudo apt-get update
+sudo apt-get install -y build-essential pkg-config libsqlite3-dev curl ca-certificates
+curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.88
+source "$HOME/.cargo/env"
+
+[linux-rhel-fedora]
+sudo dnf install -y gcc gcc-c++ make pkgconf-pkg-config sqlite-devel
+# Instalar Rust 1.88+ vía rustup
+
+[freebsd]
+pkg install rust sqlite3 pkgconf
+# o rustup para fijar toolchain 1.88
+
+[openbsd]
+pkg_add rust sqlite3
+# Usar la versión de Rust disponible en ports/packages o rustup si aplica; se recomienda compilar
+# en la misma release destino (p.ej. 7.9) para evitar incompatibilidades de ABI/librerías.
+
+[netbsd]
+pkg_add curl pkgconf sqlite3 mozilla-rootcerts
+/usr/sbin/mozilla-rootcerts install || true
+curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.88
+. "$HOME/.cargo/env"
+
+[compilacion]
+cargo build --release --locked
+./target/release/tinytop --check-config
+./target/release/tinytop --version
+
+[calidad]
+cargo fmt --all -- --check
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --all-targets --locked

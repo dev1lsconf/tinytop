@@ -1,0 +1,28 @@
+# TinyTop - requisitos: RHEL/Fedora (x86_64, paquete .rpm)
+# Artefacto: tinytop-<version>-1.x86_64.rpm
+
+[artefacto]
+arquitectura=x86_64
+formato=.rpm
+instala=/usr/bin/tinytop, /etc/tinytop/config.toml (config), docs en /usr/share/doc/tinytop/
+
+[runtime-requerido]
+sistema=RHEL/Fedora/CentOS Stream x86_64 (glibc)
+sqlite=sqlite o sqlite-libs (según requiera el binario; verificar con `ldd /usr/bin/tinytop`)
+ca-certificates=certificados raíz (recomendado)
+
+[runtime-opcional]
+iputils=provee `ping` (check_type=ping)
+openssl=provee CLI `openssl` (días de certificado TLS)
+
+[instalacion]
+sudo dnf install -y sqlite sqlite-libs ca-certificates iputils openssl
+sudo rpm -i tinytop-<version>-1.x86_64.rpm
+
+[post-instalacion]
+# Ajustar /etc/tinytop/config.toml y db_path a un directorio escribible.
+# Ejemplo de servicio: packaging/systemd/tinytop.service
+
+[verificacion]
+tinytop --check-config --config /etc/tinytop/config.toml
+tinytop --version

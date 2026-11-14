@@ -1,0 +1,32 @@
+# TinyTop - requisitos: NetBSD (amd64/x86_64)
+# Artefacto: tinytop-v<version>-netbsd-x86_64.tar.gz
+
+[artefacto]
+arquitectura=x86_64 (amd64)
+sistema=NetBSD
+formato=tar.gz
+
+[runtime-requerido]
+netbsd=versión compatible con el binario del release
+sqlite3=SQLite3 (pkgsrc/base) si el binario enlaza libsqlite3 dinámicamente (verificar: ldd ./tinytop)
+certificados=certificados raíz configurados (p.ej. mozilla-rootcerts, recomendado para HTTPS saliente)
+
+[runtime-opcional]
+ping=base system
+openssl=CLI para días de certificado TLS (best-effort)
+
+[instalacion-ejemplo]
+# Con privilegios adecuados
+pkg_add sqlite3 mozilla-rootcerts
+/usr/sbin/mozilla-rootcerts install || true
+# Extraer artefacto y ubicar binario/config (ver packaging/bsd/README.md y tinytop.rc.netbsd)
+
+[notas]
+# - Si hay incompatibilidad de librerías/ABI con tu versión de NetBSD, compila nativamente
+#   (ver requirements/build-from-source.txt).
+# - Servicio rc.d de ejemplo: packaging/bsd/tinytop.rc.netbsd
+
+[verificacion]
+ldd ./tinytop
+./tinytop --check-config --config ./config.toml
+./tinytop --version

@@ -1,0 +1,29 @@
+# TinyTop - requisitos: Linux x86_64 (musl)
+# Artefacto: tinytop-v<version>-linux-x86_64-musl.tar.gz
+
+[artefacto]
+arquitectura=x86_64 (amd64)
+libc=musl
+formato=tar.gz
+
+[runtime-requerido]
+kernel=Linux (x86_64)
+libc=musl (loader musl, p.ej. /lib/ld-musl-x86_64.so.1 según distro/entorno)
+sqlite3=verificar enlace con `ldd ./tinytop` o `readelf -d ./tinytop` (puede requerir libsqlite3 del sistema si no está enlazada estáticamente)
+ca-certificates=certificados raíz (recomendado para HTTPS saliente)
+
+[runtime-opcional]
+iputils-ping=provee `ping` (check_type=ping)
+openssl=provee CLI `openssl` (días de certificado TLS)
+
+[instalacion-ejemplo-alpine]
+apk add --no-cache sqlite-libs ca-certificates iputils openssl
+# Para compilar desde fuente en Alpine: apk add build-base pkgconf sqlite-dev rust cargo
+
+[notas]
+# Este artefacto está orientado a entornos musl/portables; aun así, confirma dependencias reales con `ldd`/`readelf` en tu sistema.
+
+[verificacion]
+ldd ./tinytop || readelf -l ./tinytop
+./tinytop --check-config --config ./config.toml
+./tinytop --version

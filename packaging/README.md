@@ -47,7 +47,12 @@ sudo systemctl daemon-reload && sudo systemctl enable --now tinytop
 
 Valida la configuración antes de ejecutar: `tinytop --check-config --config /etc/tinytop/config.toml`.
 
+## Dependencias por plataforma
+
+- Requisitos detallados por arquitectura/plataforma (runtime, opcionales y compilación): [`../requirements/`](../requirements/README.md) (incluye OpenBSD 7.9, Linux gnu/musl, *BSD, Docker y build desde fuente).
+
 ## Notas
 
 - `ping` y la obtención de días de certificado TLS son best-effort y dependen de `ping`/`openssl` en el entorno.
 - La TUI requiere TTY. La recarga de config por `SIGHUP` está disponible en Unix.
+- En binarios precompilados, si faltan librerías (p.ej. `libsqlite3` o incompatibilidad de ABI en *BSD como OpenBSD 7.9), instala las dependencias indicadas por `ldd` o compila nativamente (ver `requirements/`).

@@ -1,0 +1,32 @@
+# TinyTop - requisitos: Debian/Ubuntu (amd64, paquete .deb)
+# Artefacto: tinytop_<version>_amd64.deb
+
+[artefacto]
+arquitectura=x86_64 (amd64)
+formato=.deb
+instala=/usr/bin/tinytop, /etc/tinytop/config.toml, docs en /usr/share/doc/tinytop/
+
+[runtime-requerido]
+sistema=Debian/Ubuntu amd64 (glibc)
+sqlite3=sqlite3/libsqlite3-0 (si el binario lo requiere; el empaquetado actual no declara dependencia fuerte automática, instalar explícitamente si aplica)
+ca-certificates=certificados raíz (recomendado)
+
+[runtime-opcional]
+iputils-ping=provee `ping` (check_type=ping)
+openssl=provee CLI `openssl` (días de certificado TLS)
+curl=útil para healthchecks manuales (no requerido por tinytop)
+
+[instalacion]
+sudo apt-get update
+sudo apt-get install -y sqlite3 libsqlite3-0 ca-certificates iputils-ping openssl
+sudo dpkg -i tinytop_<version>_amd64.deb
+
+[post-instalacion]
+# Ajustar /etc/tinytop/config.toml y db_path a un directorio escribible (p.ej. /var/lib/tinytop)
+# Ejemplo de servicio: packaging/systemd/tinytop.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now tinytop  # si se instaló/configuró la unidad
+
+[verificacion]
+tinytop --check-config --config /etc/tinytop/config.toml
+tinytop --version

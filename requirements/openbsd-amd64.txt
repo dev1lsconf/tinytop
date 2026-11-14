@@ -1,0 +1,41 @@
+# TinyTop - requisitos: OpenBSD (amd64/x86_64)
+# Artefacto: tinytop-v<version>-openbsd-x86_64.tar.gz
+
+[artefacto]
+arquitectura=x86_64 (amd64)
+sistema=OpenBSD
+formato=tar.gz
+
+[runtime-requerido]
+openbsd=versión compatible con el binario del release (IMPORTANTE: ABI/sonames pueden variar entre releases, p.ej. 7.9)
+sqlite3=runtime de SQLite3 si el binario enlaza libsqlite3 dinámicamente (comprobar con ldd)
+ca-certificates=certificados raíz del sistema (base), recomendados para HTTPS saliente
+
+[runtime-opcional]
+ping=incluido en base system
+openssl=incluido en base system (CLI para días de certificado TLS, best-effort)
+
+[instalacion-ejemplo]
+# Como root
+pkg_add sqlite3
+# Extraer artefacto y ubicar binario/config (ver packaging/bsd/README.md y tinytop.rc.openbsd)
+
+[troubleshooting-openbsd]
+# Si al ejecutar aparece "file not found" o faltan librerías (ej. reportado en OpenBSD 7.9):
+# 1) Instalar SQLite:        pkg_add sqlite3
+# 2) Ver dependencias:       ldd ./tinytop
+# 3) Si el soname/ABI no coincide con tu release (p.ej. binario construido para otra versión):
+#    compilar nativamente en tu OpenBSD para garantizar compatibilidad:
+#      pkg_add rust sqlite3
+#      cargo build --release --locked
+#    (ver requirements/build-from-source.txt)
+# 4) Asegurar permisos de ejecución y arquitectura correcta (amd64).
+
+[notas]
+# - Servicio rc.d de ejemplo: packaging/bsd/tinytop.rc.openbsd
+# - Persistir db_path en un directorio escribible (p.ej. /var/db/tinytop).
+
+[verificacion]
+ldd ./tinytop
+./tinytop --check-config --config ./config.toml
+./tinytop --version

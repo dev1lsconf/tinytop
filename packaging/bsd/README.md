@@ -26,6 +26,7 @@ Each tarball contains: `tinytop` binary, `config.toml`, `static/`, `migrations/`
 - Install: `/usr/local/bin/tinytop`, sample config `/etc/tinytop/config.toml`, rc script `tinytop.rc.openbsd` as `/etc/rc.d/tinytop`.
 - Create `_tinytop`/`tinytop` user as per port conventions, ensure `db_path` directory is writable (e.g. `/var/db/tinytop`).
 - Enable: `rcctl enable tinytop`; check: `rcctl check tinytop`; reload supported via `SIGHUP`/`rcctl reload` (template sets `rc_reload=YES`).
+- **Dependencias (ej. OpenBSD 7.9):** `pkg_add sqlite3` (y CA de base). Si el binario precompilado falla por librerías/ABI incompatibles, compila nativamente en tu release: `pkg_add rust sqlite3 && cargo build --release --locked`. Requisitos detallados: [`../../requirements/openbsd-amd64.txt`](../../requirements/openbsd-amd64.txt).
 
 ## NetBSD (pkgsrc)
 - Use `tinytop-v${VERSION}-netbsd-x86_64.tar.gz` or cargo build in pkgsrc.
@@ -36,4 +37,5 @@ Each tarball contains: `tinytop` binary, `config.toml`, `static/`, `migrations/`
 - Validate config before start/reload: `tinytop --check-config --config <path>`.
 - The web dashboard listens on configured `bind`/`port` (default `0.0.0.0:9090`). TUI requires a TTY (`tinytop --tui`).
 - `ping` and TLS certificate day checks are best-effort and depend on `ping`/`openssl` being available.
+- **Dependencias por plataforma:** ver [`../../requirements/`](../../requirements/README.md) (incluye [`openbsd-amd64.txt`](../../requirements/openbsd-amd64.txt) para OpenBSD 7.9: librerías/ABI y compilación nativa si el binario precompilado no es compatible).
 - See also [`../systemd/tinytop.service`](../systemd/tinytop.service) for Linux/systemd and [`../../docs/ADVANCED.md`](../../docs/ADVANCED.md) for operational guidance.
