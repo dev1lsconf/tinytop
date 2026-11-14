@@ -72,7 +72,7 @@ pub struct CollectorState {
 #[derive(Default)]
 pub struct CollectorState {
     last_net: Option<(u64, u64, Instant)>,
-    last_cpu: Option<(u64, u64, u64, u64, u64, Instant)>, // user,nice,sys,spin,intr,idle,t?
+    last_cpu: Option<(u64, u64, Instant)>, // busy, total, at
     last_disk_io: Option<(u64, u64, Instant)>,
 }
 
@@ -406,7 +406,7 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
             } else {
                 0.0
             };
-            state.last_cpu = Some((busy, total, 0, 0, 0, now));
+            state.last_cpu = Some((busy, total, now));
             pct
         } else {
             0.0
@@ -449,68 +449,92 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
         let wired = uvm_val(&uvm, "wired").unwrap_or(0);
         let used_pages = active.saturating_add(wired);
         let used = (used_pages * pagesize) as f64 / 1024.0 / 1024.0;
-        let pct = if mem_total_mb > 0.0 { (used / mem_total_mb) * 100.0 } else { 0.0 };
+        let pct = if mem_total_mb > 0.0 {
+            (used / mem_total_mb) * 100.0
+        } else {
+            0.0
+        };
         (used.min(mem_total_mb), pct.min(100.0))
     } else {
         (0.0, 0.0)
     };
 
     // Swap via swapctl -sk (1K-blocks)
-    let (swap_total_mb, swap_used_mb, swap_used_percent) = if let Some(out) = run("swapctl", &["-sk"]) {
-        // "total: 1048576 1K-blocks allocated, 12345 used, 1036231 available"
-        let nums: Vec<f64> = out
-            .split(|c: char| !(c.is_ascii_digit() || c == '.'))
-            .filter(|p| !p.is_empty())
-            .filter_map(|p| p.parse::<f64>().ok())
-            .collect();
-        if nums.len() >= 2 {
-            let total_kb = nums[0];
-            let used_kb = nums[1];
-            let total = total_kb / 1024.0;
-            let used = used_kb / 1024.0;
-            let pct = if total > 0.0 { Some((used / total) * 100.0) } else { None };
-            (Some(total), Some(used), pct)
+    let (swap_total_mb, swap_used_mb, swap_used_percent) =
+        if let Some(out) = run("swapctl", &["-sk"]) {
+            // "total: 1048576 1K-blocks allocated, 12345 used, 1036231 available"
+            let nums: Vec<f64> = out
+                .split(|c: char| !(c.is_ascii_digit() || c == '.'))
+                .filter(|p| !p.is_empty())
+                .filter_map(|p| p.parse::<f64>().ok())
+                .collect();
+            if nums.len() >= 2 {
+                let total_kb = nums[0];
+                let used_kb = nums[1];
+                let total = total_kb / 1024.0;
+                let used = used_kb / 1024.0;
+                let pct = if total > 0.0 {
+                    Some((used / total) * 100.0)
+                } else {
+                    None
+                };
+                (Some(total), Some(used), pct)
+            } else {
+                (Some(0.0), Some(0.0), None)
+            }
         } else {
-            (Some(0.0), Some(0.0), None)
-        }
-    } else {
-        (None, None, None)
-    };
+            (None, None, None)
+        };
 
     // Disk usage via df -k (local filesystems)
-    let (disk_total_mb, disk_available_mb, disk_used_mb, disk_used_percent) = if let Some(out) = run("df", &["-k"]) {
-        let mut total: f64 = 0.0;
-        let mut avail: f64 = 0.0;
-        let mut seen: HashSet<String> = HashSet::new();
-        for line in out.lines().skip(1) {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 6 {
-                continue;
+    let (disk_total_mb, disk_available_mb, disk_used_mb, disk_used_percent) =
+        if let Some(out) = run("df", &["-k"]) {
+            let mut total: f64 = 0.0;
+            let mut avail: f64 = 0.0;
+            let mut seen: HashSet<String> = HashSet::new();
+            for line in out.lines().skip(1) {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() < 6 {
+                    continue;
+                }
+                let fs = parts[0].to_string();
+                let mnt = parts.last().copied().unwrap_or("");
+                // skip pseudo
+                if fs.starts_with("procfs")
+                    || fs.starts_with("mfs")
+                    || mnt.starts_with("/dev")
+                    || mnt == "/kern"
+                {
+                    continue;
+                }
+                if !seen.insert(fs) {
+                    continue;
+                }
+                // 1K-blocks total, used, avail, cap, mounted
+                let t = parts
+                    .get(1)
+                    .and_then(|s| s.parse::<f64>().ok())
+                    .unwrap_or(0.0);
+                let a = parts
+                    .get(3)
+                    .and_then(|s| s.parse::<f64>().ok())
+                    .unwrap_or(0.0);
+                total += t;
+                avail += a;
             }
-            let fs = parts[0].to_string();
-            let mnt = parts.last().copied().unwrap_or("");
-            // skip pseudo
-            if fs.starts_with("procfs") || fs.starts_with("mfs") || mnt.starts_with("/dev") || mnt == "/kern" {
-                continue;
-            }
-            if !seen.insert(fs) {
-                continue;
-            }
-            // 1K-blocks total, used, avail, cap, mounted
-            let t = parts.get(1).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
-            let a = parts.get(3).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
-            total += t;
-            avail += a;
-        }
-        let used = (total - avail).max(0.0);
-        let total_mb = total / 1024.0;
-        let avail_mb = avail / 1024.0;
-        let used_mb = used / 1024.0;
-        let pct = if total_mb > 0.0 { (used_mb / total_mb) * 100.0 } else { 0.0 };
-        (total_mb, avail_mb, used_mb, pct)
-    } else {
-        (0.0, 0.0, 0.0, 0.0)
-    };
+            let used = (total - avail).max(0.0);
+            let total_mb = total / 1024.0;
+            let avail_mb = avail / 1024.0;
+            let used_mb = used / 1024.0;
+            let pct = if total_mb > 0.0 {
+                (used_mb / total_mb) * 100.0
+            } else {
+                0.0
+            };
+            (total_mb, avail_mb, used_mb, pct)
+        } else {
+            (0.0, 0.0, 0.0, 0.0)
+        };
 
     // Network totals via netstat -ibn
     let (net_rx_bytes, net_tx_bytes) = if let Some(out) = run("netstat", &["-ibn"]) {
@@ -524,7 +548,9 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
             }
             let iface = parts[0].trim_end_matches('*').to_string();
             // header per-if sometimes appears; take Link/# lines
-            if parts.get(2).copied() != Some("<Link>") && !parts.get(2).map(|s| s.contains(':')).unwrap_or(false) {
+            if parts.get(2).copied() != Some("<Link>")
+                && !parts.get(2).map(|s| s.contains(':')).unwrap_or(false)
+            {
                 // heuristic: some formats vary; try to detect numeric Ibytes/Obytes near end
             }
             // OpenBSD netstat -ibn: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes Colls
@@ -532,8 +558,14 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
                 if !seen_if.insert(iface.clone()) {
                     continue;
                 }
-                let ibytes = parts.get(6).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
-                let obytes = parts.get(9).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+                let ibytes = parts
+                    .get(6)
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(0);
+                let obytes = parts
+                    .get(9)
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(0);
                 rx = rx.saturating_add(ibytes);
                 tx = tx.saturating_add(obytes);
             }
@@ -542,7 +574,8 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
     } else {
         (0, 0)
     };
-    let (net_rx_bytes_per_sec, net_tx_bytes_per_sec) = if let Some((prx, ptx, at)) = state.last_net {
+    let (net_rx_bytes_per_sec, net_tx_bytes_per_sec) = if let Some((prx, ptx, at)) = state.last_net
+    {
         let dt = now.duration_since(at).as_secs_f64().max(0.001);
         (
             net_rx_bytes.saturating_sub(prx) as f64 / dt,
@@ -565,7 +598,11 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
                 procs.push(serde_json::json!({"name":name,"cpu":cpu,"mem_mb":mem_kb / 1024.0}));
             }
         }
-        if procs.is_empty() { None } else { serde_json::to_string(&procs).ok() }
+        if procs.is_empty() {
+            None
+        } else {
+            serde_json::to_string(&procs).ok()
+        }
     });
 
     // Temperature best-effort via sysctl hw.sensors
@@ -576,8 +613,13 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
             if line.contains("degC") || line.contains("temp") {
                 for tok in line.split_whitespace() {
                     if let Some(v) = tok.strip_suffix("degC") {
-                        if let Ok(t) = v.trim_end_matches(|c: char| c == '=' || c == ',').parse::<f64>() {
-                            if t > -50.0 && t < 150.0 { temps.push(t); }
+                        if let Ok(t) = v
+                            .trim_end_matches(|c: char| c == '=' || c == ',')
+                            .parse::<f64>()
+                        {
+                            if t > -50.0 && t < 150.0 {
+                                temps.push(t);
+                            }
                         }
                     }
                 }
@@ -586,13 +628,19 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
                     let before = &line[..idx];
                     if let Some(eq) = before.rfind('=') {
                         if let Ok(t) = before[eq + 1..].trim().parse::<f64>() {
-                            if t > -50.0 && t < 150.0 { temps.push(t); }
+                            if t > -50.0 && t < 150.0 {
+                                temps.push(t);
+                            }
                         }
                     }
                 }
             }
         }
-        if temps.is_empty() { None } else { Some(temps.iter().sum::<f64>() / temps.len() as f64) }
+        if temps.is_empty() {
+            None
+        } else {
+            Some(temps.iter().sum::<f64>() / temps.len() as f64)
+        }
     });
 
     SystemMetrics {
