@@ -74,8 +74,6 @@ pub struct AlertConfig {
     pub mem_percent_warn: f64,
     #[serde(default = "default_disk_warn")]
     pub disk_percent_warn: f64,
-    #[serde(default = "default_temp_warn")]
-    pub temp_celsius_warn: f64,
     #[serde(default = "default_latency_warn")]
     pub target_latency_ms_warn: f64,
     #[serde(default = "default_cert_days_warn")]
@@ -89,7 +87,6 @@ impl Default for AlertConfig {
             cpu_percent_warn: default_cpu_warn(),
             mem_percent_warn: default_mem_warn(),
             disk_percent_warn: default_disk_warn(),
-            temp_celsius_warn: default_temp_warn(),
             target_latency_ms_warn: default_latency_warn(),
             cert_expiry_days_warn: default_cert_days_warn(),
         }
@@ -145,9 +142,6 @@ fn default_mem_warn() -> f64 {
 }
 fn default_disk_warn() -> f64 {
     90.0
-}
-fn default_temp_warn() -> f64 {
-    85.0
 }
 fn default_latency_warn() -> f64 {
     1000.0

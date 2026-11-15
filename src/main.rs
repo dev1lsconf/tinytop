@@ -63,7 +63,7 @@ fn print_help() {
     );
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let cli = parse_cli();
     if cli.help {

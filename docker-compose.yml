@@ -13,11 +13,21 @@ services:
       TINYTOP_CONFIG: /app/config.toml
       TINYTOP_DB_PATH: /app/data/tinytop.db
       TINYTOP_PORT: "9090"
-      TINYTOP_INTERVAL: "30"
+      TINYTOP_INTERVAL: "60"
       TINYTOP_RETENTION_HOURS: "168"
+      RUST_LOG: "info"
     ports:
       - "9090:9090"
     restart: unless-stopped
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.50
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9090/api/health"]
       interval: 30s

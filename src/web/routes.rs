@@ -383,18 +383,17 @@ async fn export_data(
 fn export_rows_system(rows: Vec<crate::db::SystemMetric>, format: &str) -> Response {
     if format.eq_ignore_ascii_case("csv") {
         let mut out = String::from(
-            "timestamp,cpu_percent,mem_used_percent,disk_used_percent,load1,swap_used_percent,temp_celsius,net_rx_bps,net_tx_bps\n",
+            "timestamp,cpu_percent,mem_used_percent,disk_used_percent,load1,swap_used_percent,net_rx_bps,net_tx_bps\n",
         );
         for r in rows {
             out.push_str(&format!(
-                "{},{},{},{},{},{},{},{},{}\n",
+                "{},{},{},{},{},{},{},{}\n",
                 r.timestamp,
                 r.cpu_percent,
                 r.mem_used_percent,
                 r.disk_used_percent,
                 r.load1.unwrap_or(f64::NAN),
                 r.swap_used_percent.unwrap_or(f64::NAN),
-                r.temp_celsius.unwrap_or(f64::NAN),
                 r.net_rx_bytes_per_sec,
                 r.net_tx_bytes_per_sec
             ));
@@ -486,9 +485,6 @@ async fn prometheus_metrics(State(state): State<AppState>) -> impl IntoResponse 
         }
         if let Some(v) = s.swap_used_percent {
             g!("tinytop_swap_used_percent", "Swap used percent", v);
-        }
-        if let Some(v) = s.temp_celsius {
-            g!("tinytop_temp_celsius", "Temperature celsius", v);
         }
     }
     let cfg = state.cfg.read().await.clone();

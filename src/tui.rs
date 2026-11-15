@@ -402,13 +402,6 @@ fn render_system(f: &mut Frame, area: Rect, data: &AppData, ui: &UiState) {
         Span::raw("   "),
         Span::styled("Swap ", Style::default().fg(Color::Cyan)),
         Span::raw(swap),
-        Span::raw("   "),
-        Span::styled("Temp ", Style::default().fg(Color::Cyan)),
-        Span::raw(
-            s.temp_celsius
-                .map(|t| format!("{t:.1}°C"))
-                .unwrap_or_else(|| "n/d".into()),
-        ),
     ]);
     f.render_widget(Paragraph::new(l1), rows[3]);
     let l2 = Line::from(vec![
@@ -419,13 +412,6 @@ fn render_system(f: &mut Frame, area: Rect, data: &AppData, ui: &UiState) {
             fmt_bytes(s.net_tx_bytes_per_sec),
             fmt_bytes_total(s.net_rx_bytes),
             fmt_bytes_total(s.net_tx_bytes)
-        )),
-        Span::raw("  "),
-        Span::styled("DiskIO ", Style::default().fg(Color::Cyan)),
-        Span::raw(format!(
-            "R {}/s W {}/s",
-            fmt_bytes(s.disk_read_bytes_per_sec.unwrap_or(0.0)),
-            fmt_bytes(s.disk_write_bytes_per_sec.unwrap_or(0.0))
         )),
     ]);
     f.render_widget(Paragraph::new(l2), rows[4]);

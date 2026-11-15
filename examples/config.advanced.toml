@@ -19,13 +19,13 @@ max_history_hours = 168
 cpu_percent = 90.0
 memory_percent = 90.0
 disk_percent = 90.0
-temperature_celsius = 85.0
 target_latency_ms = 1500
 cert_days_remaining = 14
 
 # Notificaciones best-effort ante transiciones (configura las que uses)
 # [notifications]
-# webhook_url = "https://hooks.example.com/tinytop"
+# webhook_url = "https://hooks.example.com/tinytop"   # webhook genérico; si es de Discord, envía payload compatible (content)
+# # webhook_url = "https://discord.com/api/webhooks/<id>/<token>"  # Discord (incoming webhook)
 # telegram_bot_token = "123456:ABC..."
 # telegram_chat_id = "-100123456"
 # ntfy_url = "https://ntfy.sh/mi-topic"

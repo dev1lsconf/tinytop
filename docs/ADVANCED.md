@@ -24,11 +24,11 @@ Umbrales por target: `latency_warn_ms`, `cert_expiry_warn_days` (opcionales).
 
 ### 1.2 Alertas
 
-Sección `[alerts]` (umbrales globales): `cpu_percent`, `memory_percent`, `disk_percent`, `temperature_celsius`, `target_latency_ms`, `cert_days_remaining`. Los incidentes/eventos se registran y se exponen en `/api/alerts` y `/api/events` (y en dashboard/TUI).
+Sección `[alerts]` (umbrales globales): `cpu_percent`, `memory_percent`, `disk_percent`, `target_latency_ms`, `cert_days_remaining`. Los incidentes/eventos se registran y se exponen en `/api/alerts` y `/api/events` (y en dashboard/TUI).
 
 ### 1.3 Notificaciones
 
-Sección `[notifications]` (best-effort, en transiciones): `webhook_url`, `telegram_bot_token` + `telegram_chat_id`, `ntfy_url`/`ntfy_topic`. Los secretos se redactan en `/api/config`. Fallos de entrega no deben tumbar el monitoreo.
+Sección `[notifications]` (best-effort, en transiciones): `webhook_url`, `telegram_bot_token` + `telegram_chat_id`, `ntfy_url`/`ntfy_topic`. Para `webhook_url` se envía JSON genérico (`{"text","alerts"}`); si la URL es un incoming webhook de Discord (`discord.com/api/webhooks/...` o `discordapp.com/api/webhooks/...`) se envía el formato compatible `{"content": ...}`. Los secretos se redactan en `/api/config`. Fallos de entrega no deben tumbar el monitoreo.
 
 ### 1.4 Autenticación
 

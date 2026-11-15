@@ -50,11 +50,6 @@ async fn test_app() -> (axum::Router, tempfile::TempDir) {
         Some(0.0),
         Some(1234),
         None,
-        None,
-        None,
-        None,
-        Some(40.0),
-        None,
     )
     .await
     .unwrap();

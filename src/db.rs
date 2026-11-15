@@ -32,11 +32,6 @@ pub struct SystemMetric {
     pub swap_total_mb: Option<f64>,
     pub swap_used_percent: Option<f64>,
     pub uptime_seconds: Option<i64>,
-    pub disk_read_bytes: Option<i64>,
-    pub disk_write_bytes: Option<i64>,
-    pub disk_read_bytes_per_sec: Option<f64>,
-    pub disk_write_bytes_per_sec: Option<f64>,
-    pub temp_celsius: Option<f64>,
     pub top_processes: Option<String>,
 }
 
@@ -142,11 +137,6 @@ impl Database {
         swap_total_mb: Option<f64>,
         swap_used_percent: Option<f64>,
         uptime_seconds: Option<i64>,
-        disk_read_bytes: Option<u64>,
-        disk_write_bytes: Option<u64>,
-        disk_read_bytes_per_sec: Option<f64>,
-        disk_write_bytes_per_sec: Option<f64>,
-        temp_celsius: Option<f64>,
         top_processes: Option<&str>,
     ) -> anyhow::Result<()> {
         let timestamp = chrono::Utc::now().to_rfc3339();
@@ -156,22 +146,32 @@ impl Database {
                 disk_used_mb, disk_total_mb, disk_available_mb, disk_used_percent,
                 net_rx_bytes, net_tx_bytes, net_rx_bytes_per_sec, net_tx_bytes_per_sec,
                 load1, load5, load15, swap_used_mb, swap_total_mb, swap_used_percent,
-                uptime_seconds, disk_read_bytes, disk_write_bytes, disk_read_bytes_per_sec, disk_write_bytes_per_sec,
-                temp_celsius, top_processes
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                uptime_seconds, top_processes
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(timestamp)
-        .bind(cpu_percent).bind(mem_used_mb).bind(mem_total_mb).bind(mem_used_percent)
-        .bind(disk_used_mb).bind(disk_total_mb).bind(disk_available_mb).bind(disk_used_percent)
-        .bind(net_rx_bytes as i64).bind(net_tx_bytes as i64)
-        .bind(net_rx_bytes_per_sec).bind(net_tx_bytes_per_sec)
-        .bind(load1).bind(load5).bind(load15)
-        .bind(swap_used_mb).bind(swap_total_mb).bind(swap_used_percent)
+        .bind(cpu_percent)
+        .bind(mem_used_mb)
+        .bind(mem_total_mb)
+        .bind(mem_used_percent)
+        .bind(disk_used_mb)
+        .bind(disk_total_mb)
+        .bind(disk_available_mb)
+        .bind(disk_used_percent)
+        .bind(net_rx_bytes as i64)
+        .bind(net_tx_bytes as i64)
+        .bind(net_rx_bytes_per_sec)
+        .bind(net_tx_bytes_per_sec)
+        .bind(load1)
+        .bind(load5)
+        .bind(load15)
+        .bind(swap_used_mb)
+        .bind(swap_total_mb)
+        .bind(swap_used_percent)
         .bind(uptime_seconds)
-        .bind(disk_read_bytes.map(|v| v as i64)).bind(disk_write_bytes.map(|v| v as i64))
-        .bind(disk_read_bytes_per_sec).bind(disk_write_bytes_per_sec)
-        .bind(temp_celsius).bind(top_processes)
-        .execute(&self.pool).await?;
+        .bind(top_processes)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -207,10 +207,11 @@ impl Database {
                     disk_used_mb, disk_total_mb, disk_available_mb, disk_used_percent,
                     net_rx_bytes, net_tx_bytes, net_rx_bytes_per_sec, net_tx_bytes_per_sec,
                     load1, load5, load15, swap_used_mb, swap_total_mb, swap_used_percent,
-                    uptime_seconds, disk_read_bytes, disk_write_bytes, disk_read_bytes_per_sec, disk_write_bytes_per_sec,
-                    temp_celsius, top_processes
+                    uptime_seconds, top_processes
              FROM system_metrics ORDER BY id DESC LIMIT 1",
-        ).fetch_optional(&self.pool).await?;
+        )
+        .fetch_optional(&self.pool)
+        .await?;
         Ok(row)
     }
 
@@ -227,8 +228,7 @@ impl Database {
                         0 as net_rx_bytes, 0 as net_tx_bytes, COALESCE(net_rx_bps_avg,0.0) as net_rx_bytes_per_sec, COALESCE(net_tx_bps_avg,0.0) as net_tx_bytes_per_sec,
                         load1_avg as load1, NULL as load5, NULL as load15,
                         NULL as swap_used_mb, NULL as swap_total_mb, NULL as swap_used_percent,
-                        NULL as uptime_seconds, NULL as disk_read_bytes, NULL as disk_write_bytes, NULL as disk_read_bytes_per_sec, NULL as disk_write_bytes_per_sec,
-                        temp_avg as temp_celsius, NULL as top_processes
+                        NULL as uptime_seconds, NULL as top_processes
                  FROM system_metrics_rollup
                  WHERE bucket_seconds = ? AND bucket_start >= ?
                  ORDER BY bucket_start ASC",
@@ -246,10 +246,12 @@ impl Database {
                     disk_used_mb, disk_total_mb, disk_available_mb, disk_used_percent,
                     net_rx_bytes, net_tx_bytes, net_rx_bytes_per_sec, net_tx_bytes_per_sec,
                     load1, load5, load15, swap_used_mb, swap_total_mb, swap_used_percent,
-                    uptime_seconds, disk_read_bytes, disk_write_bytes, disk_read_bytes_per_sec, disk_write_bytes_per_sec,
-                    temp_celsius, top_processes
+                    uptime_seconds, top_processes
              FROM system_metrics WHERE timestamp >= ? ORDER BY id ASC",
-        ).bind(cutoff).fetch_all(&self.pool).await?;
+        )
+        .bind(cutoff)
+        .fetch_all(&self.pool)
+        .await?;
         Ok(rows)
     }
 
@@ -420,14 +422,13 @@ impl Database {
         };
         let res = sqlx::query(
             "INSERT OR REPLACE INTO system_metrics_rollup
-             (bucket_start, bucket_seconds, samples, cpu_avg,cpu_max, mem_avg,mem_max, disk_avg,disk_max, net_rx_bps_avg, net_tx_bps_avg, load1_avg, load1_max, temp_avg, temp_max)
+             (bucket_start, bucket_seconds, samples, cpu_avg,cpu_max, mem_avg,mem_max, disk_avg,disk_max, net_rx_bps_avg, net_tx_bps_avg, load1_avg, load1_max)
              SELECT strftime(?, timestamp) as b, ? as bs, COUNT(*),
                     AVG(cpu_percent), MAX(cpu_percent),
                     AVG(mem_used_percent), MAX(mem_used_percent),
                     AVG(disk_used_percent), MAX(disk_used_percent),
                     AVG(net_rx_bytes_per_sec), AVG(net_tx_bytes_per_sec),
-                    AVG(load1), MAX(load1),
-                    AVG(temp_celsius), MAX(temp_celsius)
+                    AVG(load1), MAX(load1)
              FROM system_metrics WHERE timestamp > ?
              GROUP BY b"
         ).bind(fmt).bind(bucket_seconds).bind(since).execute(&self.pool).await?;
@@ -492,11 +493,6 @@ mod tests {
             Some(0.0),
             Some(0.0),
             Some(100),
-            None,
-            None,
-            None,
-            None,
-            Some(40.0),
             None,
         )
         .await
@@ -569,11 +565,6 @@ mod tests {
             Some(0.0),
             Some(100),
             None,
-            None,
-            None,
-            None,
-            Some(40.0),
-            None,
         )
         .await
         .unwrap();
@@ -597,11 +588,6 @@ mod tests {
             Some(256.0),
             Some(50.0),
             Some(200),
-            Some(10),
-            Some(20),
-            Some(1.0),
-            Some(2.0),
-            Some(41.0),
             None,
         )
         .await

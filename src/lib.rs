@@ -98,11 +98,6 @@ pub async fn run_collector(
                         snap.system.swap_total_mb,
                         snap.system.swap_used_percent,
                         snap.system.uptime_seconds,
-                        snap.system.disk_read_bytes,
-                        snap.system.disk_write_bytes,
-                        snap.system.disk_read_bytes_per_sec,
-                        snap.system.disk_write_bytes_per_sec,
-                        snap.system.temp_celsius,
                         snap.system.top_processes.as_deref(),
                     )
                     .await
@@ -250,17 +245,6 @@ pub async fn evaluate_alerts(db: &db::Database, cfg: &Config, snap: &collector::
         s.disk_used_percent,
         a.disk_percent_warn
     );
-    if let Some(t) = s.temp_celsius {
-        check!(
-            t >= a.temp_celsius_warn,
-            "system",
-            "temp_high",
-            "warn",
-            &format!("Temp {:.1}C >= {:.1}C", t, a.temp_celsius_warn),
-            t,
-            a.temp_celsius_warn
-        );
-    }
     for tgt in &snap.targets {
         let src = format!("target:{}", tgt.name);
         let down = matches!(tgt.status.as_str(), "down" | "error");
@@ -330,11 +314,15 @@ pub async fn dispatch_notifications(db: &db::Database, cfg: &Config) {
         .collect::<Vec<_>>()
         .join("\n");
     if let Some(url) = &cfg.notifications.webhook_url {
-        let _ = reqwest::Client::new()
-            .post(url)
-            .json(&serde_json::json!({"text": msg, "alerts": firing}))
-            .send()
-            .await;
+        let is_discord =
+            url.contains("discord.com/api/webhooks") || url.contains("discordapp.com/api/webhooks");
+        let payload = if is_discord {
+            // Discord incoming webhooks expect "content" (plain text). Keep it short and readable.
+            serde_json::json!({"content": msg})
+        } else {
+            serde_json::json!({"text": msg, "alerts": firing})
+        };
+        let _ = reqwest::Client::new().post(url).json(&payload).send().await;
     }
     if let (Some(token), Some(chat)) = (
         &cfg.notifications.telegram_bot_token,
@@ -445,7 +433,6 @@ mod tests {
                 cpu_percent_warn: 90.0,
                 mem_percent_warn: 90.0,
                 disk_percent_warn: 90.0,
-                temp_celsius_warn: 80.0,
                 target_latency_ms_warn: 500.0,
                 cert_expiry_days_warn: 14,
             },
@@ -492,11 +479,6 @@ mod tests {
             swap_total_mb: None,
             swap_used_percent: None,
             uptime_seconds: None,
-            disk_read_bytes: None,
-            disk_write_bytes: None,
-            disk_read_bytes_per_sec: None,
-            disk_write_bytes_per_sec: None,
-            temp_celsius: Some(40.0),
             top_processes: None,
         }
     }
@@ -510,20 +492,17 @@ mod tests {
         sys.cpu_percent = 95.0;
         sys.mem_used_percent = 95.0;
         sys.disk_used_percent = 95.0;
-        sys.temp_celsius = Some(90.0);
         evaluate_alerts(&db, &cfg, &snap(sys, vec![])).await;
         let firing = db.list_alerts(Some("firing"), 50).await.unwrap();
         assert!(firing.iter().any(|a| a.name == "cpu_high"));
         assert!(firing.iter().any(|a| a.name == "mem_high"));
         assert!(firing.iter().any(|a| a.name == "disk_high"));
-        assert!(firing.iter().any(|a| a.name == "temp_high"));
 
         // duplicate condition should not create duplicate firing alerts
         let mut sys2 = ok_system();
         sys2.cpu_percent = 96.0;
         sys2.mem_used_percent = 96.0;
         sys2.disk_used_percent = 96.0;
-        sys2.temp_celsius = Some(91.0);
         evaluate_alerts(&db, &cfg, &snap(sys2, vec![])).await;
         let firing2 = db.list_alerts(Some("firing"), 50).await.unwrap();
         let cpu_count = firing2.iter().filter(|a| a.name == "cpu_high").count();
@@ -534,7 +513,7 @@ mod tests {
         let firing3 = db.list_alerts(Some("firing"), 50).await.unwrap();
         assert!(firing3.is_empty());
         let resolved = db.list_alerts(Some("resolved"), 50).await.unwrap();
-        assert!(resolved.len() >= 4);
+        assert!(resolved.len() >= 3);
     }
 
     #[tokio::test]

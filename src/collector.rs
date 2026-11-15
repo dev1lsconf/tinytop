@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 #[cfg(not(target_os = "openbsd"))]
-use sysinfo::{Components, Disks, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
+use sysinfo::{Disks, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 
 static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
@@ -30,11 +30,6 @@ pub struct SystemMetrics {
     pub swap_total_mb: Option<f64>,
     pub swap_used_percent: Option<f64>,
     pub uptime_seconds: Option<i64>,
-    pub disk_read_bytes: Option<u64>,
-    pub disk_write_bytes: Option<u64>,
-    pub disk_read_bytes_per_sec: Option<f64>,
-    pub disk_write_bytes_per_sec: Option<f64>,
-    pub temp_celsius: Option<f64>,
     pub top_processes: Option<String>,
 }
 
@@ -63,9 +58,7 @@ pub struct CollectorState {
     sys: System,
     disks: Disks,
     networks: Networks,
-    components: Components,
     last_net: Option<(u64, u64, Instant)>,
-    last_disk_io: Option<(u64, u64, Instant)>,
 }
 
 #[cfg(target_os = "openbsd")]
@@ -73,7 +66,6 @@ pub struct CollectorState {
 pub struct CollectorState {
     last_net: Option<(u64, u64, Instant)>,
     last_cpu: Option<(u64, u64, Instant)>, // busy, total, at
-    last_disk_io: Option<(u64, u64, Instant)>,
 }
 
 #[cfg(not(target_os = "openbsd"))]
@@ -85,9 +77,7 @@ impl Default for CollectorState {
             sys,
             disks: Disks::new_with_refreshed_list(),
             networks: Networks::new_with_refreshed_list(),
-            components: Components::new_with_refreshed_list(),
             last_net: None,
-            last_disk_io: None,
         }
     }
 }
@@ -137,16 +127,14 @@ fn collect_system(state: &mut CollectorState) -> SystemMetrics {
 fn collect_system_sysinfo(state: &mut CollectorState) -> SystemMetrics {
     state.sys.refresh_cpu_all();
     state.sys.refresh_memory();
+    // Refresh only CPU/memory for processes to keep RSS low (top 5 by cpu/mem).
     state.sys.refresh_processes_specifics(
         ProcessesToUpdate::All,
         true,
-        ProcessRefreshKind::everything()
-            .without_disk_usage()
-            .without_user(),
+        ProcessRefreshKind::nothing().with_cpu().with_memory(),
     );
     state.disks.refresh(true);
     state.networks.refresh(true);
-    state.components.refresh(true);
 
     let cpu_percent = f64::from(state.sys.global_cpu_usage());
     let mem_total = state.sys.total_memory() as f64 / 1024.0 / 1024.0;
@@ -247,38 +235,6 @@ fn collect_system_sysinfo(state: &mut CollectorState) -> SystemMetrics {
     };
     state.last_net = Some((net_rx_bytes, net_tx_bytes, now));
 
-    // disk IO from processes aggregate as best-effort
-    let mut read_bytes = 0u64;
-    let mut write_bytes = 0u64;
-    for p in state.sys.processes().values() {
-        let usage = p.disk_usage();
-        read_bytes = read_bytes.saturating_add(usage.total_read_bytes);
-        write_bytes = write_bytes.saturating_add(usage.total_written_bytes);
-    }
-    let (disk_read_bytes_per_sec, disk_write_bytes_per_sec) =
-        if let Some((pr, pw, at)) = state.last_disk_io {
-            let dt = now.duration_since(at).as_secs_f64().max(0.001);
-            (
-                Some(read_bytes.saturating_sub(pr) as f64 / dt),
-                Some(write_bytes.saturating_sub(pw) as f64 / dt),
-            )
-        } else {
-            (Some(0.0), Some(0.0))
-        };
-    state.last_disk_io = Some((read_bytes, write_bytes, now));
-
-    // temperature: average of available components as best-effort
-    let temps: Vec<f32> = state
-        .components
-        .iter()
-        .filter_map(|c| c.temperature())
-        .collect();
-    let temp_celsius = if temps.is_empty() {
-        None
-    } else {
-        Some((temps.iter().copied().sum::<f32>() / temps.len() as f32) as f64)
-    };
-
     // top processes by cpu/mem (best-effort, compact json string)
     let mut procs: Vec<_> = state
         .sys
@@ -326,11 +282,6 @@ fn collect_system_sysinfo(state: &mut CollectorState) -> SystemMetrics {
         swap_total_mb: Some(swap_total),
         swap_used_percent,
         uptime_seconds,
-        disk_read_bytes: Some(read_bytes),
-        disk_write_bytes: Some(write_bytes),
-        disk_read_bytes_per_sec,
-        disk_write_bytes_per_sec,
-        temp_celsius,
         top_processes: top,
     }
 }
@@ -650,44 +601,6 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
         }
     });
 
-    // Temperature best-effort via sysctl hw.sensors
-    let temp_celsius = run("sysctl", &["hw.sensors"]).and_then(|out| {
-        let mut temps: Vec<f64> = Vec::new();
-        for line in out.lines() {
-            // ...temp0=45.00 degC
-            if line.contains("degC") || line.contains("temp") {
-                for tok in line.split_whitespace() {
-                    if let Some(v) = tok.strip_suffix("degC") {
-                        if let Ok(t) = v
-                            .trim_end_matches(|c: char| c == '=' || c == ',')
-                            .parse::<f64>()
-                        {
-                            if t > -50.0 && t < 150.0 {
-                                temps.push(t);
-                            }
-                        }
-                    }
-                }
-                // also "temp0=45.00"
-                if let Some(idx) = line.find("degC") {
-                    let before = &line[..idx];
-                    if let Some(eq) = before.rfind('=') {
-                        if let Ok(t) = before[eq + 1..].trim().parse::<f64>() {
-                            if t > -50.0 && t < 150.0 {
-                                temps.push(t);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if temps.is_empty() {
-            None
-        } else {
-            Some(temps.iter().sum::<f64>() / temps.len() as f64)
-        }
-    });
-
     SystemMetrics {
         cpu_percent,
         mem_used_mb,
@@ -708,11 +621,6 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
         swap_total_mb,
         swap_used_percent,
         uptime_seconds,
-        disk_read_bytes: None,
-        disk_write_bytes: None,
-        disk_read_bytes_per_sec: None,
-        disk_write_bytes_per_sec: None,
-        temp_celsius,
         top_processes,
     }
 }
