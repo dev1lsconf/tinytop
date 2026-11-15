@@ -1,13 +1,13 @@
-# TinyTop v1.0.3 - Monitor ligero en Rust
+# TinyTop v1.0.4 - Monitor ligero en Rust
 
 [![CI](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dev1lsconf/tinytop?display_name=tag)](https://github.com/dev1lsconf/tinytop/releases)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-1.0.3-blue.svg)](Cargo.toml)
+[![version](https://img.shields.io/badge/version-1.0.4-blue.svg)](Cargo.toml)
 [![rust](https://img.shields.io/badge/Rust-1.88%2B%20(edition%202024)-orange.svg)](https://www.rust-lang.org)
 [![platform](https://img.shields.io/badge/platform-linux%20%7C%20BSD-lightgrey.svg)](https://www.kernel.org)
 
-![TinyTop Dashboard](docs/dashboard.png?v=1.0.3)
+![TinyTop Dashboard](docs/dashboard.png?v=1.0.4)
 
 **TUI (terminal):**
 
@@ -17,10 +17,10 @@
 
 ## Características
 
-- **Sistema**: CPU (%), memoria y disco (filesystems reales, deduplicados), red RX/TX y tasas; métricas extendidas best-effort (load, swap, uptime, I/O de disco, temperatura, top procesos). Colector con refrescos incrementales.
+- **Sistema**: CPU (%), memoria y disco (filesystems reales, deduplicados), red RX/TX y tasas; métricas extendidas best-effort (load, swap, uptime, top procesos). Colector con refrescos incrementales y bajo consumo de memoria.
 - **Targets (checks)**: sondeo concurrente con `check_type` `http` (integraciones compatibles), `tcp`, `ping` (best-effort) y `tls` (handshake y días de certificado, best-effort). Estado, latencia, detalle y resultados estables.
 - **Persistencia**: SQLite (WAL, pragmas) con migraciones, histórico por rango, rollups/downsampling para rangos largos, alertas/eventos y pruning automático.
-- **Alertas y notificaciones**: umbrales configurables (sistema/targets/latencia/cert), historial de incidentes y notificaciones opcionales ante transiciones (webhook, Telegram, ntfy, best-effort).
+- **Alertas y notificaciones**: umbrales configurables (sistema/targets/latencia/cert), historial de incidentes y notificaciones opcionales ante transiciones (webhook genérico/Discord, Telegram, ntfy, best-effort).
 - **API**: `/api/health`, `/api/metrics/latest`, `/api/metrics/history`, `/api/config` (redactada), `/api/alerts`, `/api/events`, `/api/export` (JSON/CSV) y `/metrics` (Prometheus).
 - **Dashboard**: HTML/CSS/JS embebido + Chart.js local (sin CDN), métricas extendidas e histórico, alertas/eventos, exportación y render seguro.
 - **TUI**: `--tui` con vistas sistema/targets/alertas/eventos, métricas extendidas, sparklines y selección de rango/target (`Tab/1-4`, `+/-`, `↑/↓`, `r`, `q`).
@@ -191,7 +191,6 @@ allow_health_unauth = true
 cpu_percent_warn = 90.0
 mem_percent_warn = 90.0
 disk_percent_warn = 90.0
-temp_celsius_warn = 85.0
 target_latency_ms_warn = 1000.0
 cert_expiry_days_warn = 14
 
