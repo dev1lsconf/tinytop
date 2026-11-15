@@ -4,6 +4,17 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.5] - 2026-11-15
+
+### Añadido
+- Dashboard: gráficos históricos de **Red (RX/TX)**, **Load average (1/5/15)**, **Swap** y **Disco** (además de CPU y Memoria), con datos de `/api/metrics/history`.
+
+### Cambiado
+- Dashboard: ejes Y y tooltips de CPU/Memoria/Swap/Disco muestran valores en porcentaje; se elimina `(%)` de los encabezados de las gráficas.
+- Dashboard: selectores de **Rango** y **Auto-refresh** con estilo y alineación corregidos para la UI oscura.
+- Dashboard: mejoras de layout/UI en la barra de controles y en la sección de históricos.
+
+
 ## [1.0.4] - 2026-11-15
 
 ### Añadido

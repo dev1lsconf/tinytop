@@ -18,8 +18,12 @@
     .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;font-size:.8rem;border:1px solid var(--card-border);background:rgba(255,255,255,.03)}
     .dot{width:8px;height:8px;border-radius:999px;background:currentColor}
     .badge.ok{color:#86efac;border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.08)}.badge.warn{color:#fcd34d;border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.08)}.badge.err{color:#fca5a5;border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.08)}
-    .btn,select{background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;font:inherit;font-size:.85rem}
-    .btn{cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.btn:hover,select:hover{background:rgba(255,255,255,.07)}
+    .btn,select{background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;font:inherit;font-size:.85rem;line-height:1.2}
+    .btn{cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}.btn:hover,select:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16)}
+    select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:12px;min-width:92px;cursor:pointer}
+    select option{background:#18181b;color:#fafafa}
+    .control{display:flex;align-items:center;gap:6px}
+    .controls .meta{margin:0}
     .meta{color:var(--muted2);font-size:.8rem}.banner{display:none;margin-bottom:16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);color:#fecaca}.banner.show{display:block}
     .grid{display:grid;gap:16px}.stats{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px;align-items:stretch}.charts{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}
     .card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border:1px solid var(--card-border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.03);display:flex;flex-direction:column}
@@ -49,10 +53,10 @@
       <div class="brand"><div class="logo" aria-hidden="true">TT</div><div><h1>TinyTop</h1><p class="subtitle">Monitor de sistema y targets · <span id="version">v0.1.0</span></p></div></div>
       <div class="controls" role="group" aria-label="Controles">
         <span id="healthBadge" class="badge warn" data-testid="health-badge"><span class="dot"></span><span id="healthText">Iniciando</span></span>
-        <label class="meta" for="rangeSelect">Rango</label>
-        <select id="rangeSelect" data-testid="range-select" aria-label="Rango de historial"><option value="1">1h</option><option value="6">6h</option><option value="24" selected>24h</option><option value="72">72h</option><option value="168">7d</option></select>
-        <label class="meta" for="refreshSelect">Auto-refresh</label>
-        <select id="refreshSelect" data-testid="refresh-select" aria-label="Intervalo de auto-refresco"><option value="0">Off</option><option value="10">10s</option><option value="30" selected>30s</option><option value="60">60s</option></select>
+        <div class="control"><label class="meta" for="rangeSelect">Rango</label>
+        <select id="rangeSelect" data-testid="range-select" aria-label="Rango de historial"><option value="1">1h</option><option value="6">6h</option><option value="24" selected>24h</option><option value="72">72h</option><option value="168">7d</option></select></div>
+        <div class="control"><label class="meta" for="refreshSelect">Auto-refresh</label>
+        <select id="refreshSelect" data-testid="refresh-select" aria-label="Intervalo de auto-refresco"><option value="0">Off</option><option value="10">10s</option><option value="30" selected>30s</option><option value="60">60s</option></select></div>
         <button id="refreshBtn" class="btn" data-testid="refresh-btn" type="button">Actualizar</button>
         <span class="meta">Actualizado: <span id="lastUpdate" data-testid="last-update">—</span></span>
       </div>
@@ -77,8 +81,12 @@
     </section>
 
     <section class="grid charts" aria-label="Histórico del sistema">
-      <article class="card" data-testid="chart-cpu-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">CPU (%)</h2></div><span id="cpuChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="cpuChart"></canvas><div id="cpuChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
-      <article class="card" data-testid="chart-memory-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">Memoria (%)</h2></div><span id="memoryChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="memoryChart"></canvas><div id="memoryChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-cpu-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">CPU</h2></div><span id="cpuChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="cpuChart"></canvas><div id="cpuChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-memory-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">Memoria</h2></div><span id="memoryChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="memoryChart"></canvas><div id="memoryChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-net-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">Red (RX/TX)</h2></div><span id="netChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="netChart"></canvas><div id="netChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-load-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">Load average (1/5/15)</h2></div><span id="loadChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="loadChart"></canvas><div id="loadChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-swap-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">Swap</h2></div><span id="swapChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="swapChart"></canvas><div id="swapChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-disk-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value" style="font-size:1.1rem;margin:0">Disco</h2></div><span id="diskChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="diskChart"></canvas><div id="diskChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
     </section>
 
     <section class="card" data-testid="targets-card" aria-label="Targets monitoreados" style="margin-bottom:16px">
@@ -106,9 +114,17 @@
     function setHealth(kind, text) { const b = $('healthBadge'); b.className = 'badge ' + (kind || 'warn'); $('healthText').textContent = text; }
     function setError(msg) { const b = $('errorBanner'); if (msg) { b.textContent = msg; b.classList.add('show'); } else { b.textContent = ''; b.classList.remove('show'); } }
 
+    const pctTick = (v) => (v == null ? '' : Number(v).toFixed(0) + '%');
     const baseOpts = { responsive:true, maintainAspectRatio:false, animation:false, interaction:{mode:'index',intersect:false}, plugins:{legend:{display:false}, tooltip:{enabled:true,displayColors:false}}, scales:{ x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#71717a',maxTicksLimit:8}}, y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#71717a'}} } };
-    const cpuChart = new Chart($('cpuChart'), { type:'line', data:{labels:[], datasets:[{label:'CPU %', data:[], borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.18)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:{...baseOpts, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, min:0, max:100}}} });
-    const memChart = new Chart($('memoryChart'), { type:'line', data:{labels:[], datasets:[{label:'Memoria %', data:[], borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.18)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:{...baseOpts, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, min:0, max:100}}} });
+    const pctOpts = { ...baseOpts, plugins:{legend:{display:false}, tooltip:{enabled:true,displayColors:false, callbacks:{ label:(ctx)=> (ctx.dataset.label||'') + ': ' + Number(ctx.parsed.y||0).toFixed(1) + '%' }}}, scales:{ ...baseOpts.scales, y:{...baseOpts.scales.y, min:0, max:100, ticks:{color:'#71717a', callback:pctTick}} } };
+    const rateOpts = { ...baseOpts, plugins:{legend:{display:true,labels:{color:'#a1a1aa',boxWidth:10}}, tooltip:{enabled:true, callbacks:{ label:(ctx)=> (ctx.dataset.label||'') + ': ' + fmtRate(ctx.parsed.y||0) }}}, scales:{ ...baseOpts.scales, y:{...baseOpts.scales.y, ticks:{color:'#71717a', callback:(v)=>fmtRate(v)}} } };
+    const loadOpts = { ...baseOpts, plugins:{legend:{display:true,labels:{color:'#a1a1aa',boxWidth:10}}, tooltip:{enabled:true, callbacks:{ label:(ctx)=> (ctx.dataset.label||'') + ': ' + Number(ctx.parsed.y||0).toFixed(2) }}} };
+    const cpuChart = new Chart($('cpuChart'), { type:'line', data:{labels:[], datasets:[{label:'CPU', data:[], borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.18)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:pctOpts });
+    const memChart = new Chart($('memoryChart'), { type:'line', data:{labels:[], datasets:[{label:'Memoria', data:[], borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.18)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:pctOpts });
+    const netChart = new Chart($('netChart'), { type:'line', data:{labels:[], datasets:[{label:'RX', data:[], borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,0.12)', fill:true, borderWidth:2, pointRadius:0, tension:0.3},{label:'TX', data:[], borderColor:'#f472b6', backgroundColor:'rgba(244,114,182,0.10)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:rateOpts });
+    const loadChart = new Chart($('loadChart'), { type:'line', data:{labels:[], datasets:[{label:'1m', data:[], borderColor:'#f59e0b', borderWidth:2, pointRadius:0, tension:0.3, fill:false},{label:'5m', data:[], borderColor:'#a78bfa', borderWidth:2, pointRadius:0, tension:0.3, fill:false},{label:'15m', data:[], borderColor:'#34d399', borderWidth:2, pointRadius:0, tension:0.3, fill:false}]}, options:loadOpts });
+    const swapChart = new Chart($('swapChart'), { type:'line', data:{labels:[], datasets:[{label:'Swap', data:[], borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.15)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:{...pctOpts, plugins:{...pctOpts.plugins, tooltip:{enabled:true,displayColors:false, callbacks:{ label:(ctx)=> (ctx.dataset.label||'Swap') + ': ' + Number(ctx.parsed.y||0).toFixed(1) + '%' }}}} });
+    const diskChart = new Chart($('diskChart'), { type:'line', data:{labels:[], datasets:[{label:'Disco', data:[], borderColor:'#eab308', backgroundColor:'rgba(234,179,8,0.15)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:pctOpts });
 
     function renderSystem(system) {
       if (!system) { $('cpuValue').textContent='--%'; $('cpuBar').style.width='0%'; $('memoryValue').textContent='--'; $('memoryBar').style.width='0%'; $('diskValue').textContent='--'; $('diskBar').style.width='0%'; $('netRateValue').textContent='--'; $('netTotals').textContent='RX total: -- · TX total: --'; $('kvLoad').textContent='--'; $('kvSwap').textContent='--'; $('kvUptime').textContent='--'; $('kvProcs').textContent='--'; return; }
@@ -147,7 +163,22 @@
     function renderEvents(events){ const tb=$('eventsTable'); const list=Array.isArray(events)?events:[]; $('eventsMeta').textContent=list.length+' recientes'; tb.textContent=''; if(!list.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.className='muted'; td.textContent='Sin eventos'; tr.appendChild(td); tb.appendChild(tr); return; } for(const e of list.slice(0,50)){ const tr=document.createElement('tr'); const c1=document.createElement('td'); c1.innerHTML=statusPill(e.level||'info'); const c2=document.createElement('td'); c2.textContent=e.kind||''; const c3=document.createElement('td'); c3.textContent=e.source||''; const c4=document.createElement('td'); c4.textContent=e.message||''; const c5=document.createElement('td'); c5.textContent=fmtTs(e.timestamp); [c1,c2,c3,c4,c5].forEach(c=>tr.appendChild(c)); tb.appendChild(tr);} }
 
     async function loadLatest(){ const res=await fetch('/api/metrics/latest',{cache:'no-store'}); if(!res.ok) throw new Error('latest: HTTP '+res.status); const data=await res.json(); renderSystem(data.system); renderTargets(data.targets||[]); return data; }
-    async function loadHistory(){ const url='/api/metrics/history?target=system&range='+encodeURIComponent(state.range); const res=await fetch(url,{cache:'no-store'}); if(!res.ok) throw new Error('history: HTTP '+res.status); const data=await res.json(); const points=Array.isArray(data.points)?data.points:[]; const has=points.length>0; $('cpuChartEmpty').classList.toggle('show',!has); $('memoryChartEmpty').classList.toggle('show',!has); $('cpuChartMeta').textContent=has?points.length+' puntos':'0 puntos'; $('memoryChartMeta').textContent=has?points.length+' puntos':'0 puntos'; const labels=points.map(p=>{const d=new Date(p.timestamp); return isNaN(d)?'':d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}); cpuChart.data.labels=labels; cpuChart.data.datasets[0].data=points.map(p=>Number(p.cpu_percent||0)); memChart.data.labels=labels; memChart.data.datasets[0].data=points.map(p=>Number(p.mem_used_percent||0)); cpuChart.update(); memChart.update(); return data; }
+    async function loadHistory(){
+      const url='/api/metrics/history?target=system&range='+encodeURIComponent(state.range);
+      const res=await fetch(url,{cache:'no-store'}); if(!res.ok) throw new Error('history: HTTP '+res.status);
+      const data=await res.json(); const points=Array.isArray(data.points)?data.points:[];
+      const has=points.length>0;
+      [['cpuChartEmpty','cpuChartMeta'],['memoryChartEmpty','memoryChartMeta'],['netChartEmpty','netChartMeta'],['loadChartEmpty','loadChartMeta'],['swapChartEmpty','swapChartMeta'],['diskChartEmpty','diskChartMeta']].forEach(([e,m])=>{ if($(e)) $(e).classList.toggle('show',!has); if($(m)) $(m).textContent=has?points.length+' puntos':'0 puntos'; });
+      const labels=points.map(p=>{const d=new Date(p.timestamp); return isNaN(d)?'':d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});});
+      cpuChart.data.labels=labels; cpuChart.data.datasets[0].data=points.map(p=>Number(p.cpu_percent||0));
+      memChart.data.labels=labels; memChart.data.datasets[0].data=points.map(p=>Number(p.mem_used_percent||0));
+      netChart.data.labels=labels; netChart.data.datasets[0].data=points.map(p=>Number(p.net_rx_bytes_per_sec||0)); netChart.data.datasets[1].data=points.map(p=>Number(p.net_tx_bytes_per_sec||0));
+      loadChart.data.labels=labels; loadChart.data.datasets[0].data=points.map(p=>p.load1==null?null:Number(p.load1)); loadChart.data.datasets[1].data=points.map(p=>p.load5==null?null:Number(p.load5)); loadChart.data.datasets[2].data=points.map(p=>p.load15==null?null:Number(p.load15));
+      swapChart.data.labels=labels; swapChart.data.datasets[0].data=points.map(p=>p.swap_used_percent==null?null:Number(p.swap_used_percent));
+      diskChart.data.labels=labels; diskChart.data.datasets[0].data=points.map(p=>Number(p.disk_used_percent||0));
+      [cpuChart,memChart,netChart,loadChart,swapChart,diskChart].forEach(c=>c.update());
+      return data;
+    }
     async function loadHealth(){ try{ const res=await fetch('/api/health',{cache:'no-store'}); const data=await res.json().catch(()=>({})); $('version').textContent='v'+(data.version||'0.1.0'); if(res.ok&&data.ready) setHealth('ok','En línea'); else if(res.ok) setHealth('warn',data.status||'Iniciando'); else setHealth('err',data.status||'Degradado'); }catch{ setHealth('err','Sin conexión'); } }
     async function loadAlerts(){ try{ const res=await fetch('/api/alerts?limit=50',{cache:'no-store'}); if(!res.ok) throw 0; const d=await res.json(); renderAlerts(d.alerts||[]); }catch{ renderAlerts([]); $('kvAlerts').textContent='--'; } }
     async function loadEvents(){ try{ const res=await fetch('/api/events?limit=50',{cache:'no-store'}); if(!res.ok) throw 0; const d=await res.json(); renderEvents(d.events||[]); }catch{ renderEvents([]); } }
