@@ -4,6 +4,23 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.4] - 2026-11-15
+
+### Añadido
+- Notificaciones: soporte de webhooks entrantes de **Discord** (`discord.com/api/webhooks/...` y `discordapp.com/api/webhooks/...`) enviando el payload compatible `{"content": ...}` (se mantiene JSON genérico `{"text","alerts"}` para otros webhooks).
+
+### Cambiado
+- Rendimiento/memoria: runtime Tokio en un solo hilo (`current_thread`) y colector `sysinfo` en Linux limitado a CPU/memoria de procesos (top procesos) para reducir drásticamente el uso de RAM.
+- Dashboard: tarjetas de métricas (sistema y extendidas) reestructuradas con layout uniforme y alineado.
+- Despliegue Docker (`docker-compose`): intervalo por defecto 60 s, límites de recursos (memoria/CPU/PIDs) y rotación de logs.
+
+### Eliminado
+- Métricas de **temperatura** y **E/S de disco** (lectura/escritura y tasas) del colector, la base de datos/rollups, la API/exportación/Prometheus, la TUI y el dashboard, junto con la alerta/umbral de temperatura (`temp_celsius_warn`).
+
+### Corregido
+- Persistencia: `INSERT` de `system_metrics` alineado con el nuevo esquema (columnas/placeholders/binds), corrigiendo el fallo `20 values for 21 columns` que impedía guardar métricas tras la retirada de campos.
+
+
 ## [1.0.3] - 2026-11-15
 
 ### Corregido

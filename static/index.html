@@ -21,12 +21,13 @@
     .btn,select{background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;font:inherit;font-size:.85rem}
     .btn{cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.btn:hover,select:hover{background:rgba(255,255,255,.07)}
     .meta{color:var(--muted2);font-size:.8rem}.banner{display:none;margin-bottom:16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);color:#fecaca}.banner.show{display:block}
-    .grid{display:grid;gap:16px}.stats{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px}.charts{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}
-    .card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border:1px solid var(--card-border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.03)}
+    .grid{display:grid;gap:16px}.stats{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px;align-items:stretch}.charts{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border:1px solid var(--card-border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.03);display:flex;flex-direction:column}
     .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
-    .label{color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;margin:0 0 4px}.value{font-size:1.6rem;font-weight:700;margin:0}.sub{color:var(--muted2);font-size:.8rem;margin:4px 0 0}
-    .icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:var(--muted);font-size:.8rem}
-    .bar{height:6px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden}.fill{height:100%;border-radius:999px;transition:width .4s ease}
+    .label{color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;margin:0 0 4px}.value{font-size:1.6rem;font-weight:700;margin:0;line-height:1.15}.sub{color:var(--muted2);font-size:.8rem;margin:4px 0 0}
+    .icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:var(--muted);font-size:.8rem;flex:0 0 auto}
+    .bar{height:6px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;margin-top:auto}.fill{height:100%;border-radius:999px;transition:width .4s ease}
+    .card-foot{color:var(--muted2);font-size:.8rem;margin:10px 0 0;min-height:1.2em}
     .chart-wrap{position:relative;height:240px}.chart-empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted2);font-size:.9rem}.chart-empty.show{display:flex}
     .table-wrap{overflow:auto} table{width:100%;border-collapse:collapse;font-size:.9rem} th,td{text-align:left;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top}
     th{color:var(--muted2);font-weight:500;font-size:.8rem} tr:hover td{background:rgba(255,255,255,.015)}
@@ -35,8 +36,9 @@
     .pill.down,.pill.error,.pill.firing,.pill.critical{color:#fca5a5;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3)}
     .pill.degraded,.pill.unknown,.pill.starting,.pill.warn,.pill.warning{color:#fcd34d;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.3)}
     .muted{color:var(--muted2)} .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.8rem;color:var(--muted)} .row-title{font-weight:600}
-    .kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}.kv .item{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:10px 12px}.kv .k{color:var(--muted2);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em}.kv .v{font-size:1rem;font-weight:600;margin-top:2px}
+    .kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px;align-items:stretch}.kv .item{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:12px 14px;min-height:84px;display:flex;flex-direction:column;justify-content:center;gap:4px}.kv .k{color:var(--muted2);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;margin:0}.kv .v{font-size:1rem;font-weight:600;margin:0;line-height:1.3;word-break:break-word}
     .links{display:flex;gap:8px;flex-wrap:wrap}.list{max-height:260px;overflow:auto}
+    .stats .card{min-height:150px}
     @media(max-width:1000px){.stats,.two{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:1fr}.kv{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:640px){.wrap{padding:16px}.stats,.two,.kv{grid-template-columns:1fr}.header{align-items:flex-start}}
   </style>
@@ -62,18 +64,16 @@
       <article class="card" data-testid="card-cpu"><div class="card-head"><div><p class="label">CPU</p><p class="value" id="cpuValue">--%</p><p class="sub" id="cpuMeta">Uso global</p></div><div class="icon">CPU</div></div><div class="bar"><div id="cpuBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--violet))"></div></div></article>
       <article class="card" data-testid="card-memory"><div class="card-head"><div><p class="label">Memoria</p><p class="value" id="memoryValue">--</p><p class="sub" id="memoryMeta">Usada / total</p></div><div class="icon">RAM</div></div><div class="bar"><div id="memoryBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--emerald),#34d399)"></div></div></article>
       <article class="card" data-testid="card-disk"><div class="card-head"><div><p class="label">Disco</p><p class="value" id="diskValue">--</p><p class="sub" id="diskMeta">Usado / total (disp.)</p></div><div class="icon">DISK</div></div><div class="bar"><div id="diskBar" class="fill" style="width:0%;background:linear-gradient(90deg,var(--amber),#f97316)"></div></div></article>
-      <article class="card" data-testid="card-network"><div class="card-head"><div><p class="label">Red</p><p class="value" id="netRateValue">--</p><p class="sub" id="netMeta">↓ RX/s · ↑ TX/s · totales</p></div><div class="icon">NET</div></div><p class="sub" id="netTotals">RX total: -- · TX total: --</p></article>
+      <article class="card" data-testid="card-network"><div class="card-head"><div><p class="label">Red</p><p class="value" id="netRateValue">--</p><p class="sub" id="netMeta">↓ RX/s · ↑ TX/s</p></div><div class="icon">NET</div></div><div class="bar"><div id="netBar" class="fill" style="width:100%;background:linear-gradient(90deg,#38bdf8,#3b82f6);opacity:.35"></div></div><p class="card-foot" id="netTotals">RX total: -- · TX total: --</p></article>
     </section>
 
     <section class="kv" aria-label="Métricas extendidas">
-      <div class="item"><div class="k">Load (1/5/15)</div><div class="v" id="kvLoad">--</div></div>
-      <div class="item"><div class="k">Swap</div><div class="v" id="kvSwap">--</div></div>
-      <div class="item"><div class="k">Uptime</div><div class="v" id="kvUptime">--</div></div>
-      <div class="item"><div class="k">Temperatura</div><div class="v" id="kvTemp">--</div></div>
-      <div class="item"><div class="k">Disk IO (R/W)</div><div class="v" id="kvDiskIO">--</div></div>
-      <div class="item"><div class="k">Top procesos</div><div class="v mono" id="kvProcs" style="font-size:.75rem;font-weight:500">--</div></div>
-      <div class="item"><div class="k">Exportar</div><div class="v links"><a class="btn" id="exportJson" href="/api/export?target=system&format=json&range=24" data-testid="export-json">JSON</a><a class="btn" id="exportCsv" href="/api/export?target=system&format=csv&range=24" data-testid="export-csv">CSV</a><a class="btn" href="/metrics" target="_blank" rel="noopener">Prometheus</a></div></div>
-      <div class="item"><div class="k">Alertas activas</div><div class="v" id="kvAlerts">--</div></div>
+      <div class="item"><p class="k">Load (1/5/15)</p><p class="v" id="kvLoad">--</p></div>
+      <div class="item"><p class="k">Swap</p><p class="v" id="kvSwap">--</p></div>
+      <div class="item"><p class="k">Uptime</p><p class="v" id="kvUptime">--</p></div>
+      <div class="item"><p class="k">Top procesos</p><p class="v mono" id="kvProcs">--</p></div>
+      <div class="item"><p class="k">Alertas activas</p><p class="v" id="kvAlerts">--</p></div>
+      <div class="item"><p class="k">Exportar</p><div class="v links"><a class="btn" id="exportJson" href="/api/export?target=system&format=json&range=24" data-testid="export-json">JSON</a><a class="btn" id="exportCsv" href="/api/export?target=system&format=csv&range=24" data-testid="export-csv">CSV</a><a class="btn" href="/metrics" target="_blank" rel="noopener">Prometheus</a></div></div>
     </section>
 
     <section class="grid charts" aria-label="Histórico del sistema">
@@ -111,7 +111,7 @@
     const memChart = new Chart($('memoryChart'), { type:'line', data:{labels:[], datasets:[{label:'Memoria %', data:[], borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.18)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:{...baseOpts, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, min:0, max:100}}} });
 
     function renderSystem(system) {
-      if (!system) { $('cpuValue').textContent='--%'; $('cpuBar').style.width='0%'; $('memoryValue').textContent='--'; $('memoryBar').style.width='0%'; $('diskValue').textContent='--'; $('diskBar').style.width='0%'; $('netRateValue').textContent='--'; $('netTotals').textContent='RX total: -- · TX total: --'; $('kvLoad').textContent='--'; $('kvSwap').textContent='--'; $('kvUptime').textContent='--'; $('kvTemp').textContent='--'; $('kvDiskIO').textContent='--'; $('kvProcs').textContent='--'; return; }
+      if (!system) { $('cpuValue').textContent='--%'; $('cpuBar').style.width='0%'; $('memoryValue').textContent='--'; $('memoryBar').style.width='0%'; $('diskValue').textContent='--'; $('diskBar').style.width='0%'; $('netRateValue').textContent='--'; $('netTotals').textContent='RX total: -- · TX total: --'; $('kvLoad').textContent='--'; $('kvSwap').textContent='--'; $('kvUptime').textContent='--'; $('kvProcs').textContent='--'; return; }
       const cpu=Number(system.cpu_percent||0), mup=Number(system.mem_used_percent||0), dup=Number(system.disk_used_percent||0);
       $('cpuValue').textContent = fmtPct(cpu); $('cpuBar').style.width = Math.min(Math.max(cpu,0),100)+'%'; $('cpuMeta').textContent = cpu>80?'Uso alto':cpu>50?'Uso moderado':'Uso normal';
       $('memoryValue').textContent = fmtPct(mup); $('memoryBar').style.width = Math.min(Math.max(mup,0),100)+'%'; $('memoryMeta').textContent = fmtMB(system.mem_used_mb)+' / '+fmtMB(system.mem_total_mb);
@@ -121,8 +121,6 @@
       const l1=system.load1, l5=system.load5, l15=system.load15; $('kvLoad').textContent = (l1!=null?Number(l1).toFixed(2):'--')+' / '+(l5!=null?Number(l5).toFixed(2):'--')+' / '+(l15!=null?Number(l15).toFixed(2):'--');
       $('kvSwap').textContent = (system.swap_total_mb!=null && Number(system.swap_total_mb)>0) ? (fmtMB(system.swap_used_mb)+' / '+fmtMB(system.swap_total_mb)+' ('+fmtPct(system.swap_used_percent||0)+')') : 'n/d';
       $('kvUptime').textContent = fmtUptime(system.uptime_seconds);
-      $('kvTemp').textContent = system.temp_celsius!=null ? (Number(system.temp_celsius).toFixed(1)+' °C') : 'n/d';
-      $('kvDiskIO').textContent = (system.disk_read_bytes_per_sec!=null?fmtRate(system.disk_read_bytes_per_sec):'--')+' / '+(system.disk_write_bytes_per_sec!=null?fmtRate(system.disk_write_bytes_per_sec):'--');
       try { const tp = system.top_processes ? JSON.parse(system.top_processes) : []; $('kvProcs').textContent = (Array.isArray(tp)&&tp.length) ? tp.slice(0,3).map(p=> (p.name||'?')+' '+Number(p.cpu||0).toFixed(0)+'%').join(', ') : '--'; } catch { $('kvProcs').textContent = '--'; }
     }
 
