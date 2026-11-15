@@ -454,8 +454,16 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
         None
     }
     let mem_total_mb = physmem as f64 / 1024.0 / 1024.0;
-    let mut active_pages = if uvm.is_empty() { None } else { uvm_val(&uvm, "active") };
-    let mut wired_pages = if uvm.is_empty() { None } else { uvm_val(&uvm, "wired") };
+    let mut active_pages = if uvm.is_empty() {
+        None
+    } else {
+        uvm_val(&uvm, "active")
+    };
+    let mut wired_pages = if uvm.is_empty() {
+        None
+    } else {
+        uvm_val(&uvm, "wired")
+    };
     if let Some(ps) = uvm_val(&uvm, "pagesize").filter(|v| *v > 0) {
         pagesize = ps;
     }
@@ -486,7 +494,11 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
             let used_pages = active.saturating_add(wired);
             let used = (used_pages.saturating_mul(pagesize)) as f64 / 1024.0 / 1024.0;
             let used = used.min(mem_total_mb);
-            let pct = if mem_total_mb > 0.0 { (used / mem_total_mb) * 100.0 } else { 0.0 };
+            let pct = if mem_total_mb > 0.0 {
+                (used / mem_total_mb) * 100.0
+            } else {
+                0.0
+            };
             (used, pct.min(100.0))
         }
         _ => (0.0, 0.0),

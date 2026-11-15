@@ -4,6 +4,12 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.3] - 2026-11-15
+
+### Corregido
+- OpenBSD: `ping` usa `-w <segundos>` (en Linux se mantiene `-W`) para compatibilidad con `ping(8)` de OpenBSD.
+- OpenBSD: detección de RAM usada con fallback a `vmstat -s` cuando `vm.uvmexp` no está disponible vía `sysctl`.
+
 ## [1.0.2] - 2026-11-14
 
 ### Corregido
