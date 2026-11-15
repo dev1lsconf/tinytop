@@ -415,48 +415,81 @@ fn collect_system_openbsd(state: &mut CollectorState) -> SystemMetrics {
         0.0
     };
 
-    // Memory (best-effort via sysctl)
+    // Memory (best-effort). On some OpenBSD releases `vm.uvmexp` is not exposed via sysctl
+    // ("use vmstat or systat to view vm.uvmexp information"), so fall back to `vmstat -s`.
     let physmem = sysctl_n("hw.physmem64")
         .or_else(|| sysctl_n("hw.physmem"))
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(0);
-    let pagesize = sysctl_n("hw.pagesize")
+    let mut pagesize = sysctl_n("hw.pagesize")
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(4096);
     let uvm = sysctl_n("vm.uvmexp").unwrap_or_default();
-    // uvmexp: key=value pairs (pagesize npages free active inactive wired ...)
+    // uvmexp: key=value pairs or space-separated tokens
     fn uvm_val(s: &str, key: &str) -> Option<u64> {
         for part in s.split_whitespace() {
-            if let Some(v) = part.strip_prefix(&format!("{key}=")) {
-                return v.parse::<u64>().ok();
+            if let Some(v) = part
+                .strip_prefix(&format!("{key}="))
+                .or_else(|| part.strip_prefix(&format!("{key}:")))
+            {
+                return v
+                    .trim_matches(|c: char| c == ',' || c == '=' || c == ':')
+                    .parse::<u64>()
+                    .ok();
             }
-            // sometimes "key=val,"
         }
         // fallback: "key val"
         let mut it = s.split_whitespace();
         while let Some(k) = it.next() {
-            if k.trim_end_matches('=') == key || k == key {
+            let k = k.trim_matches(|c: char| c == '=' || c == ':' || c == ',');
+            if k == key {
                 if let Some(v) = it.next() {
-                    return v.trim_matches(|c: char| c == '=' || c == ',').parse().ok();
+                    return v
+                        .trim_matches(|c: char| c == '=' || c == ':' || c == ',')
+                        .parse()
+                        .ok();
                 }
             }
         }
         None
     }
     let mem_total_mb = physmem as f64 / 1024.0 / 1024.0;
-    let (mem_used_mb, mem_used_percent) = if !uvm.is_empty() {
-        let active = uvm_val(&uvm, "active").unwrap_or(0);
-        let wired = uvm_val(&uvm, "wired").unwrap_or(0);
-        let used_pages = active.saturating_add(wired);
-        let used = (used_pages * pagesize) as f64 / 1024.0 / 1024.0;
-        let pct = if mem_total_mb > 0.0 {
-            (used / mem_total_mb) * 100.0
-        } else {
-            0.0
-        };
-        (used.min(mem_total_mb), pct.min(100.0))
-    } else {
-        (0.0, 0.0)
+    let mut active_pages = if uvm.is_empty() { None } else { uvm_val(&uvm, "active") };
+    let mut wired_pages = if uvm.is_empty() { None } else { uvm_val(&uvm, "wired") };
+    if let Some(ps) = uvm_val(&uvm, "pagesize").filter(|v| *v > 0) {
+        pagesize = ps;
+    }
+    // Fallback: parse `vmstat -s` (e.g. "1234 pages active", "567 pages wired", "4096 bytes per page")
+    if active_pages.is_none() || wired_pages.is_none() {
+        if let Some(vs) = run("vmstat", &["-s"]) {
+            for line in vs.lines() {
+                let line = line.trim();
+                let mut it = line.split_whitespace();
+                let Some(num) = it.next().and_then(|n| n.parse::<u64>().ok()) else {
+                    continue;
+                };
+                let rest = it.collect::<Vec<_>>().join(" ").to_ascii_lowercase();
+                if rest.contains("bytes per page") {
+                    if num > 0 {
+                        pagesize = num;
+                    }
+                } else if rest.contains("pages active") {
+                    active_pages.get_or_insert(num);
+                } else if rest.contains("pages wired") {
+                    wired_pages.get_or_insert(num);
+                }
+            }
+        }
+    }
+    let (mem_used_mb, mem_used_percent) = match (active_pages, wired_pages) {
+        (Some(active), Some(wired)) if physmem > 0 => {
+            let used_pages = active.saturating_add(wired);
+            let used = (used_pages.saturating_mul(pagesize)) as f64 / 1024.0 / 1024.0;
+            let used = used.min(mem_total_mb);
+            let pct = if mem_total_mb > 0.0 { (used / mem_total_mb) * 100.0 } else { 0.0 };
+            (used, pct.min(100.0))
+        }
+        _ => (0.0, 0.0),
     };
 
     // Swap via swapctl -sk (1K-blocks)
@@ -792,17 +825,32 @@ async fn probe_ping(target: &Target, timeout: Duration) -> TargetInfo {
         .or_else(|| extract_host_port(&target.url).map(|(h, _)| h))
         .unwrap_or_else(|| target.url.clone());
     let start = Instant::now();
-    // best-effort: try system ping (may not be available / may need perms). Fallback to TCP 80? no, report unsupported if fails.
-    let out = tokio::time::timeout(
-        timeout + Duration::from_millis(200),
-        tokio::process::Command::new("ping")
+    // best-effort: try system ping (may not be available / may need perms).
+    // Flags differ across platforms: OpenBSD uses -w <seconds>, GNU/Linux commonly uses -W <seconds>.
+    let timeout_secs = timeout.as_secs().max(1).to_string();
+    let out = tokio::time::timeout(timeout + Duration::from_millis(200), async {
+        #[cfg(target_os = "openbsd")]
+        let res = tokio::process::Command::new("ping")
+            .arg("-c")
+            .arg("1")
+            .arg("-w")
+            .arg(&timeout_secs)
+            .arg(&host)
+            .output()
+            .await;
+
+        #[cfg(not(target_os = "openbsd"))]
+        let res = tokio::process::Command::new("ping")
             .arg("-c")
             .arg("1")
             .arg("-W")
-            .arg(format!("{}", timeout.as_secs().max(1)))
+            .arg(&timeout_secs)
             .arg(&host)
-            .output(),
-    )
+            .output()
+            .await;
+
+        res
+    })
     .await;
     let latency_ms = start.elapsed().as_secs_f64() * 1000.0;
     match out {
