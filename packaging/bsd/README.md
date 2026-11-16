@@ -1,6 +1,6 @@
 # Packaging notes for *BSD
 
-TinyTop targets FreeBSD, OpenBSD and NetBSD (via `sysinfo`) and the release workflow publishes x86_64 tarballs for each (`tinytop-v<version>-<os>-x86_64.tar.gz`).
+TinyTop targets FreeBSD, OpenBSD and NetBSD with native system collectors (`sysctl`/system tools, same approach as OpenBSD) and the release workflow publishes x86_64 tarballs for each (`tinytop-v<version>-<os>-x86_64.tar.gz`).
 
 > Guía paso a paso de instalación/configuración: [docs/INSTALLATION.md](../../docs/INSTALLATION.md). Requisitos por plataforma (librerías/ABI, OpenBSD 7.9): [`requirements/`](../../requirements/README.md).
 

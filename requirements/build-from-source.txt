@@ -16,7 +16,7 @@ sqlite3=headers/librería de desarrollo de SQLite3 (libsqlite3-dev / sqlite3-dev
 # Gestionadas por Cargo (ver Cargo.toml y Cargo.lock, usar --locked):
 # - runtime async/web: tokio, axum, reqwest (rustls-tls, sin OpenSSL)
 # - DB: sqlx (sqlite, runtime-tokio-rustls, chrono)
-# - sistema: sysinfo
+# - sistema (Linux/otros): sysinfo; en FreeBSD/OpenBSD/NetBSD se usa colector nativo (sysctl/herramientas del sistema)
 # - TUI: ratatui, crossterm
 # - utilidades: serde/serde_json, tracing, anyhow, chrono, toml, base64, url
 

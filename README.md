@@ -17,7 +17,7 @@
 
 ## Características
 
-- **Sistema**: CPU (%), memoria y disco (filesystems reales, deduplicados), red RX/TX y tasas; métricas extendidas best-effort (load, swap, uptime, top procesos). Colector con refrescos incrementales y bajo consumo de memoria.
+- **Sistema**: CPU (%), memoria y disco (filesystems reales, deduplicados), red RX/TX y tasas; métricas extendidas best-effort (load, swap, uptime, top procesos). Colector nativo en FreeBSD/OpenBSD/NetBSD (`sysctl`/herramientas del sistema) y basado en `sysinfo` en Linux/otros, con refrescos incrementales y bajo consumo de memoria.
 - **Targets (checks)**: sondeo concurrente con `check_type` `http` (integraciones compatibles), `tcp`, `ping` (best-effort) y `tls` (handshake y días de certificado, best-effort). Estado, latencia, detalle y resultados estables.
 - **Persistencia**: SQLite (WAL, pragmas) con migraciones, histórico por rango, rollups/downsampling para rangos largos, alertas/eventos y pruning automático.
 - **Alertas y notificaciones**: umbrales configurables (sistema/targets/latencia/cert), historial de incidentes y notificaciones opcionales ante transiciones (webhook genérico/Discord, Telegram, ntfy, best-effort).
@@ -156,7 +156,7 @@ docker compose up -d --build
 
 ## Compatibilidad
 
-- Soporte de plataforma: **Linux** y **sistemas *BSD** (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD) vía `sysinfo`.
+- Soporte de plataforma: **Linux** (vía `sysinfo`) y **sistemas *BSD** (FreeBSD, OpenBSD, NetBSD) con colector nativo (`sysctl`/herramientas del sistema, como en OpenBSD). Otros sistemas (p. ej. DragonFlyBSD) usan `sysinfo` cuando es compatible.
 - Artefactos de release: Linux x86_64, aarch64 y musl (tarballs) e imagen de contenedor `ghcr.io/dev1lsconf/tinytop` multi-arch (amd64/arm64), además de tarballs para **FreeBSD**, **OpenBSD** y **NetBSD** (x86_64).
 - En otras plataformas soportadas por las dependencias se puede compilar desde código (`cargo build --release --locked`). Ver [instalación](docs/INSTALLATION.md) y [requisitos](requirements/README.md).
 
