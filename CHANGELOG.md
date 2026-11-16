@@ -4,6 +4,13 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.6](https://github.com/dev1lsconf/tinytop/compare/v1.0.5...v1.0.6) (2026-11-16)
+
+
+### Bug Fixes
+
+* **collector:** add native system metrics for FreeBSD and NetBSD ([de6392c](https://github.com/dev1lsconf/tinytop/commit/de6392c27bde317b47e2e5759e6661ba62150193))
+
 ## [1.0.5] - 2026-11-15
 
 ### Añadido
