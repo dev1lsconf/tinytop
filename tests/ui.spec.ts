@@ -20,6 +20,24 @@ test.describe('TinyTop dashboard', () => {
     await expect(page.locator('#memoryValue')).not.toHaveText('--');
     await expect(page.locator('#netRateValue')).toBeVisible();
 
+    // UI layout: stats cards should be evenly aligned (same height/width)
+    const statsLayout = await page.evaluate(() => {
+      const cards = Array.from(document.querySelectorAll('[data-testid="stats-grid"] .card')) as HTMLElement[];
+      if (cards.length !== 3) return { count: cards.length, heights: [], widths: [], tops: [] };
+      const rects = cards.map(c => c.getBoundingClientRect());
+      return {
+        count: cards.length,
+        heights: rects.map(r => Math.round(r.height)),
+        widths: rects.map(r => Math.round(r.width)),
+        tops: rects.map(r => Math.round(r.top)),
+      };
+    });
+    expect(statsLayout.count).toBe(3);
+    expect(new Set(statsLayout.tops).size).toBe(1);
+    expect(new Set(statsLayout.heights).size).toBe(1);
+    expect(new Set(statsLayout.widths).size).toBe(1);
+    await expect(page.locator('[data-testid="card-disk"]')).toHaveCount(0);
+
     await expect.poll(async () => {
       return page.evaluate(() => {
         const cpu = (window as any).Chart?.getChart?.(document.getElementById('cpuChart') as any);
