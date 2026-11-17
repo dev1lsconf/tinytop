@@ -14,7 +14,11 @@ struct Cli {
     config: Option<PathBuf>,
 }
 
-fn parse_cli() -> anyhow::Result<Cli> {
+fn parse_cli_from<I, S>(args: I) -> anyhow::Result<Cli>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
     let mut cli = Cli {
         tui: false,
         check_config: false,
@@ -22,9 +26,10 @@ fn parse_cli() -> anyhow::Result<Cli> {
         version: false,
         config: None,
     };
-    let mut it = std::env::args().skip(1);
+    let mut it = args.into_iter();
     while let Some(a) = it.next() {
-        match a.as_str() {
+        let a = a.as_ref();
+        match a {
             "--tui" => cli.tui = true,
             "--check-config" | "--check" => cli.check_config = true,
             "--help" | "-h" => cli.help = true,
@@ -33,6 +38,7 @@ fn parse_cli() -> anyhow::Result<Cli> {
                 let val = it
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("--config requires a path"))?;
+                let val = val.as_ref();
                 if val.starts_with('-') {
                     anyhow::bail!("--config requires a path");
                 }
@@ -51,6 +57,10 @@ fn parse_cli() -> anyhow::Result<Cli> {
         }
     }
     Ok(cli)
+}
+
+fn parse_cli() -> anyhow::Result<Cli> {
+    parse_cli_from(std::env::args().skip(1))
 }
 
 fn print_help() {
@@ -182,4 +192,42 @@ async fn main() -> anyhow::Result<()> {
     db.pool.close().await;
     tracing::info!("shutdown complete");
     Ok(())
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_cli_rejects_unknown_argument() {
+        let err = parse_cli_from(["--bogus"]).unwrap_err().to_string();
+        assert!(err.contains("unknown argument"));
+        assert!(err.contains("--bogus"));
+    }
+
+    #[test]
+    fn parse_cli_requires_config_value() {
+        let err = parse_cli_from(["--config"]).unwrap_err().to_string();
+        assert!(err.contains("--config requires a path"));
+
+        let err = parse_cli_from(["--config", "--tui"])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("--config requires a path"));
+
+        let err = parse_cli_from(["--config="]).unwrap_err().to_string();
+        assert!(err.contains("--config requires a path"));
+    }
+
+    #[test]
+    fn parse_cli_accepts_config_and_flags() {
+        let cli = parse_cli_from(["--config", "foo.toml", "--check-config", "--tui"]).unwrap();
+        assert_eq!(cli.config.as_deref(), Some(std::path::Path::new("foo.toml")));
+        assert!(cli.check_config);
+        assert!(cli.tui);
+
+        let cli = parse_cli_from(["--config=bar.toml"]).unwrap();
+        assert_eq!(cli.config.as_deref(), Some(std::path::Path::new("bar.toml")));
+    }
 }

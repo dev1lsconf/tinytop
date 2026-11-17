@@ -1443,4 +1443,26 @@ mod tests {
         assert_eq!(res.check_type, "ping");
         assert!(matches!(res.status.as_str(), "up" | "down" | "error"));
     }
+
+    #[test]
+    fn http_client_rebuilds_when_timeout_changes() {
+        let _ = http_client(5);
+        let t1 = HTTP_CLIENT.get().unwrap().lock().unwrap().0;
+        assert_eq!(t1, 5);
+
+        // Same timeout keeps cached client config.
+        let _ = http_client(5);
+        let t2 = HTTP_CLIENT.get().unwrap().lock().unwrap().0;
+        assert_eq!(t2, 5);
+
+        // Changing timeout must rebuild/reconfigure the cached client (hot reload).
+        let _ = http_client(12);
+        let t3 = HTTP_CLIENT.get().unwrap().lock().unwrap().0;
+        assert_eq!(t3, 12);
+
+        // Restore default-ish value to reduce cross-test coupling.
+        let _ = http_client(5);
+        let t4 = HTTP_CLIENT.get().unwrap().lock().unwrap().0;
+        assert_eq!(t4, 5);
+    }
 }

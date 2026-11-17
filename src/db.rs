@@ -84,6 +84,34 @@ pub struct RetentionResult {
     pub events_deleted: u64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct SystemHistoryPoint {
+    pub timestamp: String,
+    pub origin: String, // "raw" | "rollup"
+    pub bucket_seconds: Option<i64>,
+    pub samples: Option<i64>,
+    pub cpu_percent: f64,
+    pub mem_used_mb: Option<f64>,
+    pub mem_total_mb: Option<f64>,
+    pub mem_used_percent: f64,
+    pub disk_used_mb: Option<f64>,
+    pub disk_total_mb: Option<f64>,
+    pub disk_available_mb: Option<f64>,
+    pub disk_used_percent: f64,
+    pub net_rx_bytes: Option<i64>,
+    pub net_tx_bytes: Option<i64>,
+    pub net_rx_bytes_per_sec: f64,
+    pub net_tx_bytes_per_sec: f64,
+    pub load1: Option<f64>,
+    pub load5: Option<f64>,
+    pub load15: Option<f64>,
+    pub swap_used_mb: Option<f64>,
+    pub swap_total_mb: Option<f64>,
+    pub swap_used_percent: Option<f64>,
+    pub uptime_seconds: Option<i64>,
+    pub top_processes: Option<String>,
+}
+
 impl Database {
     pub async fn open(path: &str) -> anyhow::Result<Self> {
         if let Some(parent) = Path::new(path).parent()
@@ -215,20 +243,27 @@ impl Database {
         Ok(row)
     }
 
-    pub async fn system_history(&self, range_hours: i64) -> anyhow::Result<Vec<SystemMetric>> {
+    pub async fn system_history_points(
+        &self,
+        range_hours: i64,
+    ) -> anyhow::Result<Vec<SystemHistoryPoint>> {
         let cutoff = (chrono::Utc::now() - chrono::Duration::hours(range_hours)).to_rfc3339();
         // Downsample long ranges using rollups when available to keep responses small.
         if range_hours > 24 {
             let bucket: i64 = if range_hours > 72 { 3600 } else { 300 };
-            let rows = sqlx::query_as::<_, SystemMetric>(
-                "SELECT 0 as id, bucket_start as timestamp,
-                        COALESCE(cpu_avg,0.0) as cpu_percent,
-                        0.0 as mem_used_mb, 0.0 as mem_total_mb, COALESCE(mem_avg,0.0) as mem_used_percent,
-                        0.0 as disk_used_mb, 0.0 as disk_total_mb, 0.0 as disk_available_mb, COALESCE(disk_avg,0.0) as disk_used_percent,
-                        0 as net_rx_bytes, 0 as net_tx_bytes, COALESCE(net_rx_bps_avg,0.0) as net_rx_bytes_per_sec, COALESCE(net_tx_bps_avg,0.0) as net_tx_bytes_per_sec,
-                        load1_avg as load1, NULL as load5, NULL as load15,
-                        NULL as swap_used_mb, NULL as swap_total_mb, NULL as swap_used_percent,
-                        NULL as uptime_seconds, NULL as top_processes
+            let rows: Vec<(
+                String,
+                i64,
+                f64,
+                f64,
+                f64,
+                f64,
+                f64,
+                Option<f64>,
+            )> = sqlx::query_as(
+                "SELECT bucket_start, samples,
+                        COALESCE(cpu_avg,0.0), COALESCE(mem_avg,0.0), COALESCE(disk_avg,0.0),
+                        COALESCE(net_rx_bps_avg,0.0), COALESCE(net_tx_bps_avg,0.0), load1_avg
                  FROM system_metrics_rollup
                  WHERE bucket_seconds = ? AND bucket_start >= ?
                  ORDER BY bucket_start ASC",
@@ -238,9 +273,74 @@ impl Database {
             .fetch_all(&self.pool)
             .await?;
             if !rows.is_empty() {
-                return Ok(rows);
+                return Ok(rows
+                    .into_iter()
+                    .map(|(timestamp, samples, cpu, mem, disk, rx, tx, load1)| {
+                        SystemHistoryPoint {
+                            timestamp,
+                            origin: "rollup".to_string(),
+                            bucket_seconds: Some(bucket),
+                            samples: Some(samples),
+                            cpu_percent: cpu,
+                            mem_used_mb: None,
+                            mem_total_mb: None,
+                            mem_used_percent: mem,
+                            disk_used_mb: None,
+                            disk_total_mb: None,
+                            disk_available_mb: None,
+                            disk_used_percent: disk,
+                            net_rx_bytes: None,
+                            net_tx_bytes: None,
+                            net_rx_bytes_per_sec: rx,
+                            net_tx_bytes_per_sec: tx,
+                            load1,
+                            load5: None,
+                            load15: None,
+                            swap_used_mb: None,
+                            swap_total_mb: None,
+                            swap_used_percent: None,
+                            uptime_seconds: None,
+                            top_processes: None,
+                        }
+                    })
+                    .collect());
             }
         }
+        let rows = self.system_history(range_hours).await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| SystemHistoryPoint {
+                timestamp: r.timestamp,
+                origin: "raw".to_string(),
+                bucket_seconds: None,
+                samples: None,
+                cpu_percent: r.cpu_percent,
+                mem_used_mb: Some(r.mem_used_mb),
+                mem_total_mb: Some(r.mem_total_mb),
+                mem_used_percent: r.mem_used_percent,
+                disk_used_mb: Some(r.disk_used_mb),
+                disk_total_mb: Some(r.disk_total_mb),
+                disk_available_mb: Some(r.disk_available_mb),
+                disk_used_percent: r.disk_used_percent,
+                net_rx_bytes: Some(r.net_rx_bytes),
+                net_tx_bytes: Some(r.net_tx_bytes),
+                net_rx_bytes_per_sec: r.net_rx_bytes_per_sec,
+                net_tx_bytes_per_sec: r.net_tx_bytes_per_sec,
+                load1: r.load1,
+                load5: r.load5,
+                load15: r.load15,
+                swap_used_mb: r.swap_used_mb,
+                swap_total_mb: r.swap_total_mb,
+                swap_used_percent: r.swap_used_percent,
+                uptime_seconds: r.uptime_seconds,
+                top_processes: r.top_processes,
+            })
+            .collect())
+    }
+
+    pub async fn system_history(&self, range_hours: i64) -> anyhow::Result<Vec<SystemMetric>> {
+        let cutoff = (chrono::Utc::now() - chrono::Duration::hours(range_hours)).to_rfc3339();
+        // Raw points for compatibility; downsampled presentation uses system_history_points.
         let rows = sqlx::query_as::<_, SystemMetric>(
             "SELECT id, timestamp, cpu_percent, mem_used_mb, mem_total_mb, mem_used_percent,
                     disk_used_mb, disk_total_mb, disk_available_mb, disk_used_percent,
@@ -448,6 +548,12 @@ impl Database {
     ) -> anyhow::Result<Vec<SystemMetric>> {
         self.system_history(range_hours).await
     }
+    pub async fn export_system_history_points(
+        &self,
+        range_hours: i64,
+    ) -> anyhow::Result<Vec<SystemHistoryPoint>> {
+        self.system_history_points(range_hours).await
+    }
     pub async fn export_target_history(
         &self,
         target: &str,
@@ -460,25 +566,20 @@ impl Database {
 #[cfg(test)]
 mod tests {
     use super::*;
-    async fn test_db() -> Database {
-        let path = std::env::temp_dir().join(format!("tinytop-test-{}.db", uuid_like()));
+    use tempfile::tempdir;
+
+    async fn test_db() -> (Database, tempfile::TempDir) {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("test.db");
         let db = Database::open(path.to_str().expect("temp path utf-8"))
             .await
             .unwrap();
         db.init().await.unwrap();
-        db
-    }
-    fn uuid_like() -> String {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        format!("{}-{}", std::process::id(), nanos)
+        (db, dir)
     }
     #[tokio::test]
     async fn init_and_insert_system_metric() {
-        let db = test_db().await;
+        let (db, _dir) = test_db().await;
         db.insert_system_metric(
             10.0,
             512.0,
@@ -508,7 +609,7 @@ mod tests {
     }
     #[tokio::test]
     async fn insert_and_query_target_metric() {
-        let db = test_db().await;
+        let (db, _dir) = test_db().await;
         db.insert_target_metric(
             "app",
             "generic",
@@ -528,7 +629,7 @@ mod tests {
 
     #[tokio::test]
     async fn alerts_events_and_rollups_work() {
-        let db = test_db().await;
+        let (db, _dir) = test_db().await;
         assert!(
             db.fire_alert("warn", "system", "cpu", "high", Some(95.0), Some(90.0))
                 .await
@@ -602,6 +703,18 @@ mod tests {
         assert!(created >= 1);
         let hist = db.system_history(48).await.unwrap();
         assert!(!hist.is_empty());
+        let points = db.system_history_points(48).await.unwrap();
+        assert!(!points.is_empty());
+        // range > 24 with rollups returns downsampled rollup points
+        assert_eq!(points[0].origin, "rollup");
+        assert_eq!(points[0].bucket_seconds, Some(300));
+        assert!(points[0].samples.unwrap_or(0) >= 1);
+        // non-aggregated fields must not be misleading zeros
+        assert!(points[0].mem_used_mb.is_none());
+        assert!(points[0].disk_available_mb.is_none());
+        assert!(points[0].net_rx_bytes.is_none());
+        assert!(points[0].load5.is_none());
+        assert!(points[0].uptime_seconds.is_none());
 
         let pruned = db.prune_older_than_hours(9999).await.unwrap();
         assert_eq!(pruned.system_deleted, 0);
@@ -610,7 +723,7 @@ mod tests {
 
     #[tokio::test]
     async fn rollups_bucket_five_minutes() {
-        let db = test_db().await;
+        let (db, _dir) = test_db().await;
         // Three samples within the same 5-minute window and one in the next window.
         for (ts, cpu) in [
             ("2026-11-16T10:01:00Z", 10.0),

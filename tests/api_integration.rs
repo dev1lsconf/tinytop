@@ -162,7 +162,31 @@ async fn api_endpoints_and_export_prometheus() {
     assert!(ct.contains("text/csv"), "content-type was {ct}");
     let body = res.into_body().collect().await.unwrap().to_bytes();
     let s = String::from_utf8(body.to_vec()).unwrap();
-    assert!(s.contains("timestamp,cpu_percent,mem_used_percent"));
+    assert!(s.contains(
+        "timestamp,origin,bucket_seconds,samples,cpu_percent,mem_used_percent,disk_used_percent"
+    ));
+    assert!(s.contains(",raw,"));
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/history?target=system&range=24")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["target"], "system");
+    assert_eq!(v["downsampled"], false);
+    assert!(v["bucket_seconds"].is_null());
+    let pts = v["points"].as_array().unwrap();
+    assert!(!pts.is_empty());
+    assert_eq!(pts[0]["origin"], "raw");
+    assert!(pts[0]["mem_used_mb"].is_number());
 
     let res = app
         .clone()
@@ -178,6 +202,7 @@ async fn api_endpoints_and_export_prometheus() {
     let body = res.into_body().collect().await.unwrap().to_bytes();
     let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(v["target"], "system");
+    assert_eq!(v["downsampled"], false);
     assert!(v["points"].as_array().is_some());
 
     let res = app

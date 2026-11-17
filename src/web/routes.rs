@@ -248,12 +248,25 @@ async fn history(
         );
     }
     if target == "system" {
-        return match state.db.system_history(range).await {
-            Ok(rows) => (
-                StatusCode::OK,
-                Json(json!({"target":"system","range_hours":range,"points":rows})),
-            )
-                .into_response(),
+        return match state.db.system_history_points(range).await {
+            Ok(points) => {
+                let downsampled = points
+                    .first()
+                    .map(|p| p.origin == "rollup")
+                    .unwrap_or(false);
+                let bucket_seconds = points.iter().find_map(|p| p.bucket_seconds);
+                (
+                    StatusCode::OK,
+                    Json(json!({
+                        "target":"system",
+                        "range_hours":range,
+                        "downsampled": downsampled,
+                        "bucket_seconds": bucket_seconds,
+                        "points": points
+                    })),
+                )
+                    .into_response()
+            }
             Err(e) => api_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "db_error",
@@ -353,8 +366,8 @@ async fn export_data(
         );
     }
     if target == "system" {
-        match state.db.export_system_history(range).await {
-            Ok(rows) => export_rows_system(rows, &format),
+        match state.db.export_system_history_points(range).await {
+            Ok(points) => export_rows_system(points, &format),
             Err(e) => api_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "db_error",
@@ -380,22 +393,29 @@ async fn export_data(
     }
 }
 
-fn export_rows_system(rows: Vec<crate::db::SystemMetric>, format: &str) -> Response {
+fn export_rows_system(points: Vec<crate::db::SystemHistoryPoint>, format: &str) -> Response {
     if format.eq_ignore_ascii_case("csv") {
         let mut out = String::from(
-            "timestamp,cpu_percent,mem_used_percent,disk_used_percent,load1,swap_used_percent,net_rx_bps,net_tx_bps\n",
+            "timestamp,origin,bucket_seconds,samples,cpu_percent,mem_used_percent,disk_used_percent,load1,swap_used_percent,net_rx_bps,net_tx_bps\n",
         );
-        for r in rows {
+        for p in points {
             out.push_str(&format!(
-                "{},{},{},{},{},{},{},{}\n",
-                r.timestamp,
-                r.cpu_percent,
-                r.mem_used_percent,
-                r.disk_used_percent,
-                r.load1.unwrap_or(f64::NAN),
-                r.swap_used_percent.unwrap_or(f64::NAN),
-                r.net_rx_bytes_per_sec,
-                r.net_tx_bytes_per_sec
+                "{},{},{},{},{},{},{},{},{},{},{}\n",
+                p.timestamp,
+                p.origin,
+                p.bucket_seconds
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
+                p.samples.map(|v| v.to_string()).unwrap_or_default(),
+                p.cpu_percent,
+                p.mem_used_percent,
+                p.disk_used_percent,
+                p.load1.map(|v| v.to_string()).unwrap_or_default(),
+                p.swap_used_percent
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
+                p.net_rx_bytes_per_sec,
+                p.net_tx_bytes_per_sec
             ));
         }
         (
@@ -405,9 +425,16 @@ fn export_rows_system(rows: Vec<crate::db::SystemMetric>, format: &str) -> Respo
         )
             .into_response()
     } else {
+        let downsampled = points.first().map(|p| p.origin == "rollup").unwrap_or(false);
+        let bucket_seconds = points.iter().find_map(|p| p.bucket_seconds);
         (
             StatusCode::OK,
-            Json(json!({"target":"system","points":rows})),
+            Json(json!({
+                "target":"system",
+                "downsampled": downsampled,
+                "bucket_seconds": bucket_seconds,
+                "points": points
+            })),
         )
             .into_response()
     }
