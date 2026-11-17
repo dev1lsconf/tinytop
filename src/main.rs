@@ -14,7 +14,7 @@ struct Cli {
     config: Option<PathBuf>,
 }
 
-fn parse_cli() -> Cli {
+fn parse_cli() -> anyhow::Result<Cli> {
     let mut cli = Cli {
         tui: false,
         check_config: false,
@@ -30,15 +30,27 @@ fn parse_cli() -> Cli {
             "--help" | "-h" => cli.help = true,
             "--version" | "-V" => cli.version = true,
             "--config" | "-c" => {
-                cli.config = it.next().map(PathBuf::from);
+                let val = it
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("--config requires a path"))?;
+                if val.starts_with('-') {
+                    anyhow::bail!("--config requires a path");
+                }
+                cli.config = Some(PathBuf::from(val));
             }
             s if s.starts_with("--config=") => {
-                cli.config = Some(PathBuf::from(s.trim_start_matches("--config=")));
+                let val = s.trim_start_matches("--config=");
+                if val.is_empty() {
+                    anyhow::bail!("--config requires a path");
+                }
+                cli.config = Some(PathBuf::from(val));
             }
-            _ => {}
+            other => {
+                anyhow::bail!("unknown argument: {other}");
+            }
         }
     }
-    cli
+    Ok(cli)
 }
 
 fn print_help() {
@@ -65,7 +77,14 @@ fn print_help() {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    let cli = parse_cli();
+    let cli = match parse_cli() {
+        Ok(cli) => cli,
+        Err(e) => {
+            eprintln!("error: {e}");
+            eprintln!("Try 'tinytop --help' for usage.");
+            std::process::exit(2);
+        }
+    };
     if cli.help {
         print_help();
         return Ok(());
