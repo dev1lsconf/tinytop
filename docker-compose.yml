@@ -16,8 +16,7 @@ services:
       TINYTOP_INTERVAL: "60"
       TINYTOP_RETENTION_HOURS: "168"
       RUST_LOG: "info"
-    ports:
-      - "9090:9090"
+    network_mode: "host"
     restart: unless-stopped
     mem_limit: 256m
     memswap_limit: 256m

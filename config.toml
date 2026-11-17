@@ -18,5 +18,5 @@ kind = "generic"
 
 [[targets]]
 name = "freellmapi"
-url = "http://localhost:3001/v1/models"
+url = "http://localhost:3001/health"
 kind = "generic"
