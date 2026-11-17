@@ -364,9 +364,49 @@ pub async fn config_reload_loop(
                     let path = std::env::var("TINYTOP_CONFIG").ok().map(std::path::PathBuf::from);
                     match Config::load_with_path(path) {
                         Ok(newc) => {
-                            *cfg_shared.write().await = newc;
-                            let _ = db.insert_event("info","config_reload",None,"config reloaded via SIGHUP",None).await;
-                            tracing::info!("config reloaded via SIGHUP");
+                            let (msg, changed_restart_fields) = {
+                                let mut shared = cfg_shared.write().await;
+                                let mut non_reloadable = Vec::new();
+                                if newc.bind != shared.bind {
+                                    non_reloadable.push("bind");
+                                }
+                                if newc.port != shared.port {
+                                    non_reloadable.push("port");
+                                }
+                                if newc.db_path != shared.db_path {
+                                    non_reloadable.push("db_path");
+                                }
+                                *shared = newc;
+                                if non_reloadable.is_empty() {
+                                    ("config reloaded via SIGHUP".to_string(), false)
+                                } else {
+                                    (
+                                        format!(
+                                            "config reloaded via SIGHUP (restart required for: {})",
+                                            non_reloadable.join(", ")
+                                        ),
+                                        true,
+                                    )
+                                }
+                            };
+                            let _ = db
+                                .insert_event(
+                                    "info",
+                                    "config_reload",
+                                    None,
+                                    &msg,
+                                    if changed_restart_fields {
+                                        Some("bind/port/db_path changes require process restart")
+                                    } else {
+                                        None
+                                    },
+                                )
+                                .await;
+                            if changed_restart_fields {
+                                tracing::warn!("{msg}");
+                            } else {
+                                tracing::info!("{msg}");
+                            }
                         }
                         Err(e) => {
                             tracing::warn!("config reload failed: {e}");
