@@ -1,12 +1,12 @@
 use crate::config::{Config, Target};
 use serde::Serialize;
 use std::collections::HashSet;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 #[cfg(not(any(target_os = "openbsd", target_os = "freebsd", target_os = "netbsd")))]
 use sysinfo::{Disks, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 
-static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+static HTTP_CLIENT: OnceLock<Mutex<(u64, reqwest::Client)>> = OnceLock::new();
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct SystemMetrics {
@@ -98,18 +98,31 @@ pub async fn collect(config: &Config, state: &mut CollectorState) -> anyhow::Res
     })
 }
 
-fn http_client(timeout_secs: u64) -> reqwest::Client {
-    HTTP_CLIENT
-        .get_or_init(|| {
-            reqwest::Client::builder()
-                .timeout(Duration::from_secs(timeout_secs.max(1)))
-                .pool_max_idle_per_host(4)
-                .tcp_keepalive(Duration::from_secs(30))
-                .user_agent(format!("tinytop/{}", env!("CARGO_PKG_VERSION")))
-                .build()
-                .expect("failed to build http client")
+fn build_http_client(timeout_secs: u64) -> reqwest::Client {
+    let secs = timeout_secs.max(1);
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(secs))
+        .pool_max_idle_per_host(4)
+        .tcp_keepalive(Duration::from_secs(30))
+        .user_agent(format!("tinytop/{}", env!("CARGO_PKG_VERSION")))
+        .build()
+        .unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "failed to build http client with timeout, using defaults");
+            reqwest::Client::new()
         })
-        .clone()
+}
+
+fn http_client(timeout_secs: u64) -> reqwest::Client {
+    let secs = timeout_secs.max(1);
+    let cell = HTTP_CLIENT.get_or_init(|| Mutex::new((secs, build_http_client(secs))));
+    if let Ok(mut guard) = cell.lock() {
+        if guard.0 != secs {
+            *guard = (secs, build_http_client(secs));
+        }
+        return guard.1.clone();
+    }
+    // Fallback if the mutex is poisoned.
+    build_http_client(secs)
 }
 
 fn collect_system(state: &mut CollectorState) -> SystemMetrics {
