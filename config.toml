@@ -15,3 +15,8 @@ kind = "spring-boot"
 name = "api"
 url = "http://localhost:3000/api/health"
 kind = "generic"
+
+[[targets]]
+name = "freellmapi"
+url = "http://localhost:3001/v1/models"
+kind = "generic"
