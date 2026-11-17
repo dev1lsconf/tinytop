@@ -412,18 +412,19 @@ impl Database {
         .await
         .unwrap_or(None);
         let since = last.unwrap_or_else(|| "1970-01-01T00:00:00Z".to_string());
-        // SQLite: strftime-based bucketing on ISO timestamps
-        let fmt = if bucket_seconds >= 3600 {
-            "%Y-%m-%dT%H:00:00Z"
+        // SQLite: strftime-based bucketing on ISO timestamps. For 5m buckets we must
+        // truncate to 5-minute boundaries (not just zero seconds).
+        let bucket_expr = if bucket_seconds >= 3600 {
+            "strftime('%Y-%m-%dT%H:00:00Z', timestamp)".to_string()
         } else if bucket_seconds >= 300 {
-            "%Y-%m-%dT%H:%M:00Z"
+            "strftime('%Y-%m-%dT%H:', timestamp) || printf('%02d:00Z', (CAST(strftime('%M', timestamp) AS INTEGER) / 5) * 5)".to_string()
         } else {
-            "%Y-%m-%dT%H:%M:%SZ"
+            "strftime('%Y-%m-%dT%H:%M:%SZ', timestamp)".to_string()
         };
-        let res = sqlx::query(
+        let sql = format!(
             "INSERT OR REPLACE INTO system_metrics_rollup
              (bucket_start, bucket_seconds, samples, cpu_avg,cpu_max, mem_avg,mem_max, disk_avg,disk_max, net_rx_bps_avg, net_tx_bps_avg, load1_avg, load1_max)
-             SELECT strftime(?, timestamp) as b, ? as bs, COUNT(*),
+             SELECT {bucket_expr} as b, ? as bs, COUNT(*),
                     AVG(cpu_percent), MAX(cpu_percent),
                     AVG(mem_used_percent), MAX(mem_used_percent),
                     AVG(disk_used_percent), MAX(disk_used_percent),
@@ -431,7 +432,12 @@ impl Database {
                     AVG(load1), MAX(load1)
              FROM system_metrics WHERE timestamp > ?
              GROUP BY b"
-        ).bind(fmt).bind(bucket_seconds).bind(since).execute(&self.pool).await?;
+        );
+        let res = sqlx::query(&sql)
+            .bind(bucket_seconds)
+            .bind(since)
+            .execute(&self.pool)
+            .await?;
         Ok(res.rows_affected())
     }
 
@@ -600,5 +606,69 @@ mod tests {
         let pruned = db.prune_older_than_hours(9999).await.unwrap();
         assert_eq!(pruned.system_deleted, 0);
         assert_eq!(pruned.target_deleted, 0);
+    }
+
+    #[tokio::test]
+    async fn rollups_bucket_five_minutes() {
+        let db = test_db().await;
+        // Three samples within the same 5-minute window and one in the next window.
+        for (ts, cpu) in [
+            ("2026-11-16T10:01:00Z", 10.0),
+            ("2026-11-16T10:03:00Z", 20.0),
+            ("2026-11-16T10:04:30Z", 30.0),
+            ("2026-11-16T10:07:00Z", 40.0),
+        ] {
+            sqlx::query(
+                "INSERT INTO system_metrics (
+                    timestamp, cpu_percent, mem_used_mb, mem_total_mb, mem_used_percent,
+                    disk_used_mb, disk_total_mb, disk_available_mb, disk_used_percent,
+                    net_rx_bytes, net_tx_bytes, net_rx_bytes_per_sec, net_tx_bytes_per_sec,
+                    load1, load5, load15, swap_used_mb, swap_total_mb, swap_used_percent,
+                    uptime_seconds, top_processes
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            )
+            .bind(ts)
+            .bind(cpu)
+            .bind(512.0)
+            .bind(1024.0)
+            .bind(50.0)
+            .bind(1000.0)
+            .bind(2000.0)
+            .bind(1000.0)
+            .bind(50.0)
+            .bind(100_i64)
+            .bind(200_i64)
+            .bind(10.0)
+            .bind(20.0)
+            .bind(Some(0.5))
+            .bind(Some(0.4))
+            .bind(Some(0.3))
+            .bind(Some(0.0))
+            .bind(Some(0.0))
+            .bind(Some(0.0))
+            .bind(Some(100_i64))
+            .bind::<Option<String>>(None)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        }
+
+        let created = db.compute_rollups(300).await.unwrap();
+        assert_eq!(created, 2);
+
+        let rows: Vec<(String, i64, f64)> = sqlx::query_as(
+            "SELECT bucket_start, samples, cpu_avg FROM system_metrics_rollup WHERE bucket_seconds = 300 ORDER BY bucket_start ASC",
+        )
+        .fetch_all(&db.pool)
+        .await
+        .unwrap();
+
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].0, "2026-11-16T10:00:00Z");
+        assert_eq!(rows[0].1, 3);
+        assert!((rows[0].2 - 20.0).abs() < 1e-9);
+        assert_eq!(rows[1].0, "2026-11-16T10:05:00Z");
+        assert_eq!(rows[1].1, 1);
+        assert!((rows[1].2 - 40.0).abs() < 1e-9);
     }
 }
