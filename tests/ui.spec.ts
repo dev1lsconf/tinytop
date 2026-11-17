@@ -18,7 +18,7 @@ test.describe('TinyTop dashboard', () => {
 
     await expect(page.locator('#cpuValue')).not.toHaveText('--%', { timeout: 20_000 });
     await expect(page.locator('#memoryValue')).not.toHaveText('--');
-    await expect(page.locator('#diskValue')).not.toHaveText('--');
+    await expect(page.locator('#netRateValue')).toBeVisible();
 
     await expect.poll(async () => {
       return page.evaluate(() => {

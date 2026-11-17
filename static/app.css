@@ -15,7 +15,7 @@
     .control{display:flex;align-items:center;gap:6px}
     .controls .meta{margin:0}
     .meta{color:var(--muted2);font-size:.8rem}.banner{display:none;margin-bottom:16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);color:#fecaca}.banner.show{display:block}
-    .grid{display:grid;gap:16px}.stats{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px;align-items:stretch}.charts{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}
+    .grid{display:grid;gap:16px}.stats{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:16px;align-items:stretch}.charts{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}
     .card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border:1px solid var(--card-border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.03);display:flex;flex-direction:column}
     .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
     .label{color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;margin:0 0 4px}.value{font-size:1.6rem;font-weight:700;margin:0;line-height:1.15}.sub{color:var(--muted2);font-size:.8rem;margin:4px 0 0}

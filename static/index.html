@@ -30,13 +30,11 @@
     <section class="grid stats" aria-label="Métricas del sistema" data-testid="stats-grid">
       <article class="card" data-testid="card-cpu"><div class="card-head"><div><p class="label">CPU</p><p class="value" id="cpuValue">--%</p><p class="sub" id="cpuMeta">Uso global</p></div><div class="icon">CPU</div></div><div class="bar"><div id="cpuBar" class="fill fill-cpu"></div></div></article>
       <article class="card" data-testid="card-memory"><div class="card-head"><div><p class="label">Memoria</p><p class="value" id="memoryValue">--</p><p class="sub" id="memoryMeta">Usada / total</p></div><div class="icon">RAM</div></div><div class="bar"><div id="memoryBar" class="fill fill-mem"></div></div></article>
-      <article class="card" data-testid="card-disk"><div class="card-head"><div><p class="label">Disco</p><p class="value" id="diskValue">--</p><p class="sub" id="diskMeta">Usado / total (disp.)</p></div><div class="icon">DISK</div></div><div class="bar"><div id="diskBar" class="fill fill-disk"></div></div></article>
       <article class="card" data-testid="card-network"><div class="card-head"><div><p class="label">Red</p><p class="value" id="netRateValue">--</p><p class="sub" id="netMeta">↓ RX/s · ↑ TX/s</p></div><div class="icon">NET</div></div><div class="bar"><div id="netBar" class="fill fill-net"></div></div><p class="card-foot" id="netTotals">RX total: -- · TX total: --</p></article>
     </section>
 
     <section class="kv" aria-label="Métricas extendidas">
       <div class="item"><p class="k">Load (1/5/15)</p><p class="v" id="kvLoad">--</p></div>
-      <div class="item"><p class="k">Swap</p><p class="v" id="kvSwap">--</p></div>
       <div class="item"><p class="k">Uptime</p><p class="v" id="kvUptime">--</p></div>
       <div class="item"><p class="k">Top procesos</p><p class="v mono" id="kvProcs">--</p></div>
       <div class="item"><p class="k">Alertas activas</p><p class="v" id="kvAlerts">--</p></div>
@@ -48,8 +46,6 @@
       <article class="card" data-testid="chart-memory-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Memoria</h2></div><span id="memoryChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="memoryChart"></canvas><div id="memoryChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
       <article class="card" data-testid="chart-net-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Red (RX/TX)</h2></div><span id="netChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="netChart"></canvas><div id="netChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
       <article class="card" data-testid="chart-load-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Load average (1/5/15)</h2></div><span id="loadChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="loadChart"></canvas><div id="loadChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
-      <article class="card" data-testid="chart-swap-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Swap</h2></div><span id="swapChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="swapChart"></canvas><div id="swapChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
-      <article class="card" data-testid="chart-disk-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Disco</h2></div><span id="diskChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="diskChart"></canvas><div id="diskChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
     </section>
 
     <section class="card mb-16" data-testid="targets-card" aria-label="Targets monitoreados">
