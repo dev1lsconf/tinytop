@@ -251,16 +251,8 @@ impl Database {
         // Downsample long ranges using rollups when available to keep responses small.
         if range_hours > 24 {
             let bucket: i64 = if range_hours > 72 { 3600 } else { 300 };
-            let rows: Vec<(
-                String,
-                i64,
-                f64,
-                f64,
-                f64,
-                f64,
-                f64,
-                Option<f64>,
-            )> = sqlx::query_as(
+            type RollupRow = (String, i64, f64, f64, f64, f64, f64, Option<f64>);
+            let rows: Vec<RollupRow> = sqlx::query_as(
                 "SELECT bucket_start, samples,
                         COALESCE(cpu_avg,0.0), COALESCE(mem_avg,0.0), COALESCE(disk_avg,0.0),
                         COALESCE(net_rx_bps_avg,0.0), COALESCE(net_tx_bps_avg,0.0), load1_avg
@@ -275,8 +267,8 @@ impl Database {
             if !rows.is_empty() {
                 return Ok(rows
                     .into_iter()
-                    .map(|(timestamp, samples, cpu, mem, disk, rx, tx, load1)| {
-                        SystemHistoryPoint {
+                    .map(
+                        |(timestamp, samples, cpu, mem, disk, rx, tx, load1)| SystemHistoryPoint {
                             timestamp,
                             origin: "rollup".to_string(),
                             bucket_seconds: Some(bucket),
@@ -301,8 +293,8 @@ impl Database {
                             swap_used_percent: None,
                             uptime_seconds: None,
                             top_processes: None,
-                        }
-                    })
+                        },
+                    )
                     .collect());
             }
         }
@@ -503,7 +495,9 @@ impl Database {
 
     // --- rollups (simple bucketed aggregation) ---
     pub async fn compute_rollups(&self, bucket_seconds: i64) -> anyhow::Result<u64> {
-        // aggregate raw system_metrics into buckets newer than latest rollup bucket for this size
+        // Recompute from the latest existing bucket start (inclusive window by
+        // re-aggregating that bucket) so late samples and a corrected bucket
+        // boundary update the rollup instead of being skipped forever.
         let last: Option<String> = sqlx::query_scalar(
             "SELECT MAX(bucket_start) FROM system_metrics_rollup WHERE bucket_seconds=?",
         )
@@ -530,7 +524,7 @@ impl Database {
                     AVG(disk_used_percent), MAX(disk_used_percent),
                     AVG(net_rx_bytes_per_sec), AVG(net_tx_bytes_per_sec),
                     AVG(load1), MAX(load1)
-             FROM system_metrics WHERE timestamp > ?
+             FROM system_metrics WHERE timestamp >= ?
              GROUP BY b"
         );
         let res = sqlx::query(&sql)

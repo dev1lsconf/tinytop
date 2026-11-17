@@ -194,7 +194,6 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,11 +222,17 @@ mod tests {
     #[test]
     fn parse_cli_accepts_config_and_flags() {
         let cli = parse_cli_from(["--config", "foo.toml", "--check-config", "--tui"]).unwrap();
-        assert_eq!(cli.config.as_deref(), Some(std::path::Path::new("foo.toml")));
+        assert_eq!(
+            cli.config.as_deref(),
+            Some(std::path::Path::new("foo.toml"))
+        );
         assert!(cli.check_config);
         assert!(cli.tui);
 
         let cli = parse_cli_from(["--config=bar.toml"]).unwrap();
-        assert_eq!(cli.config.as_deref(), Some(std::path::Path::new("bar.toml")));
+        assert_eq!(
+            cli.config.as_deref(),
+            Some(std::path::Path::new("bar.toml"))
+        );
     }
 }

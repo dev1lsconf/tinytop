@@ -427,9 +427,7 @@ fn export_rows_system(points: Vec<crate::db::SystemHistoryPoint>, format: &str) 
                 "{},{},{},{},{},{},{},{},{},{},{}\n",
                 p.timestamp,
                 p.origin,
-                p.bucket_seconds
-                    .map(|v| v.to_string())
-                    .unwrap_or_default(),
+                p.bucket_seconds.map(|v| v.to_string()).unwrap_or_default(),
                 p.samples.map(|v| v.to_string()).unwrap_or_default(),
                 p.cpu_percent,
                 p.mem_used_percent,
@@ -449,7 +447,10 @@ fn export_rows_system(points: Vec<crate::db::SystemHistoryPoint>, format: &str) 
         )
             .into_response()
     } else {
-        let downsampled = points.first().map(|p| p.origin == "rollup").unwrap_or(false);
+        let downsampled = points
+            .first()
+            .map(|p| p.origin == "rollup")
+            .unwrap_or(false);
         let bucket_seconds = points.iter().find_map(|p| p.bucket_seconds);
         (
             StatusCode::OK,

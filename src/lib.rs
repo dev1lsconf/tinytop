@@ -190,9 +190,13 @@ pub async fn run_collector(
             last_prune = Instant::now();
         }
         if last_rollup.elapsed() >= Duration::from_secs(300) {
-            let _ = db.compute_rollups(300).await;
-            if last_rollup.elapsed() >= Duration::from_secs(3600) {
-                let _ = db.compute_rollups(3600).await;
+            if let Err(e) = db.compute_rollups(300).await {
+                tracing::debug!(error = %e, "5m rollup computation failed");
+            }
+            if last_rollup.elapsed() >= Duration::from_secs(3600)
+                && let Err(e) = db.compute_rollups(3600).await
+            {
+                tracing::debug!(error = %e, "1h rollup computation failed");
             }
             last_rollup = Instant::now();
         }
@@ -386,8 +390,8 @@ pub async fn dispatch_notifications(
     let msg = format_notification_message(&relevant);
     let mut sent = false;
     if let Some(url) = &cfg.notifications.webhook_url {
-        let is_discord = url.contains("discord.com/api/webhooks")
-            || url.contains("discordapp.com/api/webhooks");
+        let is_discord =
+            url.contains("discord.com/api/webhooks") || url.contains("discordapp.com/api/webhooks");
         let payload = if is_discord {
             serde_json::json!({"content": msg})
         } else {
@@ -729,8 +733,16 @@ mod tests {
         let mut st = NotifyState { last_sent: None };
         assert!(notification_cooldown_allows(&cfg, &st, now));
         st.last_sent = Some(now);
-        assert!(!notification_cooldown_allows(&cfg, &st, now + Duration::from_secs(30)));
-        assert!(notification_cooldown_allows(&cfg, &st, now + Duration::from_secs(61)));
+        assert!(!notification_cooldown_allows(
+            &cfg,
+            &st,
+            now + Duration::from_secs(30)
+        ));
+        assert!(notification_cooldown_allows(
+            &cfg,
+            &st,
+            now + Duration::from_secs(61)
+        ));
 
         cfg.notifications.cooldown_secs = 0;
         assert!(notification_cooldown_allows(&cfg, &st, now));

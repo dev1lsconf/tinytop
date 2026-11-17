@@ -89,5 +89,8 @@ Logs: TinyTop usa `tracing`; controla verbosidad con `RUST_LOG` (p.ej. `RUST_LOG
 
 ## 6. Compatibilidad y releases
 
+- **Cadena automática:** Release Please (merge de su PR en `master`) crea tag/release y dispara el workflow `Release`, que publica tarballs (Linux/*BSD) + checksums, `.deb/.rpm` (x86_64) e imagen multi-arch en GHCR. La validación end-to-end real (PR→tag/release→assets/imagen) debe ejecutarse en GitHub sobre el repositorio remoto.
+- **Fallback manual:** ante fallo del disparo automático o para republicar, ejecutar `Actions → Release → Run workflow` (`workflow_dispatch`) con el `tag` (p. ej. `vX.Y.Z`); el workflow hace checkout y publica contra ese tag. También puede crearse/publicarse el tag/release manualmente para activar el trigger por tag.
 - Artefactos por release (tags `v*`): tarballs Linux x86_64/aarch64/musl y *BSD x86_64, paquetes `.deb/.rpm` (x86_64) e imagen `ghcr.io/dev1lsconf/tinytop` (multi-arch amd64/arm64). Ver [Releases](https://github.com/dev1lsconf/tinytop/releases) y [`packaging/`](../packaging/README.md).
+- **Recetas de empaquetado:** `packaging/` (Homebrew/AUR/*BSD/systemd) son plantillas; al publicar un release deben actualizarse versión y checksums (`sha256`) según los artefactos publicados y, si cambia el runner/tooling, ajustar las recetas para mantener compatibilidad.
 - Cambios y notas de versión: [CHANGELOG.md](../CHANGELOG.md).
