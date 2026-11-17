@@ -93,7 +93,7 @@ impl Default for AlertConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NotificationConfig {
     #[serde(default)]
     pub webhook_url: Option<String>,
@@ -105,6 +105,30 @@ pub struct NotificationConfig {
     pub ntfy_url: Option<String>,
     #[serde(default)]
     pub ntfy_topic: Option<String>,
+    /// Minimum seconds between notification deliveries (rate-limit/cooldown). 0 disables cooldown.
+    #[serde(default = "default_notify_cooldown_secs")]
+    pub cooldown_secs: u64,
+    /// Send notifications when alerts transition to firing.
+    #[serde(default = "default_true")]
+    pub notify_on_firing: bool,
+    /// Send notifications when alerts transition to resolved.
+    #[serde(default = "default_true")]
+    pub notify_on_resolve: bool,
+}
+
+impl Default for NotificationConfig {
+    fn default() -> Self {
+        Self {
+            webhook_url: None,
+            telegram_bot_token: None,
+            telegram_chat_id: None,
+            ntfy_url: None,
+            ntfy_topic: None,
+            cooldown_secs: default_notify_cooldown_secs(),
+            notify_on_firing: true,
+            notify_on_resolve: true,
+        }
+    }
 }
 
 fn default_bind() -> String {
@@ -148,6 +172,9 @@ fn default_latency_warn() -> f64 {
 }
 fn default_cert_days_warn() -> i64 {
     14
+}
+fn default_notify_cooldown_secs() -> u64 {
+    300
 }
 
 impl Default for Config {

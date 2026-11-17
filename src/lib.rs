@@ -55,6 +55,20 @@ impl RuntimeStatus {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct NotifyState {
+    pub last_sent: Option<Instant>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AlertTransition {
+    pub status: String, // "firing" | "resolved"
+    pub severity: String,
+    pub source: String,
+    pub name: String,
+    pub message: String,
+}
+
 pub async fn run_collector(
     db: Arc<db::Database>,
     cfg_shared: Arc<RwLock<Config>>,
@@ -62,6 +76,7 @@ pub async fn run_collector(
     shutdown: Arc<AtomicBool>,
 ) {
     let mut state = CollectorState::default();
+    let mut notify_state = NotifyState::default();
     let mut last_prune = Instant::now() - Duration::from_secs(3600);
     let mut last_rollup = Instant::now() - Duration::from_secs(3600);
 
@@ -127,7 +142,7 @@ pub async fn run_collector(
                 }
 
                 if cfg.alerts.enabled {
-                    evaluate_alerts(&db, &cfg, &snap).await;
+                    evaluate_alerts(&db, &cfg, &snap, &mut notify_state).await;
                 }
 
                 let mut rt = runtime.write().await;
@@ -193,10 +208,15 @@ pub async fn run_collector(
     }
 }
 
-pub async fn evaluate_alerts(db: &db::Database, cfg: &Config, snap: &collector::Snapshot) {
+pub async fn evaluate_alerts(
+    db: &db::Database,
+    cfg: &Config,
+    snap: &collector::Snapshot,
+    notify_state: &mut NotifyState,
+) {
     let s = &snap.system;
     let a = &cfg.alerts;
-    let mut changed = false;
+    let mut transitions: Vec<AlertTransition> = Vec::new();
     macro_rules! check {
         ($cond:expr, $src:expr, $name:expr, $sev:expr, $msg:expr, $val:expr, $th:expr) => {
             if $cond {
@@ -205,10 +225,22 @@ pub async fn evaluate_alerts(db: &db::Database, cfg: &Config, snap: &collector::
                         .await,
                     Ok(true)
                 ) {
-                    changed = true;
+                    transitions.push(AlertTransition {
+                        status: "firing".to_string(),
+                        severity: $sev.to_string(),
+                        source: $src.to_string(),
+                        name: $name.to_string(),
+                        message: $msg.to_string(),
+                    });
                 }
             } else if matches!(db.resolve_alert($src, $name).await, Ok(true)) {
-                changed = true;
+                transitions.push(AlertTransition {
+                    status: "resolved".to_string(),
+                    severity: $sev.to_string(),
+                    source: $src.to_string(),
+                    name: $name.to_string(),
+                    message: format!("{} (resolved)", $msg),
+                });
             }
         };
     }
@@ -295,34 +327,74 @@ pub async fn evaluate_alerts(db: &db::Database, cfg: &Config, snap: &collector::
             );
         }
     }
-    if changed {
-        dispatch_notifications(db, cfg).await;
+    if !transitions.is_empty() {
+        dispatch_notifications(db, cfg, &transitions, notify_state).await;
     }
 }
 
-pub async fn dispatch_notifications(db: &db::Database, cfg: &Config) {
-    let firing = match db.list_alerts(Some("firing"), 20).await {
-        Ok(v) => v,
-        Err(_) => return,
-    };
-    if firing.is_empty() {
+pub fn filter_notification_transitions(
+    cfg: &Config,
+    transitions: &[AlertTransition],
+) -> Vec<AlertTransition> {
+    transitions
+        .iter()
+        .filter(|t| match t.status.as_str() {
+            "firing" => cfg.notifications.notify_on_firing,
+            "resolved" => cfg.notifications.notify_on_resolve,
+            _ => true,
+        })
+        .cloned()
+        .collect()
+}
+
+pub fn notification_cooldown_allows(cfg: &Config, state: &NotifyState, now: Instant) -> bool {
+    let cooldown = cfg.notifications.cooldown_secs;
+    if cooldown == 0 {
+        return true;
+    }
+    match state.last_sent {
+        None => true,
+        Some(last) => now.duration_since(last) >= Duration::from_secs(cooldown),
+    }
+}
+
+fn format_notification_message(transitions: &[AlertTransition]) -> String {
+    transitions
+        .iter()
+        .map(|t| {
+            let status = t.status.to_ascii_uppercase();
+            format!("[{status}] [{}] {}: {}", t.severity, t.source, t.message)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+pub async fn dispatch_notifications(
+    _db: &db::Database,
+    cfg: &Config,
+    transitions: &[AlertTransition],
+    notify_state: &mut NotifyState,
+) {
+    let relevant = filter_notification_transitions(cfg, transitions);
+    if relevant.is_empty() {
         return;
     }
-    let msg = firing
-        .iter()
-        .map(|a| format!("[{}] {}: {}", a.severity, a.source, a.message))
-        .collect::<Vec<_>>()
-        .join("\n");
+    let now = Instant::now();
+    if !notification_cooldown_allows(cfg, notify_state, now) {
+        return;
+    }
+    let msg = format_notification_message(&relevant);
+    let mut sent = false;
     if let Some(url) = &cfg.notifications.webhook_url {
-        let is_discord =
-            url.contains("discord.com/api/webhooks") || url.contains("discordapp.com/api/webhooks");
+        let is_discord = url.contains("discord.com/api/webhooks")
+            || url.contains("discordapp.com/api/webhooks");
         let payload = if is_discord {
-            // Discord incoming webhooks expect "content" (plain text). Keep it short and readable.
             serde_json::json!({"content": msg})
         } else {
-            serde_json::json!({"text": msg, "alerts": firing})
+            serde_json::json!({"text": msg, "transitions": relevant})
         };
         let _ = reqwest::Client::new().post(url).json(&payload).send().await;
+        sent = true;
     }
     if let (Some(token), Some(chat)) = (
         &cfg.notifications.telegram_bot_token,
@@ -334,6 +406,7 @@ pub async fn dispatch_notifications(db: &db::Database, cfg: &Config) {
             .form(&[("chat_id", chat.as_str()), ("text", msg.as_str())])
             .send()
             .await;
+        sent = true;
     }
     if let Some(base) = &cfg.notifications.ntfy_url {
         let topic = cfg
@@ -343,6 +416,10 @@ pub async fn dispatch_notifications(db: &db::Database, cfg: &Config) {
             .unwrap_or_else(|| "tinytop".into());
         let url = format!("{}/{}", base.trim_end_matches('/'), topic);
         let _ = reqwest::Client::new().post(url).body(msg).send().await;
+        sent = true;
+    }
+    if sent {
+        notify_state.last_sent = Some(now);
     }
 }
 
@@ -527,12 +604,13 @@ mod tests {
     async fn evaluate_alerts_fires_resolves_and_dedups() {
         let (db, _dir) = test_db().await;
         let cfg = base_cfg();
+        let mut notify_state = NotifyState::default();
 
         let mut sys = ok_system();
         sys.cpu_percent = 95.0;
         sys.mem_used_percent = 95.0;
         sys.disk_used_percent = 95.0;
-        evaluate_alerts(&db, &cfg, &snap(sys, vec![])).await;
+        evaluate_alerts(&db, &cfg, &snap(sys, vec![]), &mut notify_state).await;
         let firing = db.list_alerts(Some("firing"), 50).await.unwrap();
         assert!(firing.iter().any(|a| a.name == "cpu_high"));
         assert!(firing.iter().any(|a| a.name == "mem_high"));
@@ -543,13 +621,13 @@ mod tests {
         sys2.cpu_percent = 96.0;
         sys2.mem_used_percent = 96.0;
         sys2.disk_used_percent = 96.0;
-        evaluate_alerts(&db, &cfg, &snap(sys2, vec![])).await;
+        evaluate_alerts(&db, &cfg, &snap(sys2, vec![]), &mut notify_state).await;
         let firing2 = db.list_alerts(Some("firing"), 50).await.unwrap();
         let cpu_count = firing2.iter().filter(|a| a.name == "cpu_high").count();
         assert_eq!(cpu_count, 1);
 
         // recover -> resolves
-        evaluate_alerts(&db, &cfg, &snap(ok_system(), vec![])).await;
+        evaluate_alerts(&db, &cfg, &snap(ok_system(), vec![]), &mut notify_state).await;
         let firing3 = db.list_alerts(Some("firing"), 50).await.unwrap();
         assert!(firing3.is_empty());
         let resolved = db.list_alerts(Some("resolved"), 50).await.unwrap();
@@ -561,6 +639,7 @@ mod tests {
         let (db, _dir) = test_db().await;
         let cfg = base_cfg();
         let sys = ok_system();
+        let mut notify_state = NotifyState::default();
 
         let t_down = TargetInfo {
             name: "svc".into(),
@@ -573,7 +652,13 @@ mod tests {
             cert_days_left: Some(5),
             check_type: "http".into(),
         };
-        evaluate_alerts(&db, &cfg, &snap(sys.clone(), vec![t_down])).await;
+        evaluate_alerts(
+            &db,
+            &cfg,
+            &snap(sys.clone(), vec![t_down]),
+            &mut notify_state,
+        )
+        .await;
         let firing = db.list_alerts(Some("firing"), 50).await.unwrap();
         assert!(
             firing
@@ -602,8 +687,52 @@ mod tests {
             cert_days_left: Some(90),
             check_type: "http".into(),
         };
-        evaluate_alerts(&db, &cfg, &snap(sys, vec![t_ok])).await;
+        evaluate_alerts(&db, &cfg, &snap(sys, vec![t_ok]), &mut notify_state).await;
         let firing2 = db.list_alerts(Some("firing"), 50).await.unwrap();
         assert!(firing2.is_empty());
+    }
+
+    #[test]
+    fn notification_transitions_filtering_and_format() {
+        let mut cfg = base_cfg();
+        cfg.notifications.notify_on_firing = true;
+        cfg.notifications.notify_on_resolve = false;
+        let transitions = vec![
+            AlertTransition {
+                status: "firing".into(),
+                severity: "warn".into(),
+                source: "system".into(),
+                name: "cpu_high".into(),
+                message: "CPU high".into(),
+            },
+            AlertTransition {
+                status: "resolved".into(),
+                severity: "warn".into(),
+                source: "system".into(),
+                name: "cpu_high".into(),
+                message: "CPU high (resolved)".into(),
+            },
+        ];
+        let filtered = filter_notification_transitions(&cfg, &transitions);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].status, "firing");
+        let msg = format_notification_message(&filtered);
+        assert!(msg.contains("[FIRING]"));
+        assert!(msg.contains("cpu_high") || msg.contains("CPU"));
+    }
+
+    #[test]
+    fn notification_cooldown_allows_respects_window() {
+        let mut cfg = base_cfg();
+        cfg.notifications.cooldown_secs = 60;
+        let now = Instant::now();
+        let mut st = NotifyState { last_sent: None };
+        assert!(notification_cooldown_allows(&cfg, &st, now));
+        st.last_sent = Some(now);
+        assert!(!notification_cooldown_allows(&cfg, &st, now + Duration::from_secs(30)));
+        assert!(notification_cooldown_allows(&cfg, &st, now + Duration::from_secs(61)));
+
+        cfg.notifications.cooldown_secs = 0;
+        assert!(notification_cooldown_allows(&cfg, &st, now));
     }
 }
