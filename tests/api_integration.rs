@@ -293,6 +293,50 @@ async fn api_endpoints_and_export_prometheus() {
     let s = String::from_utf8(body.to_vec()).unwrap();
     assert!(s.contains("tinytop_up"));
     assert!(s.contains("tinytop_target_up"));
+
+    // dashboard y assets (CSP endurecida, sin unsafe-inline)
+    let res = app
+        .clone()
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let csp = res
+        .headers()
+        .get("content-security-policy")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    assert!(csp.contains("script-src 'self'"));
+    assert!(!csp.contains("unsafe-inline"));
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let html = String::from_utf8(body.to_vec()).unwrap();
+    assert!(html.contains("/static/app.js"));
+    assert!(html.contains("/static/app.css"));
+    assert!(html.contains("authBtn"));
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/static/app.js")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/static/app.css")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
 }
 
 async fn test_app_with_auth() -> (axum::Router, tempfile::TempDir) {

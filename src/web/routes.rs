@@ -27,6 +27,8 @@ struct ListParams {
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/", get(serve_index))
+        .route("/static/app.css", get(serve_app_css))
+        .route("/static/app.js", get(serve_app_js))
         .route("/static/vendor/chart.umd.min.js", get(serve_chart_js))
         .route("/api/health", get(health))
         .route("/api/metrics/latest", get(latest))
@@ -60,9 +62,12 @@ async fn security_headers(req: Request, next: Next) -> Response {
         header::HeaderName::from_static("permissions-policy"),
         HeaderValue::from_static("geolocation=(), microphone=(), camera=()"),
     );
-    headers.insert(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static(
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' data:; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
-    ));
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+        ),
+    );
     res
 }
 
@@ -160,6 +165,25 @@ fn is_authorized(headers: &HeaderMap, query: Option<&str>, cfg: &crate::config::
 
 async fn serve_index() -> impl IntoResponse {
     Html(include_str!("../../static/index.html"))
+}
+
+async fn serve_app_css() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/css; charset=utf-8")],
+        include_str!("../../static/app.css"),
+    )
+}
+
+async fn serve_app_js() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [(
+            header::CONTENT_TYPE,
+            "application/javascript; charset=utf-8",
+        )],
+        include_str!("../../static/app.js"),
+    )
 }
 
 async fn serve_chart_js() -> impl IntoResponse {

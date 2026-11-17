@@ -32,7 +32,9 @@ Sección `[notifications]` (best-effort, en transiciones): `webhook_url`, `teleg
 
 ### 1.4 Autenticación
 
-Sección `[auth]` (opcional): token (Bearer / `X-API-Key` / `?token=`) o Basic (`username`/`password`). Sin auth la API/UI quedan abiertas: **usar solo en red confiable o detrás de reverse proxy con TLS/auth**. `/api/health` puede quedar exento según configuración; `/api/config` redacta valores sensibles.
+Sección `[auth]` (opcional): token (Bearer / `X-API-Key` o Basic `username`/`password`). `?token=` se acepta por compatibilidad, pero **se desaconseja**: el token puede quedar expuesto en historial del navegador, logs del proxy/servidor y cabeceras `Referer`; prefiere `Authorization: Bearer <token>`, `X-API-Key` o el botón **Token** del dashboard (envía el token en header y lo guarda solo en la sesión del navegador).
+
+Sin auth la API/UI quedan abiertas: **usar solo en red confiable o detrás de reverse proxy con TLS/auth**. `/api/health` puede quedar exento según configuración; `/api/config` redacta valores sensibles. El dashboard sirve CSS/JS como assets propios y aplica una CSP endurecida (sin `unsafe-inline`); para scripts/extensiones personalizadas externas habría que ajustar la política.
 
 ## 2. API y exportación
 
@@ -76,7 +78,7 @@ curl -s http://localhost:9090/metrics
 | Config inválida al arrancar | Ejecuta `tinytop --check-config --config <ruta>`; revisa tipos de check, `host/port` en tcp/tls, URLs y rangos. |
 | Dashboard sin datos / “starting” | Espera al menos un `interval_seconds`; revisa `/api/health` y logs; confirma que el colector corre y `db_path` es escribible. |
 | Check `ping` o TLS sin detalle de cert | Best-effort: instala `ping`/`openssl` en el entorno (en contenedores mínimos pueden faltar). |
-| 401/403 en API/UI | Auth habilitada: envía `Authorization: Bearer <token>`, `X-API-Key` o Basic según config; verifica `TINYTOP_AUTH_TOKEN`/config. |
+| 401/403 en API/UI | Auth habilitada: usa el botón **Token** del dashboard o envía `Authorization: Bearer <token>` / `X-API-Key` / Basic según config; evita `?token=` (riesgo de filtrado). Verifica `TINYTOP_AUTH_TOKEN`/config. |
 | Histórico lento o grande | Los rangos >24h usan rollups (5m/1h); ajusta `retention_hours`/`max_history_hours` y asegura espacio en disco para `db_path`. |
 | Cambios de config no aplican | En Unix envía `SIGHUP` al proceso; si no, reinicia. Verifica que el servicio use el `--config` esperado. |
 | Notificaciones no llegan | Best-effort y solo en transiciones; valida URL/token/chat/topic y conectividad saliente desde el host. |

@@ -224,7 +224,7 @@ port = 443
 
 ## Notas operativas y troubleshooting
 
-- **Seguridad**: auth opcional (`[auth]`, token Bearer/`X-API-Key`/`?token=` o Basic); sin auth la API queda abierta — usar red privada/reverse proxy con TLS. Config sensible redactada en `/api/config`.
+- **Seguridad**: auth opcional (`[auth]`, token Bearer/`X-API-Key` o Basic; `?token=` se acepta por compatibilidad pero **se desaconseja** porque el token puede quedar en historial, logs y cabeceras Referer — prefiere header o el flujo de token del dashboard). Sin auth la API queda abierta — usar red privada/reverse proxy con TLS. Config sensible redactada en `/api/config`. Dashboard con CSP endurecida (sin `unsafe-inline`) y assets estáticos propios.
 - **Checks best-effort**: `ping` y días de certificado TLS requieren `ping`/`openssl` en el entorno; pueden no estar disponibles en contenedores mínimos.
 - **Sin datos / “starting”**: espera `interval_seconds`, revisa `/api/health` y logs; valida con `--check-config`.
 - **Recarga**: en Unix `SIGHUP`; en otros entornos reinicia el proceso.
