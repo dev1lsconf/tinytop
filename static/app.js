@@ -8,18 +8,34 @@ const state = { range: 24, refreshMs: 30000, timer: null };
     function fmtUptime(sec){ if(sec==null) return '--'; sec=Number(sec); const d=Math.floor(sec/86400), h=Math.floor((sec%86400)/3600), m=Math.floor((sec%3600)/60); if(d>0) return d+'d '+h+'h'; if(h>0) return h+'h '+m+'m'; return m+'m'; }
     function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-    function setHealth(kind, text) { const b = $('healthBadge'); b.className = 'badge ' + (kind || 'warn'); $('healthText').textContent = text; }
-    function setError(msg) { const b = $('errorBanner'); if (msg) { b.textContent = msg; b.classList.add('show'); } else { b.textContent = ''; b.classList.remove('show'); } }
+    function setHealth(kind, text) { const b = $('healthBadge'); if(!b) return; b.className = 'badge ' + (kind || 'warn'); $('healthText').textContent = text; }
+    function setError(msg) { const b = $('errorBanner'); if(!b) return; if (msg) { b.textContent = msg; b.classList.add('show'); } else { b.textContent = ''; b.classList.remove('show'); } }
 
     const pctTick = (v) => (v == null ? '' : Number(v).toFixed(0) + '%');
     const baseOpts = { responsive:true, maintainAspectRatio:false, animation:false, interaction:{mode:'index',intersect:false}, plugins:{legend:{display:false}, tooltip:{enabled:true,displayColors:false}}, scales:{ x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#71717a',maxTicksLimit:8}}, y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#71717a'}} } };
     const pctOpts = { ...baseOpts, plugins:{legend:{display:false}, tooltip:{enabled:true,displayColors:false, callbacks:{ label:(ctx)=> (ctx.dataset.label||'') + ': ' + Number(ctx.parsed.y||0).toFixed(1) + '%' }}}, scales:{ ...baseOpts.scales, y:{...baseOpts.scales.y, min:0, max:100, ticks:{color:'#71717a', callback:pctTick}} } };
+    const pctLegendOpts = { ...baseOpts, plugins:{legend:{display:true,labels:{color:'#a1a1aa',boxWidth:10}}, tooltip:{enabled:true, callbacks:{ label:(ctx)=> (ctx.dataset.label||'') + ': ' + Number(ctx.parsed.y||0).toFixed(1) + '%' }}}, scales:{ ...baseOpts.scales, y:{...baseOpts.scales.y, min:0, max:100, ticks:{color:'#71717a', callback:pctTick}} } };
     const rateOpts = { ...baseOpts, plugins:{legend:{display:true,labels:{color:'#a1a1aa',boxWidth:10}}, tooltip:{enabled:true, callbacks:{ label:(ctx)=> (ctx.dataset.label||'') + ': ' + fmtRate(ctx.parsed.y||0) }}}, scales:{ ...baseOpts.scales, y:{...baseOpts.scales.y, ticks:{color:'#71717a', callback:(v)=>fmtRate(v)}} } };
     const loadOpts = { ...baseOpts, plugins:{legend:{display:true,labels:{color:'#a1a1aa',boxWidth:10}}, tooltip:{enabled:true, callbacks:{ label:(ctx)=> (ctx.dataset.label||'') + ': ' + Number(ctx.parsed.y||0).toFixed(2) }}} };
+    const latencyOpts = { ...baseOpts, plugins:{legend:{display:true,labels:{color:'#a1a1aa',boxWidth:10}}, tooltip:{enabled:true, callbacks:{ label:(ctx)=> (ctx.dataset.label||'') + ': ' + (ctx.parsed.y==null ? '—' : Number(ctx.parsed.y).toFixed(1)+' ms') }}}, scales:{ ...baseOpts.scales, y:{...baseOpts.scales.y, ticks:{color:'#71717a', callback:(v)=>Number(v).toFixed(0)+' ms'}} } };
+    const daysOpts = { ...baseOpts, plugins:{legend:{display:true,labels:{color:'#a1a1aa',boxWidth:10}}, tooltip:{enabled:true, callbacks:{ label:(ctx)=> (ctx.dataset.label||'') + ': ' + (ctx.parsed.y==null ? '—' : Number(ctx.parsed.y).toFixed(0)+' d') }}}, scales:{ ...baseOpts.scales, y:{...baseOpts.scales.y, ticks:{color:'#71717a', callback:(v)=>Number(v).toFixed(0)+'d'}} } };
+    const stackedBarOpts = { ...baseOpts, plugins:{legend:{display:true,labels:{color:'#a1a1aa',boxWidth:10}}, tooltip:{enabled:true}}, scales:{ x:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#71717a',maxTicksLimit:8}}, y:{stacked:true,beginAtZero:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#71717a', precision:0}} } };
+
+    const palette = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#a78bfa','#38bdf8','#f472b6','#34d399'];
+    function colorFor(i, alpha){ const c = palette[i % palette.length]; if(!alpha) return c; const r=parseInt(c.slice(1,3),16), g=parseInt(c.slice(3,5),16), b=parseInt(c.slice(5,7),16); return `rgba(${r},${g},${b},${alpha})`; }
+    function shortLabel(ts){ const d=new Date(ts); return isNaN(d)?'':d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+    function shortDateLabel(ts){ const d=new Date(ts); return isNaN(d)?'':d.toLocaleString([], {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+
     const cpuChart = new Chart($('cpuChart'), { type:'line', data:{labels:[], datasets:[{label:'CPU', data:[], borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.18)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:pctOpts });
     const memChart = new Chart($('memoryChart'), { type:'line', data:{labels:[], datasets:[{label:'Memoria', data:[], borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.18)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:pctOpts });
     const netChart = new Chart($('netChart'), { type:'line', data:{labels:[], datasets:[{label:'RX', data:[], borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,0.12)', fill:true, borderWidth:2, pointRadius:0, tension:0.3},{label:'TX', data:[], borderColor:'#f472b6', backgroundColor:'rgba(244,114,182,0.10)', fill:true, borderWidth:2, pointRadius:0, tension:0.3}]}, options:rateOpts });
     const loadChart = new Chart($('loadChart'), { type:'line', data:{labels:[], datasets:[{label:'1m', data:[], borderColor:'#f59e0b', borderWidth:2, pointRadius:0, tension:0.3, fill:false},{label:'5m', data:[], borderColor:'#a78bfa', borderWidth:2, pointRadius:0, tension:0.3, fill:false},{label:'15m', data:[], borderColor:'#34d399', borderWidth:2, pointRadius:0, tension:0.3, fill:false}]}, options:loadOpts });
+    const cpuMemChart = new Chart($('cpuMemChart'), { type:'line', data:{labels:[], datasets:[{label:'CPU %', data:[], borderColor:'#3b82f6', borderWidth:2, pointRadius:0, tension:0.3, fill:false},{label:'Mem %', data:[], borderColor:'#22c55e', borderWidth:2, pointRadius:0, tension:0.3, fill:false}]}, options:pctLegendOpts });
+    const targetLatencyChart = new Chart($('targetLatencyChart'), { type:'line', data:{labels:[], datasets:[]}, options:latencyOpts });
+    const targetAvailabilityChart = new Chart($('targetAvailabilityChart'), { type:'line', data:{labels:[], datasets:[]}, options:pctLegendOpts });
+    const targetCertChart = new Chart($('targetCertChart'), { type:'line', data:{labels:[], datasets:[]}, options:daysOpts });
+    const eventsChart = new Chart($('eventsChart'), { type:'bar', data:{labels:[], datasets:[]}, options:stackedBarOpts });
+    const alertsChart = new Chart($('alertsChart'), { type:'bar', data:{labels:[], datasets:[]}, options:stackedBarOpts });
 
     function renderSystem(system) {
       if (!system) { $('cpuValue').textContent='--%'; $('cpuBar').style.width='0%'; $('memoryValue').textContent='--'; $('memoryBar').style.width='0%'; $('netRateValue').textContent='--'; $('netTotals').textContent='RX total: -- · TX total: --'; $('kvLoad').textContent='--'; $('kvUptime').textContent='--'; $('kvProcs').textContent='--'; return; }
@@ -52,7 +68,7 @@ const state = { range: 24, refreshMs: 30000, timer: null };
       }
     }
 
-    function renderAlerts(alerts){ const tb=$('alertsTable'); const list=Array.isArray(alerts)?alerts:[]; const firing=list.filter(a=>a.status==='firing'); $('kvAlerts').textContent=firing.length+' firing / '+list.length; $('alertsMeta').textContent=list.length+' total'; tb.textContent=''; if(!list.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.className='muted'; td.textContent='Sin alertas'; tr.appendChild(td); tb.appendChild(tr); return; } for(const a of list.slice(0,50)){ const tr=document.createElement('tr'); const cells=[statusPill(a.status), statusPill(a.severity), esc(a.source||''), esc(a.message||''), fmtTs(a.created_at)]; const tds=cells.map((h,i)=>{const td=document.createElement('td'); if(i<2) td.innerHTML=h; else td.textContent=String(h).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g,''); return td;}); tds[2].textContent=a.source||''; tds[3].textContent=a.message||''; tds[4].textContent=fmtTs(a.created_at); tds.forEach(td=>tr.appendChild(td)); tb.appendChild(tr);} }
+    function renderAlerts(alerts){ const tb=$('alertsTable'); const list=Array.isArray(alerts)?alerts:[]; const firing=list.filter(a=>a.status==='firing'); $('kvAlerts').textContent=firing.length+' firing / '+list.length; $('alertsMeta').textContent=list.length+' total'; tb.textContent=''; if(!list.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.className='muted'; td.textContent='Sin alertas'; tr.appendChild(td); tb.appendChild(tr); return; } for(const a of list.slice(0,50)){ const tr=document.createElement('tr'); const c1=document.createElement('td'); c1.innerHTML=statusPill(a.status); const c2=document.createElement('td'); c2.innerHTML=statusPill(a.severity); const c3=document.createElement('td'); c3.textContent=a.source||''; const c4=document.createElement('td'); c4.textContent=a.message||''; const c5=document.createElement('td'); c5.textContent=fmtTs(a.created_at); [c1,c2,c3,c4,c5].forEach(c=>tr.appendChild(c)); tb.appendChild(tr);} }
     function renderEvents(events){ const tb=$('eventsTable'); const list=Array.isArray(events)?events:[]; $('eventsMeta').textContent=list.length+' recientes'; tb.textContent=''; if(!list.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.className='muted'; td.textContent='Sin eventos'; tr.appendChild(td); tb.appendChild(tr); return; } for(const e of list.slice(0,50)){ const tr=document.createElement('tr'); const c1=document.createElement('td'); c1.innerHTML=statusPill(e.level||'info'); const c2=document.createElement('td'); c2.textContent=e.kind||''; const c3=document.createElement('td'); c3.textContent=e.source||''; const c4=document.createElement('td'); c4.textContent=e.message||''; const c5=document.createElement('td'); c5.textContent=fmtTs(e.timestamp); [c1,c2,c3,c4,c5].forEach(c=>tr.appendChild(c)); tb.appendChild(tr);} }
 
     async function loadLatest(){ const res=await fetchWithAuth('/api/metrics/latest'); if(!res.ok){ const e=new Error('latest: HTTP '+res.status); e.status=res.status; throw e; } const data=await res.json(); renderSystem(data.system); renderTargets(data.targets||[]); return data; }
@@ -65,57 +81,186 @@ const state = { range: 24, refreshMs: 30000, timer: null };
       const bucket = data.bucket_seconds;
       const aggLabel = down ? (' · rollup ' + (bucket ? (bucket>=3600?(bucket/3600)+'h':(bucket/60)+'m') : '')) : ' · raw';
       const hasNonNull = (arr)=>arr.some(v=>v!=null);
-      [['cpuChartEmpty','cpuChartMeta'],['memoryChartEmpty','memoryChartMeta'],['netChartEmpty','netChartMeta']].forEach(([e,m])=>{ if($(e)) $(e).classList.toggle('show',!has); if($(m)) $(m).textContent=has?(points.length+' puntos'+aggLabel):'0 puntos'; });
+      [['cpuChartEmpty','cpuChartMeta'],['memoryChartEmpty','memoryChartMeta'],['netChartEmpty','netChartMeta'],['cpuMemChartEmpty','cpuMemChartMeta']].forEach(([e,m])=>{ if($(e)) $(e).classList.toggle('show',!has); if($(m)) $(m).textContent=has?(points.length+' puntos'+aggLabel):'0 puntos'; });
       if($('loadChartEmpty')) $('loadChartEmpty').textContent = down ? 'No disponible en rollup' : 'Sin datos aún';
-      const labels=points.map(p=>{const d=new Date(p.timestamp); return isNaN(d)?'':d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});});
-      cpuChart.data.labels=labels; cpuChart.data.datasets[0].data=points.map(p=>Number(p.cpu_percent||0));
-      memChart.data.labels=labels; memChart.data.datasets[0].data=points.map(p=>Number(p.mem_used_percent||0));
+      const labels=points.map(p=>shortLabel(p.timestamp));
+      const cpu=points.map(p=>Number(p.cpu_percent||0));
+      const mem=points.map(p=>Number(p.mem_used_percent||0));
+      cpuChart.data.labels=labels; cpuChart.data.datasets[0].data=cpu;
+      memChart.data.labels=labels; memChart.data.datasets[0].data=mem;
       netChart.data.labels=labels; netChart.data.datasets[0].data=points.map(p=>p.net_rx_bytes_per_sec==null?null:Number(p.net_rx_bytes_per_sec)); netChart.data.datasets[1].data=points.map(p=>p.net_tx_bytes_per_sec==null?null:Number(p.net_tx_bytes_per_sec));
       const l1=points.map(p=>p.load1==null?null:Number(p.load1)); const l5=points.map(p=>p.load5==null?null:Number(p.load5)); const l15=points.map(p=>p.load15==null?null:Number(p.load15));
       loadChart.data.labels=labels; loadChart.data.datasets[0].data=l1; loadChart.data.datasets[1].data=l5; loadChart.data.datasets[2].data=l15;
+      cpuMemChart.data.labels=labels; cpuMemChart.data.datasets[0].data=cpu; cpuMemChart.data.datasets[1].data=mem;
       const loadHas = has && hasNonNull(l1.concat(l5,l15));
       if($('loadChartEmpty')) $('loadChartEmpty').classList.toggle('show', !loadHas);
       if($('loadChartMeta')) $('loadChartMeta').textContent = has ? (points.length+' puntos'+aggLabel + (loadHas?'':' · n/d')) : '0 puntos';
-      [cpuChart,memChart,netChart,loadChart].forEach(c=>c.update());
+      [cpuChart,memChart,netChart,loadChart,cpuMemChart].forEach(c=>c.update());
       return data;
     }
+
+    async function loadTargetCharts(targets){
+      const list = Array.isArray(targets)?targets.map(t=>t && t.name).filter(Boolean):[];
+      if(!list.length){
+        [['targetLatencyChart',[],'targetLatencyChartEmpty','targetLatencyChartMeta','Sin targets'],['targetAvailabilityChart',[],'targetAvailabilityChartEmpty','targetAvailabilityChartMeta','Sin targets'],['targetCertChart',[],'targetCertChartEmpty','targetCertChartMeta','Sin targets TLS']].forEach(([id,ds,eid,mid,msg])=>{ const c=id==='targetLatencyChart'?targetLatencyChart:id==='targetAvailabilityChart'?targetAvailabilityChart:targetCertChart; c.data.labels=[]; c.data.datasets=[]; c.update(); if($(eid)){ $(eid).textContent=msg; $(eid).classList.add('show'); } if($(mid)) $(mid).textContent='—'; });
+        return;
+      }
+      const results = await Promise.all(list.map(async (name)=>{
+        try{
+          const res=await fetchWithAuth('/api/metrics/history?target='+encodeURIComponent(name)+'&range='+encodeURIComponent(state.range));
+          if(!res.ok) return {name, points:[]};
+          const d=await res.json();
+          return {name, points:Array.isArray(d.points)?d.points:[], downsampled:!!d.downsampled};
+        }catch{ return {name, points:[]}; }
+      }));
+      const tsSet = new Set();
+      results.forEach(r=>r.points.forEach(p=>{ if(p && p.timestamp) tsSet.add(p.timestamp); }));
+      const allTs = Array.from(tsSet).sort();
+      const labels = allTs.map(shortDateLabel);
+      const idx = new Map(allTs.map((t,i)=>[t,i]));
+      const anyPoints = allTs.length>0;
+      const latencyDs = results.map((r,i)=>{
+        const arr = Array(allTs.length).fill(null);
+        r.points.forEach(p=>{ const j=idx.get(p.timestamp); if(j!=null) arr[j]= (p.latency_ms==null?null:Number(p.latency_ms)); });
+        return {label:r.name, data:arr, borderColor:colorFor(i), backgroundColor:colorFor(i,0.12), borderWidth:2, pointRadius:0, tension:0.25, spanGaps:true, fill:false};
+      });
+      const availDs = results.map((r,i)=>{
+        const arr = Array(allTs.length).fill(null);
+        r.points.forEach(p=>{ const j=idx.get(p.timestamp); if(j!=null){ const ur = p.up_ratio!=null ? Number(p.up_ratio) : (p.status && (String(p.status).toLowerCase()==='up'||String(p.status).toLowerCase()==='ok') ? 1 : 0); arr[j]= Math.max(0, Math.min(100, ur*100)); } });
+        return {label:r.name, data:arr, borderColor:colorFor(i), borderWidth:2, pointRadius:0, tension:0.25, spanGaps:true, fill:false};
+      });
+      const certDs = results.map((r,i)=>{
+        const arr = Array(allTs.length).fill(null);
+        let has=false;
+        r.points.forEach(p=>{ const j=idx.get(p.timestamp); if(j!=null && p.cert_days_left!=null){ arr[j]=Number(p.cert_days_left); has=true; } });
+        return has ? {label:r.name, data:arr, borderColor:colorFor(i), borderWidth:2, pointRadius:0, tension:0.25, spanGaps:true, fill:false} : null;
+      }).filter(Boolean);
+
+      targetLatencyChart.data.labels=labels; targetLatencyChart.data.datasets=latencyDs; targetLatencyChart.update();
+      if($('targetLatencyChartEmpty')) $('targetLatencyChartEmpty').classList.toggle('show', !anyPoints);
+      if($('targetLatencyChartMeta')) $('targetLatencyChartMeta').textContent = anyPoints ? (allTs.length+' puntos · '+list.length+' targets') : '0 puntos';
+
+      targetAvailabilityChart.data.labels=labels; targetAvailabilityChart.data.datasets=availDs; targetAvailabilityChart.update();
+      if($('targetAvailabilityChartEmpty')) $('targetAvailabilityChartEmpty').classList.toggle('show', !anyPoints);
+      if($('targetAvailabilityChartMeta')) $('targetAvailabilityChartMeta').textContent = anyPoints ? (allTs.length+' puntos · '+list.length+' targets') : '0 puntos';
+
+      const certHas = certDs.length>0 && allTs.length>0;
+      targetCertChart.data.labels=labels; targetCertChart.data.datasets=certDs; targetCertChart.update();
+      if($('targetCertChartEmpty')) $('targetCertChartEmpty').classList.toggle('show', !certHas);
+      if($('targetCertChartMeta')) $('targetCertChartMeta').textContent = certHas ? (certDs.length+' targets TLS') : '—';
+    }
+
+    async function loadInsightsCharts(){
+      try{
+        const res=await fetchWithAuth('/api/insights?range='+encodeURIComponent(state.range));
+        if(!res.ok) throw new Error('insights '+res.status);
+        const data=await res.json();
+        const ev = Array.isArray(data.events)?data.events:[];
+        const al = Array.isArray(data.alerts)?data.alerts:[];
+        renderBucketBars(eventsChart, ev, 'eventsChartEmpty','eventsChartMeta', {info:'#38bdf8', warn:'#f59e0b', warning:'#f59e0b', error:'#ef4444', critical:'#ef4444', debug:'#71717a'});
+        renderBucketBars(alertsChart, al, 'alertsChartEmpty','alertsChartMeta', {firing:'#ef4444', resolved:'#22c55e', warning:'#f59e0b', critical:'#dc2626'});
+      }catch{
+        renderBucketBars(eventsChart, [], 'eventsChartEmpty','eventsChartMeta', {});
+        renderBucketBars(alertsChart, [], 'alertsChartEmpty','alertsChartMeta', {});
+      }
+    }
+
+    function renderBucketBars(chart, rows, emptyId, metaId, colorMap){
+      const buckets = Array.from(new Set(rows.map(r=>r.bucket_start))).sort();
+      const keys = Array.from(new Set(rows.map(r=>String(r.key||'unknown'))));
+      const labels = buckets.map(shortDateLabel);
+      const byBucketKey = new Map();
+      rows.forEach(r=>{ byBucketKey.set(r.bucket_start+'|'+r.key, Number(r.count||0)); });
+      const datasets = keys.map((k,i)=>{
+        const data = buckets.map(b=> byBucketKey.get(b+'|'+k) || 0);
+        const c = colorMap[k] || colorFor(i);
+        return {label:k, data, backgroundColor:c, borderColor:c, borderWidth:1};
+      });
+      chart.data.labels=labels; chart.data.datasets=datasets; chart.update();
+      const has = buckets.length>0 && datasets.some(d=>d.data.some(v=>v>0));
+      if($(emptyId)) $(emptyId).classList.toggle('show', !has);
+      if($(metaId)) $(metaId).textContent = has ? (buckets.length+' intervalos') : '0 intervalos';
+    }
+
     async function loadHealth(){ try{ const res=await fetch('/api/health',{cache:'no-store'}); const data=await res.json().catch(()=>({})); $('version').textContent='v'+(data.version||'0.1.0'); if(res.ok&&data.ready) setHealth('ok','En línea'); else if(res.ok) setHealth('warn',data.status||'Iniciando'); else setHealth('err',data.status||'Degradado'); }catch{ setHealth('err','Sin conexión'); } }
-    async function loadAlerts(){ try{ const res=await fetchWithAuth('/api/alerts?limit=50'); if(!res.ok) throw 0; const d=await res.json(); renderAlerts(d.alerts||[]); }catch{ renderAlerts([]); $('kvAlerts').textContent='--'; } }
+    async function loadAlerts(){ try{ const res=await fetchWithAuth('/api/alerts?limit=50'); if(!res.ok) throw 0; const d=await res.json(); renderAlerts(d.alerts||[]); }catch{ renderAlerts([]); if($('kvAlerts')) $('kvAlerts').textContent='--'; } }
     async function loadEvents(){ try{ const res=await fetchWithAuth('/api/events?limit=50'); if(!res.ok) throw 0; const d=await res.json(); renderEvents(d.events||[]); }catch{ renderEvents([]); } }
-    function updateExportLinks(){ const r=state.range; $('exportJson').href='/api/export?target=system&format=json&range='+r; $('exportCsv').href='/api/export?target=system&format=csv&range='+r; }
+    function updateExportLinks(){ const r=state.range; if($('exportJson')) $('exportJson').href='/api/export?target=system&format=json&range='+r; if($('exportCsv')) $('exportCsv').href='/api/export?target=system&format=csv&range='+r; }
 
     function getAuthToken(){ return sessionStorage.getItem('tinytop_token') || ''; }
     function setAuthToken(t){ if(t) sessionStorage.setItem('tinytop_token', t); else sessionStorage.removeItem('tinytop_token'); }
+
+    function showAuthPanel(message, focus){
+      const panel = $('authPanel');
+      if(!panel) return;
+      panel.classList.remove('hidden');
+      const status = $('authPanelStatus');
+      if(status) status.textContent = message || '';
+      const input = $('authTokenInput');
+      if(input && focus) { input.focus(); input.select(); }
+    }
+    function hideAuthPanel(){
+      const panel = $('authPanel');
+      if(panel) panel.classList.add('hidden');
+    }
+    function syncAuthPanelInput(){
+      const input = $('authTokenInput');
+      if(input) input.value = getAuthToken();
+      const status = $('authPanelStatus');
+      if(status) status.textContent = getAuthToken() ? 'Token configurado en esta sesión.' : 'Sin token configurado.';
+    }
 
     async function fetchWithAuth(url, opts){
       const base = Object.assign({cache:'no-store'}, opts || {});
       base.headers = Object.assign({}, base.headers || {});
       const t = getAuthToken();
       if(t && !base.headers['Authorization'] && !base.headers['authorization']) base.headers['Authorization'] = 'Bearer ' + t;
-      let res = await fetch(url, base);
-      if(res.status === 401 && typeof window.prompt === 'function'){
-        const entered = window.prompt('Autenticación requerida. Introduce el token (Bearer/X-API-Key). Cancelar para omitir:');
-        if(entered && entered.trim()){
-          setAuthToken(entered.trim());
-          const retryHeaders = Object.assign({}, base.headers, {'Authorization':'Bearer '+entered.trim()});
-          res = await fetch(url, Object.assign({}, base, {headers: retryHeaders}));
-        }
+      const res = await fetch(url, base);
+      if(res.status === 401){
+        showAuthPanel('Autenticación requerida. Introduce el token y pulsa "Guardar y reintentar".', false);
       }
       return res;
     }
 
-    async function refresh(){ try{ updateExportLinks(); await Promise.all([loadLatest(), loadHistory(), loadHealth(), loadAlerts(), loadEvents()]); setError(''); }catch(e){ console.error(e); if(e && e.status===401){ setError('No autorizado: pulsa "Token" para introducir credenciales.'); setHealth('err','No autorizado'); } else { setError('No se pudieron cargar los datos: '+(e&&e.message?e.message:'error')); setHealth('err','Error'); } } finally { $('lastUpdate').textContent=new Date().toLocaleTimeString(); } }
+    async function refresh(){
+      try{
+        updateExportLinks();
+        const latest = await loadLatest();
+        const targets = (latest && latest.targets) ? latest.targets : [];
+        await Promise.all([loadHistory(), loadTargetCharts(targets), loadInsightsCharts(), loadHealth(), loadAlerts(), loadEvents()]);
+        setError('');
+        if(getAuthToken()) { const st=$('authPanelStatus'); if(st) st.textContent='Token configurado en esta sesión.'; }
+      }catch(e){
+        console.error(e);
+        if(e && e.status===401){ setError('No autorizado: configura el token para acceder a la API.'); setHealth('err','No autorizado'); showAuthPanel('Autenticación requerida. Introduce el token y pulsa "Guardar y reintentar".', false); }
+        else { setError('No se pudieron cargar los datos: '+(e&&e.message?e.message:'error')); setHealth('err','Error'); }
+      } finally { if($('lastUpdate')) $('lastUpdate').textContent=new Date().toLocaleTimeString(); }
+    }
     function applyAutoRefresh(){ if(state.timer){ clearInterval(state.timer); state.timer=null; } if(state.refreshMs>0) state.timer=setInterval(refresh, state.refreshMs); }
-    $('rangeSelect').addEventListener('change',(e)=>{ state.range=Number(e.target.value||24); refresh(); });
-    $('refreshSelect').addEventListener('change',(e)=>{ state.refreshMs=Number(e.target.value||0)*1000; applyAutoRefresh(); });
-    $('authBtn').addEventListener('click',()=>{
-      const current = getAuthToken();
-      const entered = window.prompt('Token de acceso (Bearer/X-API-Key). Se guarda solo en esta sesión. Deja vacío para borrar:', current);
-      if(entered===null) return;
-      const v = entered.trim();
+    if($('rangeSelect')) $('rangeSelect').addEventListener('change',(e)=>{ state.range=Number(e.target.value||24); refresh(); });
+    if($('refreshSelect')) $('refreshSelect').addEventListener('change',(e)=>{ state.refreshMs=Number(e.target.value||0)*1000; applyAutoRefresh(); });
+    if($('authBtn')) $('authBtn').addEventListener('click',()=>{
+      const panel = $('authPanel');
+      if(panel && !panel.classList.contains('hidden')) { hideAuthPanel(); return; }
+      syncAuthPanelInput();
+      showAuthPanel(getAuthToken() ? 'Token configurado en esta sesión. Puedes actualizarlo o borrarlo.' : 'Introduce el token para autenticar las peticiones API.', true);
+    });
+    if($('authSaveBtn')) $('authSaveBtn').addEventListener('click',()=>{
+      const input = $('authTokenInput');
+      const v = input ? input.value.trim() : '';
       setAuthToken(v);
+      syncAuthPanelInput();
       if(v) { setError('Token guardado en esta sesión.'); } else { setError('Token eliminado.'); }
       refresh();
     });
-    $('refreshBtn').addEventListener('click',()=>refresh());
+    if($('authClearBtn')) $('authClearBtn').addEventListener('click',()=>{
+      setAuthToken('');
+      syncAuthPanelInput();
+      const input = $('authTokenInput'); if(input) input.value = '';
+      setError('Token eliminado.');
+      refresh();
+    });
+    if($('authCancelBtn')) $('authCancelBtn').addEventListener('click',()=>{ hideAuthPanel(); });
+    if($('refreshBtn')) $('refreshBtn').addEventListener('click',()=>refresh());
+    syncAuthPanelInput();
     applyAutoRefresh(); refresh();

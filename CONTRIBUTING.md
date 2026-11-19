@@ -43,6 +43,12 @@ Las pruebas e2e (Playwright) viven en `tests/` y se ejecutan en CI; localmente p
 - Prefiere cambios pequeños y enfocados.
 - Asegúrate de que el CI pasa (backend + e2e).
 
+## Releases (mantenedores)
+
+- La cadena automática es: merge del PR de Release Please en `master` → tag/release → workflow `Release` (publica binarios/paquetes/imagen). La validación end-to-end de esta cadena se realiza en GitHub sobre el repositorio remoto.
+- **Fallback manual:** si el disparo automático falla o para republicar, ejecuta `Actions → Release → Run workflow` (`workflow_dispatch`) indicando el `tag` (p. ej. `vX.Y.Z`); el workflow hace checkout y publica contra ese tag. También puede crearse/publicarse el tag/release manualmente para activar el trigger por tag.
+- En cada release, alinea `packaging/` (versión y checksums `sha256`/`sha256sums`) con los artefactos publicados en GitHub Releases (no inventar hashes). Mantén las actions/toolchains pineadas y revisa avisos de deprecación (runners/Node en actions) según corresponda.
+
 ## Issues
 
 Los issues con etiqueta `good first issue` son un buen punto de partida. Si no estás seguro del enfoque, abre un issue para discutirlo antes de implementar cambios grandes.

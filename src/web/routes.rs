@@ -33,6 +33,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/health", get(health))
         .route("/api/metrics/latest", get(latest))
         .route("/api/metrics/history", get(history))
+        .route("/api/insights", get(insights))
         .route("/api/config", get(get_config))
         .route("/api/alerts", get(list_alerts))
         .route("/api/events", get(list_events))
@@ -305,12 +306,25 @@ async fn history(
             &format!("unknown target: {target}"),
         );
     }
-    match state.db.target_history(&target, range).await {
-        Ok(rows) => (
-            StatusCode::OK,
-            Json(json!({"target":target,"range_hours":range,"points":rows})),
-        )
-            .into_response(),
+    match state.db.target_history_points(&target, range).await {
+        Ok(points) => {
+            let downsampled = points
+                .first()
+                .map(|p| p.origin == "rollup")
+                .unwrap_or(false);
+            let bucket_seconds = points.iter().find_map(|p| p.bucket_seconds);
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "target":target,
+                    "range_hours":range,
+                    "downsampled": downsampled,
+                    "bucket_seconds": bucket_seconds,
+                    "points": points
+                })),
+            )
+                .into_response()
+        }
         Err(e) => api_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "db_error",
@@ -364,6 +378,52 @@ async fn list_events(
     }
 }
 
+async fn insights(
+    State(state): State<AppState>,
+    Query(params): Query<HistoryParams>,
+) -> impl IntoResponse {
+    let cfg = state.cfg.read().await.clone();
+    let max_range = cfg.max_history_hours.max(1).min(cfg.retention_hours as i64);
+    let range = params.range.unwrap_or(24).clamp(1, max_range);
+    let bucket_seconds: i64 = if range > 72 {
+        3600
+    } else if range > 24 {
+        1800
+    } else {
+        900
+    };
+    let events = match state.db.event_counts_by_bucket(range).await {
+        Ok(v) => v,
+        Err(e) => {
+            return api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "db_error",
+                &e.to_string(),
+            );
+        }
+    };
+    let alerts = match state.db.alert_counts_by_bucket(range).await {
+        Ok(v) => v,
+        Err(e) => {
+            return api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "db_error",
+                &e.to_string(),
+            );
+        }
+    };
+    (
+        StatusCode::OK,
+        Json(json!({
+            "range_hours": range,
+            "bucket_seconds": bucket_seconds,
+            "events": events,
+            "alerts": alerts
+        })),
+    )
+        .into_response()
+}
+
 async fn export_data(
     State(state): State<AppState>,
     Query(params): Query<HistoryParams>,
@@ -406,8 +466,8 @@ async fn export_data(
                 &format!("unknown target: {target}"),
             );
         }
-        match state.db.export_target_history(&target, range).await {
-            Ok(rows) => export_rows_target(&target, rows, &format),
+        match state.db.export_target_history_points(&target, range).await {
+            Ok(points) => export_rows_target(&target, points, &format),
             Err(e) => api_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "db_error",
@@ -464,21 +524,25 @@ fn export_rows_system(points: Vec<crate::db::SystemHistoryPoint>, format: &str) 
             .into_response()
     }
 }
-fn export_rows_target(target: &str, rows: Vec<crate::db::TargetMetric>, format: &str) -> Response {
+fn export_rows_target(
+    target: &str,
+    points: Vec<crate::db::TargetHistoryPoint>,
+    format: &str,
+) -> Response {
     if format.eq_ignore_ascii_case("csv") {
         let mut out = String::from(
             "timestamp,target,check_type,status,latency_ms,http_requests,cert_days_left,detail\n",
         );
-        for r in rows {
+        for r in points {
             out.push_str(&format!(
                 "{},{},{},{},{},{},{},{}\n",
                 r.timestamp,
                 r.target,
                 r.check_type.unwrap_or_default(),
-                r.status,
-                r.latency_ms.unwrap_or(f64::NAN),
-                r.http_requests.unwrap_or(-1),
-                r.cert_days_left.unwrap_or(-1),
+                r.status.unwrap_or_default(),
+                r.latency_ms.map(|v| v.to_string()).unwrap_or_default(),
+                r.http_requests.map(|v| v.to_string()).unwrap_or_default(),
+                r.cert_days_left.map(|v| v.to_string()).unwrap_or_default(),
                 r.detail.unwrap_or_default().replace(',', ";")
             ));
         }
@@ -489,9 +553,19 @@ fn export_rows_target(target: &str, rows: Vec<crate::db::TargetMetric>, format: 
         )
             .into_response()
     } else {
+        let downsampled = points
+            .first()
+            .map(|p| p.origin == "rollup")
+            .unwrap_or(false);
+        let bucket_seconds = points.iter().find_map(|p| p.bucket_seconds);
         (
             StatusCode::OK,
-            Json(json!({"target": target, "points": rows})),
+            Json(json!({
+                "target": target,
+                "downsampled": downsampled,
+                "bucket_seconds": bucket_seconds,
+                "points": points
+            })),
         )
             .into_response()
     }

@@ -13,13 +13,13 @@ Cada tarball incluye: binario `tinytop`, `config.toml`, `static/` y `migrations/
 
 ## Plantillas en este repositorio
 
-- `packaging/homebrew/tinytop.rb`: fórmula de ejemplo (URLs de release; **reemplazar `sha256`** por los checksums publicados al liberar).
-- `packaging/aur/PKGBUILD`: receta AUR de ejemplo (x86_64/aarch64, tarballs Linux; **reemplazar `sha256sums_*`**).
+- `packaging/homebrew/tinytop.rb`: fórmula de ejemplo (URLs de release; alineada a la versión/checksums publicados cuando se actualiza).
+- `packaging/aur/PKGBUILD`: receta AUR de ejemplo (x86_64/aarch64, tarballs Linux; alineada a la versión/checksums publicados cuando se actualiza).
 - `packaging/bsd/README.md` + `packaging/bsd/tinytop.rc.*`: notas y plantillas rc.d para ports/pkg (FreeBSD), ports (OpenBSD) y pkgsrc (NetBSD).
 
 - `packaging/systemd/tinytop.service`: unidad systemd de ejemplo (usuario dedicado, recarga por `SIGHUP`, hardening básico).
 
-Las plantillas usan la versión actual del proyecto; al publicar un release, actualiza `version/pkgver` y los hashes.
+Las plantillas deben mantenerse alineadas con cada release publicado: actualiza `version`/`pkgver` y los hashes (`sha256`/`sha256sums`) según los artefactos y checksums de [GitHub Releases](https://github.com/dev1lsconf/tinytop/releases). En este repositorio se alinean a la versión publicada más reciente cuando es posible.
 
 ## Instalación desde paquetes nativos (Linux x86_64)
 

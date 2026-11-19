@@ -1,18 +1,18 @@
+mod common;
+
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
 use http_body_util::BodyExt;
 use std::sync::{Arc, atomic::AtomicBool};
-use tempfile::tempdir;
 use tokio::sync::RwLock;
 use tower::ServiceExt;
 
-async fn test_app() -> (axum::Router, tempfile::TempDir) {
-    let dir = tempdir().unwrap();
-    let db_path = dir.path().join("test.db");
+async fn seeded_app() -> (axum::Router, tempfile::TempDir) {
+    let (db, dir) = common::open_temp_db().await;
     let cfg = tinytop::config::Config {
-        db_path: db_path.to_str().unwrap().to_string(),
+        db_path: dir.path().join("test.db").to_str().unwrap().to_string(),
         targets: vec![tinytop::config::Target {
             name: "t1".into(),
             url: "http://127.0.0.1:9/".into(),
@@ -27,8 +27,6 @@ async fn test_app() -> (axum::Router, tempfile::TempDir) {
     };
     cfg.validate().unwrap();
 
-    let db = Arc::new(tinytop::db::Database::open(&cfg.db_path).await.unwrap());
-    db.init().await.unwrap();
     db.insert_system_metric(
         10.0,
         100.0,
@@ -94,7 +92,7 @@ async fn test_app() -> (axum::Router, tempfile::TempDir) {
 
 #[tokio::test]
 async fn api_endpoints_and_export_prometheus() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir) = seeded_app().await;
 
     let res = app
         .clone()
@@ -339,47 +337,13 @@ async fn api_endpoints_and_export_prometheus() {
     assert_eq!(res.status(), StatusCode::OK);
 }
 
-async fn test_app_with_auth() -> (axum::Router, tempfile::TempDir) {
-    let dir = tempdir().unwrap();
-    let db_path = dir.path().join("test.db");
-    let cfg = tinytop::config::Config {
-        db_path: db_path.to_str().unwrap().to_string(),
-        auth: Some(tinytop::config::AuthConfig {
-            token: Some("secret".into()),
-            basic_user: None,
-            basic_password: None,
-            allow_health_unauth: true,
-        }),
-        targets: vec![tinytop::config::Target {
-            name: "t1".into(),
-            url: "http://127.0.0.1:9/".into(),
-            kind: Some("generic".into()),
-            check_type: "http".into(),
-            host: None,
-            port: None,
-            latency_warn_ms: None,
-            cert_expiry_warn_days: None,
-        }],
-        ..Default::default()
-    };
-    cfg.validate().unwrap();
-    let db = Arc::new(tinytop::db::Database::open(&cfg.db_path).await.unwrap());
-    db.init().await.unwrap();
-    let runtime = Arc::new(RwLock::new(tinytop::RuntimeStatus::new(&cfg)));
-    {
-        let mut rt = runtime.write().await;
-        rt.last_collection_ok = Some(true);
-        rt.collections_total = 1;
-    }
-    let cfgs = Arc::new(RwLock::new(cfg));
-    let shutdown = Arc::new(AtomicBool::new(false));
-    let app = tinytop::web::create_router(db, cfgs, runtime, shutdown);
-    (app, dir)
+async fn auth_app() -> (axum::Router, tempfile::TempDir) {
+    common::auth_app().await
 }
 
 #[tokio::test]
 async fn api_auth_and_config_redaction() {
-    let (app, _dir) = test_app_with_auth().await;
+    let (app, _dir) = auth_app().await;
 
     // health allowed unauth
     let res = app
@@ -437,4 +401,358 @@ async fn api_auth_and_config_redaction() {
     let body = res.into_body().collect().await.unwrap().to_bytes();
     let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(v["auth_enabled"], true);
+
+    // legacy query token is still accepted for compatibility (discouraged)
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/latest?token=secret")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // wrong token is rejected
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/latest")
+                .header("Authorization", "Bearer wrong")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn api_basic_auth_and_health_exemption() {
+    let (app, _dir) = common::basic_auth_app().await;
+
+    // health allowed unauth
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // protected endpoint requires auth
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/latest")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+
+    // valid basic auth ok
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/latest")
+                .header("Authorization", "Basic dXNlcjpwYXNz")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // invalid basic auth rejected
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/latest")
+                .header("Authorization", "Basic dXNlcjp3cm9uZw==")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn api_system_history_downsampled_and_export() {
+    let (db, dir) = common::open_temp_db().await;
+    let cfg = tinytop::config::Config {
+        db_path: dir.path().join("test.db").to_str().unwrap().to_string(),
+        targets: vec![],
+        ..Default::default()
+    };
+    cfg.validate().unwrap();
+
+    // Two samples in the same 5-minute bucket, ~30h ago (range > 24h -> downsampled)
+    let base = chrono::Utc::now() - chrono::Duration::hours(30);
+    let aligned =
+        chrono::DateTime::<chrono::Utc>::from_timestamp((base.timestamp() / 300) * 300, 0).unwrap();
+    let t = |secs: i64| (aligned + chrono::Duration::seconds(secs)).to_rfc3339();
+    for (ts, cpu) in [(t(60), 10.0_f64), (t(180), 30.0_f64)] {
+        sqlx::query(
+            "INSERT INTO system_metrics (
+                timestamp, cpu_percent, mem_used_mb, mem_total_mb, mem_used_percent,
+                disk_used_mb, disk_total_mb, disk_available_mb, disk_used_percent,
+                net_rx_bytes, net_tx_bytes, net_rx_bytes_per_sec, net_tx_bytes_per_sec,
+                load1, load5, load15, swap_used_mb, swap_total_mb, swap_used_percent,
+                uptime_seconds, top_processes
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        )
+        .bind(ts)
+        .bind(cpu)
+        .bind(512.0_f64)
+        .bind(1024.0_f64)
+        .bind(50.0_f64)
+        .bind(1000.0_f64)
+        .bind(2000.0_f64)
+        .bind(1000.0_f64)
+        .bind(50.0_f64)
+        .bind(100_i64)
+        .bind(200_i64)
+        .bind(10.0_f64)
+        .bind(20.0_f64)
+        .bind(Some(0.5_f64))
+        .bind(Some(0.4_f64))
+        .bind(Some(0.3_f64))
+        .bind(Some(0.0_f64))
+        .bind(Some(0.0_f64))
+        .bind(Some(0.0_f64))
+        .bind(Some(100_i64))
+        .bind::<Option<String>>(None)
+        .execute(&db.pool)
+        .await
+        .unwrap();
+    }
+    let created = db.compute_rollups(300).await.unwrap();
+    assert!(created >= 1);
+
+    let runtime = Arc::new(RwLock::new(tinytop::RuntimeStatus::new(&cfg)));
+    {
+        let mut rt = runtime.write().await;
+        rt.last_collection_ok = Some(true);
+        rt.collections_total = 1;
+    }
+    let cfgs = Arc::new(RwLock::new(cfg));
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let app = tinytop::web::create_router(db, cfgs, runtime, shutdown);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/history?target=system&range=48")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["target"], "system");
+    assert_eq!(v["downsampled"], true);
+    assert_eq!(v["bucket_seconds"], 300);
+    let pts = v["points"].as_array().unwrap();
+    assert!(!pts.is_empty());
+    assert_eq!(pts[0]["origin"], "rollup");
+    assert!(pts[0]["samples"].as_i64().unwrap_or(0) >= 2);
+    assert!(pts[0]["mem_used_mb"].is_null());
+    assert!(pts[0]["net_rx_bytes"].is_null());
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/export?target=system&format=json&range=48")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["downsampled"], true);
+    assert_eq!(v["bucket_seconds"], 300);
+    assert_eq!(v["points"].as_array().unwrap()[0]["origin"], "rollup");
+
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/export?target=system&format=csv&range=48")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let s = String::from_utf8(body.to_vec()).unwrap();
+    assert!(s.contains("timestamp,origin,bucket_seconds,samples"));
+    assert!(s.contains(",rollup,300,"));
+}
+
+#[tokio::test]
+async fn api_health_requires_auth_when_not_exempt() {
+    let (app, _dir) = common::auth_app_health_protected().await;
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .header("Authorization", "Bearer secret")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // Dashboard and static assets remain accessible so the token panel can be shown
+    let res = app
+        .clone()
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/static/app.js")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn api_alerts_and_events_filters() {
+    let (app, _dir) = seeded_app().await;
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/alerts?status=firing&limit=10")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let alerts = v["alerts"].as_array().unwrap();
+    assert!(!alerts.is_empty());
+    assert!(alerts.iter().all(|a| a["status"] == "firing"));
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/alerts?status=resolved&limit=10")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(v["alerts"].as_array().unwrap().is_empty());
+
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/events?limit=1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let events = v["events"].as_array().unwrap();
+    assert_eq!(events.len(), 1);
+}
+
+#[tokio::test]
+async fn api_target_history_and_insights() {
+    let (app, _dir) = seeded_app().await;
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics/history?target=t1&range=24")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["target"], "t1");
+    assert_eq!(v["downsampled"], false);
+    let pts = v["points"].as_array().unwrap();
+    assert!(!pts.is_empty());
+    assert_eq!(pts[0]["origin"], "raw");
+    assert!(pts[0]["latency_ms"].is_number());
+    assert!(pts[0]["up_ratio"].is_number());
+    assert!(v["bucket_seconds"].is_null());
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/insights?range=24")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["range_hours"], 24);
+    assert!(v["bucket_seconds"].is_number());
+    assert!(v["events"].as_array().is_some());
+    assert!(v["alerts"].as_array().is_some());
+    let alerts = v["alerts"].as_array().unwrap();
+    assert!(!alerts.is_empty());
 }

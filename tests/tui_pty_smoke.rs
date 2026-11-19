@@ -48,9 +48,9 @@ env['TERM'] = 'xterm-256color'
 p = subprocess.Popen([bin,'--tui','--config',cfg], stdin=slave, stdout=slave, stderr=slave, close_fds=True, env=env)
 os.close(slave)
 out=b''
-start=time.time(); sent=False
+start=time.time(); navigated=False
 try:
-    while time.time()-start < 12:
+    while time.time()-start < 15:
         r,_,_ = select.select([master],[],[],0.4)
         if r:
             try:
@@ -59,8 +59,21 @@ try:
                 break
             if not ch: break
             out += ch
-            if (not sent) and len(out) > 100:
-                time.sleep(0.8); os.write(master,b'q'); sent=True
+            if (not navigated) and len(out) > 120:
+                time.sleep(0.8)
+                # exercise view switching/navigation before quitting
+                for key in [b'2', b'3', b'4', b'1', b'\t', b'r']:
+                    try:
+                        os.write(master, key)
+                    except OSError:
+                        break
+                    time.sleep(0.25)
+                time.sleep(0.4)
+                try:
+                    os.write(master, b'q')
+                except OSError:
+                    pass
+                navigated=True
         if p.poll() is not None:
             while True:
                 r,_,_ = select.select([master],[],[],0.1)

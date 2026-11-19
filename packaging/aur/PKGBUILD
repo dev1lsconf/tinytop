@@ -1,6 +1,6 @@
 # Maintainer: TinyTop Contributors <noreply@commandcode.ai>
 pkgname=tinytop
-pkgver=1.0.3
+pkgver=1.0.6
 pkgrel=1
 pkgdesc="Lightweight self-hosted system and target monitor (single binary, SQLite, web dashboard and TUI)"
 arch=('x86_64' 'aarch64')
@@ -9,10 +9,11 @@ license=('MIT')
 depends=('sqlite' 'gcc-libs')
 provides=('tinytop')
 conflicts=('tinytop')
+# Actualiza pkgver/sha256sums en cada release según los assets publicados en GitHub Releases.
 source_x86_64=("tinytop-v${pkgver}-linux-x86_64.tar.gz::${url}/releases/download/v${pkgver}/tinytop-v${pkgver}-linux-x86_64.tar.gz")
 source_aarch64=("tinytop-v${pkgver}-linux-aarch64.tar.gz::${url}/releases/download/v${pkgver}/tinytop-v${pkgver}-linux-aarch64.tar.gz")
-sha256sums_x86_64=('4827042a981a3af75a71c061554b945f71377bbba71c95667f35ce90b16b8318')
-sha256sums_aarch64=('49c9fa1df394d9f9dd72c48f4a0c51baf26576e5dcf969a2a616e48daab33930')
+sha256sums_x86_64=('546747d101c2235c4a5c5cad9e4bde8fadaff02f9fd0e6bcabc7b6950f9947cc')
+sha256sums_aarch64=('2f25b66e3db7cfef25c0077c7933b5cd88728d06ded7c7d060cc7d617e4133ce')
 
 package() {
   cd "$srcdir"

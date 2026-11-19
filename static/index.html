@@ -24,6 +24,25 @@
       </div>
     </header>
 
+    <section id="authPanel" class="auth-panel hidden" data-testid="auth-panel" aria-label="Acceso con token">
+      <div class="auth-panel-main">
+        <div>
+          <p class="label">Acceso</p>
+          <p class="sub">Si la API exige autenticación, introduce el token (Bearer/X-API-Key). Se guarda solo en esta sesión y se envía en cabeceras (no en la URL).</p>
+        </div>
+        <div class="auth-panel-form">
+          <label class="meta" for="authTokenInput">Token</label>
+          <input id="authTokenInput" class="auth-input" type="password" autocomplete="off" spellcheck="false" placeholder="Token de acceso">
+          <div class="auth-actions">
+            <button id="authSaveBtn" class="btn" type="button">Guardar y reintentar</button>
+            <button id="authClearBtn" class="btn" type="button">Borrar</button>
+            <button id="authCancelBtn" class="btn" type="button">Cerrar</button>
+          </div>
+          <p id="authPanelStatus" class="meta" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
     <div id="errorBanner" class="banner" data-testid="error-banner" role="alert"></div>
 
     <section class="grid stats" aria-label="Métricas del sistema" data-testid="stats-grid">
@@ -45,6 +64,18 @@
       <article class="card" data-testid="chart-memory-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Memoria</h2></div><span id="memoryChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="memoryChart"></canvas><div id="memoryChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
       <article class="card" data-testid="chart-net-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Red (RX/TX)</h2></div><span id="netChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="netChart"></canvas><div id="netChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
       <article class="card" data-testid="chart-load-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Load average (1/5/15)</h2></div><span id="loadChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="loadChart"></canvas><div id="loadChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-cpu-mem-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">CPU vs Memoria</h2></div><span id="cpuMemChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="cpuMemChart"></canvas><div id="cpuMemChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+    </section>
+
+    <section class="grid charts" aria-label="Insights de targets">
+      <article class="card" data-testid="chart-target-latency-card"><div class="card-head"><div><p class="label">Targets</p><h2 class="value h2-inline">Latencia en el tiempo</h2></div><span id="targetLatencyChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="targetLatencyChart"></canvas><div id="targetLatencyChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-target-availability-card"><div class="card-head"><div><p class="label">Targets</p><h2 class="value h2-inline">Disponibilidad (up/down)</h2></div><span id="targetAvailabilityChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="targetAvailabilityChart"></canvas><div id="targetAvailabilityChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card" data-testid="chart-target-cert-card"><div class="card-head"><div><p class="label">Targets TLS</p><h2 class="value h2-inline">Historial cert_days_left</h2></div><span id="targetCertChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="targetCertChart"></canvas><div id="targetCertChartEmpty" class="chart-empty">Sin datos de certificados</div></div></article>
+    </section>
+
+    <section class="grid charts" aria-label="Eventos y alertas por intervalo">
+      <article class="card" data-testid="chart-events-card"><div class="card-head"><div><p class="label">Actividad</p><h2 class="value h2-inline">Eventos por intervalo</h2></div><span id="eventsChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="eventsChart"></canvas><div id="eventsChartEmpty" class="chart-empty">Sin eventos</div></div></article>
+      <article class="card" data-testid="chart-alerts-card"><div class="card-head"><div><p class="label">Actividad</p><h2 class="value h2-inline">Alertas por intervalo</h2></div><span id="alertsChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="alertsChart"></canvas><div id="alertsChartEmpty" class="chart-empty">Sin alertas</div></div></article>
     </section>
 
     <section class="card mb-16" data-testid="targets-card" aria-label="Targets monitoreados">

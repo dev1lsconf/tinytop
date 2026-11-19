@@ -9,7 +9,7 @@ daemon_user="tinytop"
 rc_reload=YES
 
 rc_configtest() {
-	${daemon} --check-config ${daemon_flags}
+	${daemon} --check-config --deep ${daemon_flags}
 }
 
 rc_cmd $1

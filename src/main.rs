@@ -9,6 +9,7 @@ use tinytop::{RuntimeStatus, config::Config, db, tui, web};
 struct Cli {
     tui: bool,
     check_config: bool,
+    deep: bool,
     help: bool,
     version: bool,
     config: Option<PathBuf>,
@@ -22,6 +23,7 @@ where
     let mut cli = Cli {
         tui: false,
         check_config: false,
+        deep: false,
         help: false,
         version: false,
         config: None,
@@ -32,6 +34,7 @@ where
         match a {
             "--tui" => cli.tui = true,
             "--check-config" | "--check" => cli.check_config = true,
+            "--deep" => cli.deep = true,
             "--help" | "-h" => cli.help = true,
             "--version" | "-V" => cli.version = true,
             "--config" | "-c" => {
@@ -56,6 +59,9 @@ where
             }
         }
     }
+    if cli.deep && !cli.check_config {
+        anyhow::bail!("--deep requires --check-config");
+    }
     Ok(cli)
 }
 
@@ -77,6 +83,7 @@ fn print_help() {
         "  --config <PATH>       Path to config file (overrides TINYTOP_CONFIG; default: config.toml)"
     );
     println!("  --check-config        Validate configuration and exit");
+    println!("  --deep                With --check-config: also open/migrate/ping db_path");
     println!("  -h, --help            Print help");
     println!("  -V, --version         Print version");
     println!();
@@ -116,15 +123,37 @@ async fn main() -> anyhow::Result<()> {
 
     let cfg = Config::load_with_path(cli.config.clone())?;
     if cli.check_config {
-        println!(
-            "config ok: bind={}:{} db={} targets={} interval={}s retention={}h",
-            cfg.bind,
-            cfg.port,
-            cfg.db_path,
-            cfg.targets.len(),
-            cfg.interval_seconds,
-            cfg.retention_hours
-        );
+        if cli.deep {
+            let db = Arc::new(db::Database::open(&cfg.db_path).await?);
+            if let Err(e) = db.init().await {
+                db.pool.close().await;
+                return Err(e);
+            }
+            if let Err(e) = db.ping().await {
+                db.pool.close().await;
+                return Err(e);
+            }
+            db.pool.close().await;
+            println!(
+                "config ok (deep): bind={}:{} db={} targets={} interval={}s retention={}h (db open/migrate/ping ok)",
+                cfg.bind,
+                cfg.port,
+                cfg.db_path,
+                cfg.targets.len(),
+                cfg.interval_seconds,
+                cfg.retention_hours
+            );
+        } else {
+            println!(
+                "config ok: bind={}:{} db={} targets={} interval={}s retention={}h",
+                cfg.bind,
+                cfg.port,
+                cfg.db_path,
+                cfg.targets.len(),
+                cfg.interval_seconds,
+                cfg.retention_hours
+            );
+        }
         return Ok(());
     }
 
@@ -217,16 +246,21 @@ mod tests {
 
         let err = parse_cli_from(["--config="]).unwrap_err().to_string();
         assert!(err.contains("--config requires a path"));
+
+        let err = parse_cli_from(["--deep"]).unwrap_err().to_string();
+        assert!(err.contains("--deep requires --check-config"));
     }
 
     #[test]
     fn parse_cli_accepts_config_and_flags() {
-        let cli = parse_cli_from(["--config", "foo.toml", "--check-config", "--tui"]).unwrap();
+        let cli =
+            parse_cli_from(["--config", "foo.toml", "--check-config", "--deep", "--tui"]).unwrap();
         assert_eq!(
             cli.config.as_deref(),
             Some(std::path::Path::new("foo.toml"))
         );
         assert!(cli.check_config);
+        assert!(cli.deep);
         assert!(cli.tui);
 
         let cli = parse_cli_from(["--config=bar.toml"]).unwrap();
@@ -234,5 +268,6 @@ mod tests {
             cli.config.as_deref(),
             Some(std::path::Path::new("bar.toml"))
         );
+        assert!(!cli.deep);
     }
 }

@@ -6,7 +6,7 @@
 Uso:
 
 ```bash
-./tinytop --check-config --config examples/config.basic.toml
+./tinytop --check-config --deep --config examples/config.basic.toml
 ./tinytop --config examples/config.basic.toml
 ```
 

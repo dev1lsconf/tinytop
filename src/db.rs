@@ -112,6 +112,29 @@ pub struct SystemHistoryPoint {
     pub top_processes: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct TargetHistoryPoint {
+    pub timestamp: String,
+    pub origin: String, // "raw" | "rollup"
+    pub bucket_seconds: Option<i64>,
+    pub samples: Option<i64>,
+    pub target: String,
+    pub status: Option<String>,
+    pub up_ratio: Option<f64>,
+    pub latency_ms: Option<f64>,
+    pub http_requests: Option<i64>,
+    pub cert_days_left: Option<i64>,
+    pub detail: Option<String>,
+    pub check_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BucketCount {
+    pub bucket_start: String,
+    pub key: String,
+    pub count: i64,
+}
+
 impl Database {
     pub async fn open(path: &str) -> anyhow::Result<Self> {
         if let Some(parent) = Path::new(path).parent()
@@ -297,6 +320,59 @@ impl Database {
                     )
                     .collect());
             }
+
+            // Fallback: aggregate raw samples on-the-fly so long ranges stay bounded
+            // even if rollups are not yet available for this window.
+            let bucket_expr = if bucket >= 3600 {
+                "strftime('%Y-%m-%dT%H:00:00Z', timestamp)".to_string()
+            } else {
+                "strftime('%Y-%m-%dT%H:', timestamp) || printf('%02d:00Z', (CAST(strftime('%M', timestamp) AS INTEGER) / 5) * 5)".to_string()
+            };
+            let sql = format!(
+                "SELECT {bucket_expr} as bucket_start, COUNT(*) as samples,
+                        COALESCE(AVG(cpu_percent),0.0), COALESCE(AVG(mem_used_percent),0.0), COALESCE(AVG(disk_used_percent),0.0),
+                        COALESCE(AVG(net_rx_bytes_per_sec),0.0), COALESCE(AVG(net_tx_bytes_per_sec),0.0), AVG(load1)
+                 FROM system_metrics WHERE timestamp >= ?
+                 GROUP BY bucket_start
+                 ORDER BY bucket_start ASC"
+            );
+            let agg_rows: Vec<RollupRow> = sqlx::query_as(&sql)
+                .bind(&cutoff)
+                .fetch_all(&self.pool)
+                .await?;
+            if !agg_rows.is_empty() {
+                return Ok(agg_rows
+                    .into_iter()
+                    .map(
+                        |(timestamp, samples, cpu, mem, disk, rx, tx, load1)| SystemHistoryPoint {
+                            timestamp,
+                            origin: "rollup".to_string(),
+                            bucket_seconds: Some(bucket),
+                            samples: Some(samples),
+                            cpu_percent: cpu,
+                            mem_used_mb: None,
+                            mem_total_mb: None,
+                            mem_used_percent: mem,
+                            disk_used_mb: None,
+                            disk_total_mb: None,
+                            disk_available_mb: None,
+                            disk_used_percent: disk,
+                            net_rx_bytes: None,
+                            net_tx_bytes: None,
+                            net_rx_bytes_per_sec: rx,
+                            net_tx_bytes_per_sec: tx,
+                            load1,
+                            load5: None,
+                            load15: None,
+                            swap_used_mb: None,
+                            swap_total_mb: None,
+                            swap_used_percent: None,
+                            uptime_seconds: None,
+                            top_processes: None,
+                        },
+                    )
+                    .collect());
+            }
         }
         let rows = self.system_history(range_hours).await?;
         Ok(rows
@@ -366,6 +442,91 @@ impl Database {
              FROM target_metrics WHERE target = ? AND timestamp >= ? ORDER BY id ASC",
         ).bind(target).bind(cutoff).fetch_all(&self.pool).await?;
         Ok(rows)
+    }
+
+    pub async fn target_history_points(
+        &self,
+        target: &str,
+        range_hours: i64,
+    ) -> anyhow::Result<Vec<TargetHistoryPoint>> {
+        let cutoff = (chrono::Utc::now() - chrono::Duration::hours(range_hours)).to_rfc3339();
+        if range_hours > 24 {
+            let bucket: i64 = if range_hours > 72 { 3600 } else { 300 };
+            let bucket_expr = if bucket >= 3600 {
+                "strftime('%Y-%m-%dT%H:00:00Z', timestamp)".to_string()
+            } else {
+                "strftime('%Y-%m-%dT%H:', timestamp) || printf('%02d:00Z', (CAST(strftime('%M', timestamp) AS INTEGER) / 5) * 5)".to_string()
+            };
+            let sql = format!(
+                "SELECT {bucket_expr} as bucket_start, COUNT(*) as samples,
+                        AVG(latency_ms) as latency_avg,
+                        AVG(CASE WHEN status IN ('up','ok') THEN 1.0 ELSE 0.0 END) as up_ratio,
+                        MIN(cert_days_left) as cert_min,
+                        MAX(check_type) as check_type
+                 FROM target_metrics WHERE target = ? AND timestamp >= ?
+                 GROUP BY bucket_start
+                 ORDER BY bucket_start ASC"
+            );
+            type Row = (
+                String,
+                i64,
+                Option<f64>,
+                Option<f64>,
+                Option<i64>,
+                Option<String>,
+            );
+            let rows: Vec<Row> = sqlx::query_as(&sql)
+                .bind(target)
+                .bind(&cutoff)
+                .fetch_all(&self.pool)
+                .await?;
+            return Ok(rows
+                .into_iter()
+                .map(
+                    |(ts, samples, latency_avg, up_ratio, cert_min, check_type)| {
+                        TargetHistoryPoint {
+                            timestamp: ts,
+                            origin: "rollup".to_string(),
+                            bucket_seconds: Some(bucket),
+                            samples: Some(samples),
+                            target: target.to_string(),
+                            status: None,
+                            up_ratio,
+                            latency_ms: latency_avg,
+                            http_requests: None,
+                            cert_days_left: cert_min,
+                            detail: None,
+                            check_type,
+                        }
+                    },
+                )
+                .collect());
+        }
+        let rows = self.target_history(target, range_hours).await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                let up = if matches!(r.status.as_str(), "up" | "ok") {
+                    1.0
+                } else {
+                    0.0
+                };
+                TargetHistoryPoint {
+                    timestamp: r.timestamp,
+                    origin: "raw".to_string(),
+                    bucket_seconds: None,
+                    samples: None,
+                    target: r.target,
+                    status: Some(r.status),
+                    up_ratio: Some(up),
+                    latency_ms: r.latency_ms,
+                    http_requests: r.http_requests,
+                    cert_days_left: r.cert_days_left,
+                    detail: r.detail,
+                    check_type: r.check_type,
+                }
+            })
+            .collect())
     }
 
     pub async fn prune_older_than_hours(&self, hours: u64) -> anyhow::Result<RetentionResult> {
@@ -535,6 +696,90 @@ impl Database {
         Ok(res.rows_affected())
     }
 
+    pub async fn event_counts_by_bucket(
+        &self,
+        range_hours: i64,
+    ) -> anyhow::Result<Vec<BucketCount>> {
+        let cutoff = (chrono::Utc::now() - chrono::Duration::hours(range_hours)).to_rfc3339();
+        let bucket: i64 = if range_hours > 72 {
+            3600
+        } else if range_hours > 24 {
+            1800
+        } else {
+            900
+        };
+        let bucket_expr = if bucket >= 3600 {
+            "strftime('%Y-%m-%dT%H:00:00Z', timestamp)"
+        } else {
+            "strftime('%Y-%m-%dT%H:', timestamp) || printf('%02d:00Z', (CAST(strftime('%M', timestamp) AS INTEGER) / 15) * 15)"
+        };
+        let bucket_expr = if bucket == 1800 {
+            "strftime('%Y-%m-%dT%H:', timestamp) || printf('%02d:00Z', (CAST(strftime('%M', timestamp) AS INTEGER) / 30) * 30)".to_string()
+        } else {
+            bucket_expr.to_string()
+        };
+        let sql = format!(
+            "SELECT {bucket_expr} as bucket_start, level as key, COUNT(*) as count
+             FROM events WHERE timestamp >= ?
+             GROUP BY bucket_start, key
+             ORDER BY bucket_start ASC"
+        );
+        let rows: Vec<(String, String, i64)> = sqlx::query_as(&sql)
+            .bind(&cutoff)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(bucket_start, key, count)| BucketCount {
+                bucket_start,
+                key,
+                count,
+            })
+            .collect())
+    }
+
+    pub async fn alert_counts_by_bucket(
+        &self,
+        range_hours: i64,
+    ) -> anyhow::Result<Vec<BucketCount>> {
+        let cutoff = (chrono::Utc::now() - chrono::Duration::hours(range_hours)).to_rfc3339();
+        let bucket: i64 = if range_hours > 72 {
+            3600
+        } else if range_hours > 24 {
+            1800
+        } else {
+            900
+        };
+        let bucket_expr = if bucket >= 3600 {
+            "strftime('%Y-%m-%dT%H:00:00Z', created_at)"
+        } else {
+            "strftime('%Y-%m-%dT%H:', created_at) || printf('%02d:00Z', (CAST(strftime('%M', created_at) AS INTEGER) / 15) * 15)"
+        };
+        let bucket_expr = if bucket == 1800 {
+            "strftime('%Y-%m-%dT%H:', created_at) || printf('%02d:00Z', (CAST(strftime('%M', created_at) AS INTEGER) / 30) * 30)".to_string()
+        } else {
+            bucket_expr.to_string()
+        };
+        let sql = format!(
+            "SELECT {bucket_expr} as bucket_start, status as key, COUNT(*) as count
+             FROM alerts WHERE created_at >= ?
+             GROUP BY bucket_start, key
+             ORDER BY bucket_start ASC"
+        );
+        let rows: Vec<(String, String, i64)> = sqlx::query_as(&sql)
+            .bind(&cutoff)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(bucket_start, key, count)| BucketCount {
+                bucket_start,
+                key,
+                count,
+            })
+            .collect())
+    }
+
     // --- exports ---
     pub async fn export_system_history(
         &self,
@@ -555,21 +800,38 @@ impl Database {
     ) -> anyhow::Result<Vec<TargetMetric>> {
         self.target_history(target, range_hours).await
     }
+    pub async fn export_target_history_points(
+        &self,
+        target: &str,
+        range_hours: i64,
+    ) -> anyhow::Result<Vec<TargetHistoryPoint>> {
+        self.target_history_points(target, range_hours).await
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use super::Database;
+    use tempfile::TempDir;
+
+    pub async fn open_temp_db() -> (Database, TempDir) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("test.db");
+        let db = Database::open(path.to_str().expect("temp path utf-8"))
+            .await
+            .expect("open temp db");
+        db.init().await.expect("init temp db");
+        (db, dir)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
+    use crate::db::test_support::open_temp_db;
 
     async fn test_db() -> (Database, tempfile::TempDir) {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("test.db");
-        let db = Database::open(path.to_str().expect("temp path utf-8"))
-            .await
-            .unwrap();
-        db.init().await.unwrap();
-        (db, dir)
+        open_temp_db().await
     }
     #[tokio::test]
     async fn init_and_insert_system_metric() {
@@ -777,5 +1039,70 @@ mod tests {
         assert_eq!(rows[1].0, "2026-11-16T10:05:00Z");
         assert_eq!(rows[1].1, 1);
         assert!((rows[1].2 - 40.0).abs() < 1e-9);
+    }
+
+    #[tokio::test]
+    async fn history_points_falls_back_to_bucket_aggregation_without_rollups() {
+        let (db, _dir) = test_db().await;
+        let base = chrono::Utc::now() - chrono::Duration::hours(30);
+        let aligned =
+            chrono::DateTime::<chrono::Utc>::from_timestamp((base.timestamp() / 300) * 300, 0)
+                .unwrap();
+        let t = |secs: i64| (aligned + chrono::Duration::seconds(secs)).to_rfc3339();
+        // 60s, 180s, 240s -> same 5m bucket; 420s -> next 5m bucket
+        for (ts, cpu) in [
+            (t(60), 10.0),
+            (t(180), 20.0),
+            (t(240), 30.0),
+            (t(420), 40.0),
+        ] {
+            sqlx::query(
+                "INSERT INTO system_metrics (
+                    timestamp, cpu_percent, mem_used_mb, mem_total_mb, mem_used_percent,
+                    disk_used_mb, disk_total_mb, disk_available_mb, disk_used_percent,
+                    net_rx_bytes, net_tx_bytes, net_rx_bytes_per_sec, net_tx_bytes_per_sec,
+                    load1, load5, load15, swap_used_mb, swap_total_mb, swap_used_percent,
+                    uptime_seconds, top_processes
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            )
+            .bind(ts)
+            .bind(cpu)
+            .bind(512.0)
+            .bind(1024.0)
+            .bind(50.0)
+            .bind(1000.0)
+            .bind(2000.0)
+            .bind(1000.0)
+            .bind(50.0)
+            .bind(100_i64)
+            .bind(200_i64)
+            .bind(10.0)
+            .bind(20.0)
+            .bind(Some(0.5_f64))
+            .bind(Some(0.4_f64))
+            .bind(Some(0.3_f64))
+            .bind(Some(0.0_f64))
+            .bind(Some(0.0_f64))
+            .bind(Some(0.0_f64))
+            .bind(Some(100_i64))
+            .bind::<Option<String>>(None)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        }
+
+        let points = db.system_history_points(48).await.unwrap();
+        assert_eq!(points.len(), 2);
+        assert_eq!(points[0].origin, "rollup");
+        assert_eq!(points[0].bucket_seconds, Some(300));
+        assert_eq!(points[0].samples, Some(3));
+        assert!((points[0].cpu_percent - 20.0).abs() < 1e-9);
+        assert!(points[0].mem_used_mb.is_none());
+        assert!(points[0].disk_available_mb.is_none());
+        assert!(points[0].net_rx_bytes.is_none());
+        assert!(points[0].load5.is_none());
+        assert!(points[0].uptime_seconds.is_none());
+        assert_eq!(points[1].samples, Some(1));
+        assert!((points[1].cpu_percent - 40.0).abs() < 1e-9);
     }
 }

@@ -90,6 +90,69 @@ test.describe('TinyTop dashboard', () => {
     expect(consoleErrors, 'console errors').toEqual([]);
   });
 
+  test('muestra panel de token y permite guardar/borrar sin romper la UI', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    const panel = page.getByTestId('auth-panel');
+    await expect(panel).toHaveClass(/hidden/);
+
+    await page.getByTestId('auth-btn').click();
+    await expect(panel).not.toHaveClass(/hidden/);
+    await expect(page.locator('#authTokenInput')).toBeVisible();
+    await expect(page.locator('#authSaveBtn')).toBeVisible();
+    await expect(page.locator('#authClearBtn')).toBeVisible();
+
+    await page.locator('#authTokenInput').fill('test-token');
+    await page.locator('#authSaveBtn').click();
+    await expect.poll(async () => page.evaluate(() => sessionStorage.getItem('tinytop_token'))).toBe('test-token');
+    await expect(page.locator('#authPanelStatus')).toContainText(/Token configurado/);
+
+    await page.locator('#authClearBtn').click();
+    await expect.poll(async () => page.evaluate(() => sessionStorage.getItem('tinytop_token'))).toBeNull();
+
+    await page.locator('#authCancelBtn').click();
+    await expect(panel).toHaveClass(/hidden/);
+  });
+
+  test('muestra panel de token cuando la API responde 401 y reintenta con Authorization', async ({ page }) => {
+    await page.addInitScript(() => sessionStorage.removeItem('tinytop_token'));
+    let protectedSeen = false;
+    await page.route('**/api/metrics/latest**', async route => {
+      const auth = route.request().headers()['authorization'];
+      if (auth === 'Bearer secret') {
+        protectedSeen = true;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            system: {
+              cpu_percent: 1, mem_used_percent: 2, disk_used_percent: 3,
+              mem_used_mb: 10, mem_total_mb: 100, disk_used_mb: 10, disk_total_mb: 100,
+              net_rx_bytes: 0, net_tx_bytes: 0, net_rx_bytes_per_sec: 0, net_tx_bytes_per_sec: 0,
+              load1: 0.1, load5: 0.1, load15: 0.1, uptime_seconds: 100, top_processes: '[]'
+            },
+            targets: []
+          }),
+        });
+      } else {
+        await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { code: 'unauthorized', message: 'authentication required' } }) });
+      }
+    });
+    await page.route('**/api/metrics/history**', route => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+    await page.route('**/api/alerts**', route => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+    await page.route('**/api/events**', route => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByTestId('auth-panel')).not.toHaveClass(/hidden/, { timeout: 20_000 });
+    await expect(page.getByTestId('error-banner')).toContainText(/No autorizado|autentic/i, { timeout: 20_000 });
+
+    await page.locator('#authTokenInput').fill('secret');
+    await page.locator('#authSaveBtn').click();
+
+    await expect.poll(() => protectedSeen, { timeout: 20_000 }).toBeTruthy();
+  });
+
   test('expone endpoints API principales y nuevos', async ({ request }) => {
     await expect.poll(async () => (await request.get('/api/health')).status(), { timeout: 30_000 }).toBe(200);
 

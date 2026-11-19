@@ -36,7 +36,7 @@ tinytop_start()
 
 tinytop_configtest()
 {
-	"${command}" --check-config --config "${tinytop_config}"
+	"${command}" --check-config --deep --config "${tinytop_config}"
 }
 
 tinytop_reload()

@@ -5,7 +5,7 @@ Esta guía amplía el README con detalles operativos, configuración avanzada y 
 ## 1. Configuración
 
 - Archivo por defecto: `config.toml` (o `--config <ruta>` / `TINYTOP_CONFIG`).
-- Validar sin ejecutar: `tinytop --check-config [--config <ruta>]`.
+- Validar sin ejecutar: `tinytop --check-config [--config <ruta>]` (añade `--deep`, junto con `--check-config`, para verificar también la apertura/migración efectiva de `db_path`).
 - Ejemplos listos para adaptar: [`examples/`](../examples/README.md).
 - Overrides por entorno (útiles en contenedores): `TINYTOP_BIND`, `TINYTOP_PORT`, `TINYTOP_DB_PATH`, `TINYTOP_INTERVAL`, `TINYTOP_RETENTION_HOURS`, `TINYTOP_REQUEST_TIMEOUT_SECS`, `TINYTOP_MAX_HISTORY_HOURS`, `TINYTOP_AUTH_TOKEN`.
 
@@ -32,7 +32,7 @@ Sección `[notifications]` (best-effort, en transiciones): `webhook_url`, `teleg
 
 ### 1.4 Autenticación
 
-Sección `[auth]` (opcional): token (Bearer / `X-API-Key` o Basic `username`/`password`). `?token=` se acepta por compatibilidad, pero **se desaconseja**: el token puede quedar expuesto en historial del navegador, logs del proxy/servidor y cabeceras `Referer`; prefiere `Authorization: Bearer <token>`, `X-API-Key` o el botón **Token** del dashboard (envía el token en header y lo guarda solo en la sesión del navegador).
+Sección `[auth]` (opcional): token (Bearer / `X-API-Key` o Basic `username`/`password`). `?token=` se acepta por compatibilidad, pero **se desaconseja**: el token puede quedar expuesto en historial del navegador, logs del proxy/servidor y cabeceras `Referer`; prefiere `Authorization: Bearer <token>`, `X-API-Key` o el botón/panel **Token** del dashboard (el panel se abre al pulsar “Token” o cuando la API responde 401; el token se guarda solo en la sesión del navegador y se envía en cabeceras, no en la URL).
 
 Sin auth la API/UI quedan abiertas: **usar solo en red confiable o detrás de reverse proxy con TLS/auth**. `/api/health` puede quedar exento según configuración; `/api/config` redacta valores sensibles. El dashboard sirve CSS/JS como assets propios y aplica una CSP endurecida (sin `unsafe-inline`); para scripts/extensiones personalizadas externas habría que ajustar la política.
 
@@ -40,7 +40,8 @@ Sin auth la API/UI quedan abiertas: **usar solo en red confiable o detrás de re
 
 - `GET /api/health` — estado (db/runtime/versión).
 - `GET /api/metrics/latest` — últimas métricas de sistema y targets.
-- `GET /api/metrics/history?range=<h>&target=<system|nombre>` — histórico (rangos largos usan rollups/downsampling).
+- `GET /api/metrics/history?range=<h>&target=<system|nombre>` — histórico (rangos largos usan rollups/downsampling). Para targets incluye latencia, disponibilidad (`up_ratio`) y `cert_days_left` cuando aplica.
+- `GET /api/insights?range=<h>` — conteos agregados por intervalo de eventos (por nivel) y alertas (por estado) para visualización.
 - `GET /api/config` — configuración efectiva (redactada).
 - `GET /api/alerts`, `GET /api/events` — incidentes y eventos.
 - `GET /api/export?target=<...>&format=json|csv&range=<h>` — exportación.
@@ -57,7 +58,7 @@ curl -s http://localhost:9090/metrics
 
 ## 3. Dashboard y TUI
 
-- **Dashboard web**: embebido, sin CDN; métricas extendidas, histórico por rango, alertas/eventos, estado de targets/TLS y exportación.
+- **Dashboard web**: embebido, sin CDN; métricas extendidas e histórico por rango (sistema y targets, con downsampling), CPU vs memoria, latencia/disponibilidad de targets e historial de `cert_days_left` (TLS), eventos/alertas por intervalo, estado de targets/TLS y exportación.
 - **TUI**: `tinytop --tui [--config <ruta>]` (requiere TTY). Vistas Sistema/Targets/Alertas/Eventos, sparklines, selección de rango/target y refresco. Atajos: `Tab`/`1-4`, `+/-`, `↑/↓`, `r`, `q`.
 
 ## 4. Operación
@@ -75,8 +76,8 @@ curl -s http://localhost:9090/metrics
 
 | Síntoma | Posibles causas / acciones |
 |---|---|
-| Config inválida al arrancar | Ejecuta `tinytop --check-config --config <ruta>`; revisa tipos de check, `host/port` en tcp/tls, URLs y rangos. |
-| Dashboard sin datos / “starting” | Espera al menos un `interval_seconds`; revisa `/api/health` y logs; confirma que el colector corre y `db_path` es escribible. |
+| Config inválida al arrancar | Ejecuta `tinytop --check-config [--deep] --config <ruta>`; revisa tipos de check, `host/port` en tcp/tls, URLs y rangos. |
+| Dashboard sin datos / “starting” | Espera al menos un `interval_seconds`; revisa `/api/health` y logs; confirma que el colector corre y `db_path` es escribible. Valida con `--check-config [--deep]`. |
 | Check `ping` o TLS sin detalle de cert | Best-effort: instala `ping`/`openssl` en el entorno (en contenedores mínimos pueden faltar). |
 | 401/403 en API/UI | Auth habilitada: usa el botón **Token** del dashboard o envía `Authorization: Bearer <token>` / `X-API-Key` / Basic según config; evita `?token=` (riesgo de filtrado). Verifica `TINYTOP_AUTH_TOKEN`/config. |
 | Histórico lento o grande | Los rangos >24h usan rollups (5m/1h); ajusta `retention_hours`/`max_history_hours` y asegura espacio en disco para `db_path`. |

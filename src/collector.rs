@@ -98,7 +98,7 @@ pub async fn collect(config: &Config, state: &mut CollectorState) -> anyhow::Res
     })
 }
 
-fn build_http_client(timeout_secs: u64) -> reqwest::Client {
+fn try_build_http_client(timeout_secs: u64) -> Result<reqwest::Client, reqwest::Error> {
     let secs = timeout_secs.max(1);
     reqwest::Client::builder()
         .timeout(Duration::from_secs(secs))
@@ -106,10 +106,20 @@ fn build_http_client(timeout_secs: u64) -> reqwest::Client {
         .tcp_keepalive(Duration::from_secs(30))
         .user_agent(format!("tinytop/{}", env!("CARGO_PKG_VERSION")))
         .build()
-        .unwrap_or_else(|e| {
+}
+
+fn build_http_client(timeout_secs: u64) -> reqwest::Client {
+    let secs = timeout_secs.max(1);
+    match try_build_http_client(secs) {
+        Ok(client) => client,
+        Err(e) => {
             tracing::warn!(error = %e, "failed to build http client with timeout, using defaults");
-            reqwest::Client::new()
-        })
+            reqwest::Client::builder().build().unwrap_or_else(|e2| {
+                tracing::error!(error = %e2, "failed to build default http client, using reqwest::Client::new fallback");
+                reqwest::Client::new()
+            })
+        }
+    }
 }
 
 fn http_client(timeout_secs: u64) -> reqwest::Client {
@@ -117,7 +127,18 @@ fn http_client(timeout_secs: u64) -> reqwest::Client {
     let cell = HTTP_CLIENT.get_or_init(|| Mutex::new((secs, build_http_client(secs))));
     if let Ok(mut guard) = cell.lock() {
         if guard.0 != secs {
-            *guard = (secs, build_http_client(secs));
+            match try_build_http_client(secs) {
+                Ok(client) => *guard = (secs, client),
+                Err(e) => {
+                    tracing::error!(
+                        error = %e,
+                        requested_timeout_secs = secs,
+                        previous_timeout_secs = guard.0,
+                        "failed to rebuild http client for updated timeout; keeping previous client"
+                    );
+                    guard.0 = secs;
+                }
+            }
         }
         return guard.1.clone();
     }
@@ -304,19 +325,44 @@ fn collect_system_bsd(state: &mut CollectorState) -> SystemMetrics {
     use std::process::Command;
 
     fn sysctl_n(name: &str) -> Option<String> {
-        let out = Command::new("sysctl").arg("-n").arg(name).output().ok()?;
-        if !out.status.success() {
-            return None;
+        match Command::new("sysctl").arg("-n").arg(name).output() {
+            Ok(out) if out.status.success() => {
+                Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
+            }
+            Ok(out) => {
+                tracing::debug!(
+                    name,
+                    status = ?out.status.code(),
+                    "sysctl -n failed"
+                );
+                None
+            }
+            Err(e) => {
+                tracing::debug!(name, error = %e, "failed to run sysctl");
+                None
+            }
         }
-        Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
     }
 
     fn run(cmd: &str, args: &[&str]) -> Option<String> {
-        let out = Command::new(cmd).args(args).output().ok()?;
-        if !out.status.success() {
-            return None;
+        match Command::new(cmd).args(args).output() {
+            Ok(out) if out.status.success() => {
+                Some(String::from_utf8_lossy(&out.stdout).to_string())
+            }
+            Ok(out) => {
+                tracing::debug!(
+                    cmd,
+                    args = ?args,
+                    status = ?out.status.code(),
+                    "command returned non-zero"
+                );
+                None
+            }
+            Err(e) => {
+                tracing::debug!(cmd, args = ?args, error = %e, "failed to run command");
+                None
+            }
         }
-        Some(String::from_utf8_lossy(&out.stdout).to_string())
     }
 
     fn kv_u64(s: &str, key: &str) -> Option<u64> {
@@ -537,7 +583,15 @@ fn collect_system_bsd(state: &mut CollectorState) -> SystemMetrics {
             };
             (used, pct.min(100.0))
         }
-        _ => (0.0, 0.0),
+        _ => {
+            if physmem > 0 {
+                tracing::debug!(
+                    physmem,
+                    "bsd memory usage unavailable (could not determine active/wired pages)"
+                );
+            }
+            (0.0, 0.0)
+        }
     };
 
     let (swap_total_mb, swap_used_mb, swap_used_percent) = {
@@ -709,23 +763,29 @@ fn collect_system_bsd(state: &mut CollectorState) -> SystemMetrics {
     };
     state.last_net = Some((net_rx_bytes, net_tx_bytes, now));
 
-    let top_processes = run("ps", &["-axo", "comm,%cpu,rss", "-r"]).and_then(|out| {
-        let mut procs = Vec::new();
-        for line in out.lines().skip(1).take(5) {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 3 {
-                let name = parts[0].to_string();
-                let cpu = parts[1].parse::<f64>().unwrap_or(0.0);
-                let mem_kb = parts[2].parse::<f64>().unwrap_or(0.0);
-                procs.push(serde_json::json!({"name":name,"cpu":cpu,"mem_mb":mem_kb / 1024.0}));
+    let top_processes = match run("ps", &["-axo", "comm,%cpu,rss", "-r"]) {
+        Some(out) => {
+            let mut procs = Vec::new();
+            for line in out.lines().skip(1).take(5) {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 3 {
+                    let name = parts[0].to_string();
+                    let cpu = parts[1].parse::<f64>().unwrap_or(0.0);
+                    let mem_kb = parts[2].parse::<f64>().unwrap_or(0.0);
+                    procs.push(serde_json::json!({"name":name,"cpu":cpu,"mem_mb":mem_kb / 1024.0}));
+                }
+            }
+            if procs.is_empty() {
+                None
+            } else {
+                serde_json::to_string(&procs).ok()
             }
         }
-        if procs.is_empty() {
+        None => {
+            tracing::debug!("bsd top processes unavailable (ps failed)");
             None
-        } else {
-            serde_json::to_string(&procs).ok()
         }
-    });
+    };
 
     SystemMetrics {
         cpu_percent,

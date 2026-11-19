@@ -28,7 +28,7 @@ tinytop_start()
 
 tinytop_configtest()
 {
-	${command} --check-config --config /usr/pkg/etc/tinytop/config.toml
+	${command} --check-config --deep --config /usr/pkg/etc/tinytop/config.toml
 }
 
 tinytop_reload()

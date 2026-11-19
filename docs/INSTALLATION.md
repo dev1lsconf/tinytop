@@ -40,7 +40,7 @@ Guía detallada para instalar, configurar y operar TinyTop en Linux, *BSD y Dock
 3. Valida antes de ejecutar:
 
 ```bash
-tinytop --check-config --config /ruta/config.toml
+tinytop --check-config --deep --config /ruta/config.toml
 ```
 
 4. Ejecuta (dashboard web en `http://<bind>:<port>`, por defecto `http://localhost:9090`):
@@ -75,7 +75,7 @@ sudo install -d -o root -g root /etc/tinytop
 sudo install -d -o tinytop -g tinytop /var/lib/tinytop  # si usarás el servicio dedicado
 sudoedit /etc/tinytop/config.toml   # ajustar db_path, p.ej. /var/lib/tinytop/tinytop.db
 
-tinytop --check-config --config /etc/tinytop/config.toml
+tinytop --check-config --deep --config /etc/tinytop/config.toml
 ```
 
 - Binario: `/usr/bin/tinytop`. Config de ejemplo: `/etc/tinytop/config.toml`.
@@ -89,7 +89,7 @@ Artefacto: `tinytop-<version>-1.x86_64.rpm`.
 sudo dnf install -y sqlite sqlite-libs ca-certificates iputils openssl
 sudo rpm -i tinytop-1.0.6 <!-- x-release-please-version -->
 
-tinytop --check-config --config /etc/tinytop/config.toml
+tinytop --check-config --deep --config /etc/tinytop/config.toml
 ```
 
 Verifica dependencias con `ldd /usr/bin/tinytop` si es necesario.
@@ -110,7 +110,7 @@ sudo apt-get install -y sqlite3 libsqlite3-0 ca-certificates iputils-ping openss
 ldd ./tinytop || readelf -l ./tinytop
 
 # Ajustar config.toml (db_path a un directorio escribible)
-./tinytop --check-config --config ./config.toml
+./tinytop --check-config --deep --config ./config.toml
 ./tinytop --config ./config.toml
 ```
 
@@ -227,7 +227,7 @@ db_path = "/var/db/tinytop/tinytop.db"
 Prueba como el usuario del servicio:
 
 ```sh
-doas -u _tinytop /usr/local/bin/tinytop --check-config --config /etc/tinytop/config.toml
+doas -u _tinytop /usr/local/bin/tinytop --check-config --deep --config /etc/tinytop/config.toml
 doas -u _tinytop /usr/local/bin/tinytop --config /etc/tinytop/config.toml
 ```
 
@@ -296,7 +296,7 @@ source "$HOME/.cargo/env"
 
 # Compilar
 cargo build --release --locked
-./target/release/tinytop --check-config
+./target/release/tinytop --check-config --deep
 ./target/release/tinytop --version
 ```
 
@@ -309,7 +309,7 @@ cargo build --release --locked
 ```bash
 # Versión y config
 tinytop --version
-tinytop --check-config --config /ruta/config.toml
+tinytop --check-config --deep --config /ruta/config.toml
 
 # Ejecución (web)
 tinytop --config /ruta/config.toml

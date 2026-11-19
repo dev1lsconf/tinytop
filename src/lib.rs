@@ -78,7 +78,8 @@ pub async fn run_collector(
     let mut state = CollectorState::default();
     let mut notify_state = NotifyState::default();
     let mut last_prune = Instant::now() - Duration::from_secs(3600);
-    let mut last_rollup = Instant::now() - Duration::from_secs(3600);
+    let mut last_rollup_5m = Instant::now() - Duration::from_secs(300);
+    let mut last_rollup_1h = Instant::now() - Duration::from_secs(3600);
 
     loop {
         if shutdown.load(Ordering::Relaxed) {
@@ -189,16 +190,17 @@ pub async fn run_collector(
             }
             last_prune = Instant::now();
         }
-        if last_rollup.elapsed() >= Duration::from_secs(300) {
+        if last_rollup_5m.elapsed() >= Duration::from_secs(300) {
             if let Err(e) = db.compute_rollups(300).await {
                 tracing::debug!(error = %e, "5m rollup computation failed");
             }
-            if last_rollup.elapsed() >= Duration::from_secs(3600)
-                && let Err(e) = db.compute_rollups(3600).await
-            {
+            last_rollup_5m = Instant::now();
+        }
+        if last_rollup_1h.elapsed() >= Duration::from_secs(3600) {
+            if let Err(e) = db.compute_rollups(3600).await {
                 tracing::debug!(error = %e, "1h rollup computation failed");
             }
-            last_rollup = Instant::now();
+            last_rollup_1h = Instant::now();
         }
 
         if shutdown.load(Ordering::Relaxed) {
@@ -390,37 +392,52 @@ pub async fn dispatch_notifications(
     let msg = format_notification_message(&relevant);
     let mut sent = false;
     if let Some(url) = &cfg.notifications.webhook_url {
-        let is_discord =
-            url.contains("discord.com/api/webhooks") || url.contains("discordapp.com/api/webhooks");
-        let payload = if is_discord {
-            serde_json::json!({"content": msg})
-        } else {
-            serde_json::json!({"text": msg, "transitions": relevant})
-        };
-        let _ = reqwest::Client::new().post(url).json(&payload).send().await;
-        sent = true;
+        match reqwest::Client::builder().build() {
+            Ok(client) => {
+                let is_discord = url.contains("discord.com/api/webhooks")
+                    || url.contains("discordapp.com/api/webhooks");
+                let payload = if is_discord {
+                    serde_json::json!({"content": msg})
+                } else {
+                    serde_json::json!({"text": msg, "transitions": relevant})
+                };
+                let _ = client.post(url).json(&payload).send().await;
+                sent = true;
+            }
+            Err(e) => tracing::debug!(error = %e, "failed to build notification http client"),
+        }
     }
     if let (Some(token), Some(chat)) = (
         &cfg.notifications.telegram_bot_token,
         &cfg.notifications.telegram_chat_id,
     ) {
-        let u = format!("https://api.telegram.org/bot{token}/sendMessage");
-        let _ = reqwest::Client::new()
-            .post(u)
-            .form(&[("chat_id", chat.as_str()), ("text", msg.as_str())])
-            .send()
-            .await;
-        sent = true;
+        match reqwest::Client::builder().build() {
+            Ok(client) => {
+                let u = format!("https://api.telegram.org/bot{token}/sendMessage");
+                let _ = client
+                    .post(u)
+                    .form(&[("chat_id", chat.as_str()), ("text", msg.as_str())])
+                    .send()
+                    .await;
+                sent = true;
+            }
+            Err(e) => tracing::debug!(error = %e, "failed to build notification http client"),
+        }
     }
     if let Some(base) = &cfg.notifications.ntfy_url {
-        let topic = cfg
-            .notifications
-            .ntfy_topic
-            .clone()
-            .unwrap_or_else(|| "tinytop".into());
-        let url = format!("{}/{}", base.trim_end_matches('/'), topic);
-        let _ = reqwest::Client::new().post(url).body(msg).send().await;
-        sent = true;
+        match reqwest::Client::builder().build() {
+            Ok(client) => {
+                let topic = cfg
+                    .notifications
+                    .ntfy_topic
+                    .clone()
+                    .unwrap_or_else(|| "tinytop".into());
+                let url = format!("{}/{}", base.trim_end_matches('/'), topic);
+                let _ = client.post(url).body(msg).send().await;
+                sent = true;
+            }
+            Err(e) => tracing::debug!(error = %e, "failed to build notification http client"),
+        }
     }
     if sent {
         notify_state.last_sent = Some(now);
@@ -537,14 +554,10 @@ mod tests {
     use super::*;
     use crate::collector::{Snapshot, SystemMetrics, TargetInfo};
     use crate::config::{AlertConfig, Config, Target};
-    use tempfile::tempdir;
+    use crate::db::test_support::open_temp_db;
 
     async fn test_db() -> (db::Database, tempfile::TempDir) {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("t.db");
-        let db = db::Database::open(path.to_str().unwrap()).await.unwrap();
-        db.init().await.unwrap();
-        (db, dir)
+        open_temp_db().await
     }
 
     fn base_cfg() -> Config {
