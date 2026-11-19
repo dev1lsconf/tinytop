@@ -128,13 +128,6 @@ pub struct TargetHistoryPoint {
     pub check_type: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct BucketCount {
-    pub bucket_start: String,
-    pub key: String,
-    pub count: i64,
-}
-
 impl Database {
     pub async fn open(path: &str) -> anyhow::Result<Self> {
         if let Some(parent) = Path::new(path).parent()
@@ -694,90 +687,6 @@ impl Database {
             .execute(&self.pool)
             .await?;
         Ok(res.rows_affected())
-    }
-
-    pub async fn event_counts_by_bucket(
-        &self,
-        range_hours: i64,
-    ) -> anyhow::Result<Vec<BucketCount>> {
-        let cutoff = (chrono::Utc::now() - chrono::Duration::hours(range_hours)).to_rfc3339();
-        let bucket: i64 = if range_hours > 72 {
-            3600
-        } else if range_hours > 24 {
-            1800
-        } else {
-            900
-        };
-        let bucket_expr = if bucket >= 3600 {
-            "strftime('%Y-%m-%dT%H:00:00Z', timestamp)"
-        } else {
-            "strftime('%Y-%m-%dT%H:', timestamp) || printf('%02d:00Z', (CAST(strftime('%M', timestamp) AS INTEGER) / 15) * 15)"
-        };
-        let bucket_expr = if bucket == 1800 {
-            "strftime('%Y-%m-%dT%H:', timestamp) || printf('%02d:00Z', (CAST(strftime('%M', timestamp) AS INTEGER) / 30) * 30)".to_string()
-        } else {
-            bucket_expr.to_string()
-        };
-        let sql = format!(
-            "SELECT {bucket_expr} as bucket_start, level as key, COUNT(*) as count
-             FROM events WHERE timestamp >= ?
-             GROUP BY bucket_start, key
-             ORDER BY bucket_start ASC"
-        );
-        let rows: Vec<(String, String, i64)> = sqlx::query_as(&sql)
-            .bind(&cutoff)
-            .fetch_all(&self.pool)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(bucket_start, key, count)| BucketCount {
-                bucket_start,
-                key,
-                count,
-            })
-            .collect())
-    }
-
-    pub async fn alert_counts_by_bucket(
-        &self,
-        range_hours: i64,
-    ) -> anyhow::Result<Vec<BucketCount>> {
-        let cutoff = (chrono::Utc::now() - chrono::Duration::hours(range_hours)).to_rfc3339();
-        let bucket: i64 = if range_hours > 72 {
-            3600
-        } else if range_hours > 24 {
-            1800
-        } else {
-            900
-        };
-        let bucket_expr = if bucket >= 3600 {
-            "strftime('%Y-%m-%dT%H:00:00Z', created_at)"
-        } else {
-            "strftime('%Y-%m-%dT%H:', created_at) || printf('%02d:00Z', (CAST(strftime('%M', created_at) AS INTEGER) / 15) * 15)"
-        };
-        let bucket_expr = if bucket == 1800 {
-            "strftime('%Y-%m-%dT%H:', created_at) || printf('%02d:00Z', (CAST(strftime('%M', created_at) AS INTEGER) / 30) * 30)".to_string()
-        } else {
-            bucket_expr.to_string()
-        };
-        let sql = format!(
-            "SELECT {bucket_expr} as bucket_start, status as key, COUNT(*) as count
-             FROM alerts WHERE created_at >= ?
-             GROUP BY bucket_start, key
-             ORDER BY bucket_start ASC"
-        );
-        let rows: Vec<(String, String, i64)> = sqlx::query_as(&sql)
-            .bind(&cutoff)
-            .fetch_all(&self.pool)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(bucket_start, key, count)| BucketCount {
-                bucket_start,
-                key,
-                count,
-            })
-            .collect())
     }
 
     // --- exports ---

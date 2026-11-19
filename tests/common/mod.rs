@@ -64,6 +64,7 @@ pub async fn auth_app() -> (Router, TempDir) {
             basic_user: None,
             basic_password: None,
             allow_health_unauth: true,
+            allow_query_token: true,
         }),
         targets: vec![tinytop::config::Target {
             name: "t1".into(),
@@ -105,6 +106,7 @@ pub async fn basic_auth_app() -> (Router, TempDir) {
             basic_user: Some("user".into()),
             basic_password: Some("pass".into()),
             allow_health_unauth: true,
+            allow_query_token: true,
         }),
         targets: vec![tinytop::config::Target {
             name: "t1".into(),
@@ -146,6 +148,7 @@ pub async fn auth_app_health_protected() -> (Router, TempDir) {
             basic_user: None,
             basic_password: None,
             allow_health_unauth: false,
+            allow_query_token: true,
         }),
         targets: vec![tinytop::config::Target {
             name: "t1".into(),

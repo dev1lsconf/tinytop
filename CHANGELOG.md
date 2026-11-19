@@ -4,6 +4,24 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.1.0](https://github.com/dev1lsconf/tinytop/compare/v1.0.6...v1.1.0) (2026-11-19)
+
+### Añadido
+- `docs/PROPOSALS.md`: documento de propuestas de mejora (P1–P7 registradas y 10 nuevas, incluyendo mejoras de TUI) con principios, alcance y orden sugerido.
+- Auth: `allow_query_token` en `[auth]` (por defecto `true`) y `TINYTOP_AUTH_ALLOW_QUERY_TOKEN` para controlar el uso del token por query string (`?token=`), permitiendo deshabilitarlo y aceptar solo cabeceras/panel Token.
+- API: `/api/config` expone `notifications` (redactada) y `auth_allow_query_token`.
+- Config: validación de host seguro para targets `tcp`/`ping`/`tls`.
+- CI: verificación de dependencias con `cargo-audit` en el workflow de backend.
+
+### Cambiado
+- Dashboard: alcance fijo y aprobado de gráficos históricos — solo **CPU**, **memoria**, **red (RX/TX)** y **load average (1/5/15)**. Se eliminan gráficos/visualizaciones y endpoints/UI no aprobados (CPU vs memoria, latencia/disponibilidad/cert de targets, eventos/alertas por intervalo, `/api/insights`).
+- Dashboard: mejora de layout/alineación y organización de tarjetas (estadísticas, extendidas, gráficas y datos).
+- Seguridad/redacción: `/api/config` redacta también destinos/secretos de notificaciones (`telegram_chat_id`, `ntfy_url`, `ntfy_topic`, además de los existentes).
+- Documentación y ejemplos: actualización de README/ADVANCED/ejemplos con alcance del dashboard, opciones de auth (`allow_query_token`) y redacción; contribución incluye `cargo audit`.
+
+### Corregido
+- Tests/UI: ajuste de expectativas e2e al conjunto real de targets.
+
 ## [1.0.6](https://github.com/dev1lsconf/tinytop/compare/v1.0.5...v1.0.6) (2026-11-16)
 
 

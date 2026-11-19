@@ -1,11 +1,11 @@
 class Tinytop < Formula
   desc "Lightweight self-hosted system and target monitor (single binary, SQLite, web dashboard and TUI)"
   homepage "https://github.com/dev1lsconf/tinytop"
-  version "1.0.6"
+  version "1.1.0"
   license "MIT"
 
   # Plantilla: en macOS usa artefactos nativos cuando existan; mientras tanto, ajustar URLs/checksums al release publicado.
-  # Actualiza version/sha256 en cada release según los assets publicados en GitHub Releases.
+  # Actualiza version/sha256 en cada release según los assets publicados en GitHub Releases (v1.1.0: alinear hashes tras publicar artefactos).
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/dev1lsconf/tinytop/releases/download/v#{version}/tinytop-v#{version}-linux-aarch64.tar.gz"

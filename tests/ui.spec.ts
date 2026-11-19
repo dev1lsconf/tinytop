@@ -65,8 +65,8 @@ test.describe('TinyTop dashboard', () => {
     expect(chartState.cpuH).toBeLessThan(500);
 
     await expect(page.getByTestId('targets-table')).toBeVisible();
-    await expect(page.locator('#targetsTable tr')).toHaveCount(2, { timeout: 20_000 });
-    await expect(page.locator('#targetsTable')).toContainText(/localhost|api/i);
+    await expect(page.locator('#targetsTable tr')).toHaveCount(3, { timeout: 20_000 });
+    await expect(page.locator('#targetsTable')).toContainText(/localhost|api|freellmapi/i);
 
     // extended sections
     await expect(page.getByTestId('alerts-card')).toBeVisible();

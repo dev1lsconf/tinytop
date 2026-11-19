@@ -46,9 +46,21 @@
     <div id="errorBanner" class="banner" data-testid="error-banner" role="alert"></div>
 
     <section class="grid stats" aria-label="Métricas del sistema" data-testid="stats-grid">
-      <article class="card" data-testid="card-cpu"><div class="card-head"><div><p class="label">CPU</p><p class="value" id="cpuValue">--%</p><p class="sub" id="cpuMeta">Uso global</p></div><div class="icon">CPU</div></div><div class="bar"><div id="cpuBar" class="fill fill-cpu"></div></div></article>
-      <article class="card" data-testid="card-memory"><div class="card-head"><div><p class="label">Memoria</p><p class="value" id="memoryValue">--</p><p class="sub" id="memoryMeta">Usada / total</p></div><div class="icon">RAM</div></div><div class="bar"><div id="memoryBar" class="fill fill-mem"></div></div></article>
-      <article class="card" data-testid="card-network"><div class="card-head"><div><p class="label">Red</p><p class="value" id="netRateValue">--</p><p class="sub" id="netMeta">↓ RX/s · ↑ TX/s</p></div><div class="icon">NET</div></div><div class="bar"><div id="netBar" class="fill fill-net"></div></div><p class="card-foot" id="netTotals">RX total: -- · TX total: --</p></article>
+      <article class="card stat-card" data-testid="card-cpu">
+        <div class="stat-top"><p class="label">CPU</p><div class="icon">CPU</div></div>
+        <div class="stat-main"><p class="value" id="cpuValue">--%</p><p class="sub" id="cpuMeta">Uso global</p></div>
+        <div class="stat-bottom"><div class="bar"><div id="cpuBar" class="fill fill-cpu"></div></div></div>
+      </article>
+      <article class="card stat-card" data-testid="card-memory">
+        <div class="stat-top"><p class="label">Memoria</p><div class="icon">RAM</div></div>
+        <div class="stat-main"><p class="value" id="memoryValue">--</p><p class="sub" id="memoryMeta">Usada / total</p></div>
+        <div class="stat-bottom"><div class="bar"><div id="memoryBar" class="fill fill-mem"></div></div></div>
+      </article>
+      <article class="card stat-card" data-testid="card-network">
+        <div class="stat-top"><p class="label">Red</p><div class="icon">NET</div></div>
+        <div class="stat-main"><p class="value" id="netRateValue">--</p><p class="sub" id="netMeta">↓ RX/s · ↑ TX/s</p></div>
+        <div class="stat-bottom"><div class="bar"><div id="netBar" class="fill fill-net"></div></div><p class="card-foot" id="netTotals">RX total: -- · TX total: --</p></div>
+      </article>
     </section>
 
     <section class="kv" aria-label="Métricas extendidas">
@@ -56,36 +68,24 @@
       <div class="item"><p class="k">Uptime</p><p class="v" id="kvUptime">--</p></div>
       <div class="item"><p class="k">Top procesos</p><p class="v mono" id="kvProcs">--</p></div>
       <div class="item"><p class="k">Alertas activas</p><p class="v" id="kvAlerts">--</p></div>
-      <div class="item"><p class="k">Exportar</p><div class="v links"><a class="btn" id="exportJson" href="/api/export?target=system&format=json&range=24" data-testid="export-json">JSON</a><a class="btn" id="exportCsv" href="/api/export?target=system&format=csv&range=24" data-testid="export-csv">CSV</a><a class="btn" href="/metrics" target="_blank" rel="noopener">Prometheus</a></div></div>
+      <div class="item item-export"><p class="k">Exportar</p><div class="v links"><a class="btn" id="exportJson" href="/api/export?target=system&format=json&range=24" data-testid="export-json">JSON</a><a class="btn" id="exportCsv" href="/api/export?target=system&format=csv&range=24" data-testid="export-csv">CSV</a><a class="btn" href="/metrics" target="_blank" rel="noopener">Prometheus</a></div></div>
     </section>
 
     <section class="grid charts" aria-label="Histórico del sistema">
-      <article class="card" data-testid="chart-cpu-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">CPU</h2></div><span id="cpuChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="cpuChart"></canvas><div id="cpuChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
-      <article class="card" data-testid="chart-memory-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Memoria</h2></div><span id="memoryChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="memoryChart"></canvas><div id="memoryChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
-      <article class="card" data-testid="chart-net-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Red (RX/TX)</h2></div><span id="netChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="netChart"></canvas><div id="netChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
-      <article class="card" data-testid="chart-load-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Load average (1/5/15)</h2></div><span id="loadChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="loadChart"></canvas><div id="loadChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
-      <article class="card" data-testid="chart-cpu-mem-card"><div class="card-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">CPU vs Memoria</h2></div><span id="cpuMemChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="cpuMemChart"></canvas><div id="cpuMemChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card chart-card" data-testid="chart-cpu-card"><div class="card-head chart-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">CPU</h2></div><span id="cpuChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="cpuChart"></canvas><div id="cpuChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card chart-card" data-testid="chart-memory-card"><div class="card-head chart-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Memoria</h2></div><span id="memoryChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="memoryChart"></canvas><div id="memoryChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card chart-card" data-testid="chart-net-card"><div class="card-head chart-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Red (RX/TX)</h2></div><span id="netChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="netChart"></canvas><div id="netChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
+      <article class="card chart-card" data-testid="chart-load-card"><div class="card-head chart-head"><div><p class="label">Histórico</p><h2 class="value h2-inline">Load average (1/5/15)</h2></div><span id="loadChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="loadChart"></canvas><div id="loadChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
     </section>
 
-    <section class="grid charts" aria-label="Insights de targets">
-      <article class="card" data-testid="chart-target-latency-card"><div class="card-head"><div><p class="label">Targets</p><h2 class="value h2-inline">Latencia en el tiempo</h2></div><span id="targetLatencyChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="targetLatencyChart"></canvas><div id="targetLatencyChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
-      <article class="card" data-testid="chart-target-availability-card"><div class="card-head"><div><p class="label">Targets</p><h2 class="value h2-inline">Disponibilidad (up/down)</h2></div><span id="targetAvailabilityChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="targetAvailabilityChart"></canvas><div id="targetAvailabilityChartEmpty" class="chart-empty">Sin datos aún</div></div></article>
-      <article class="card" data-testid="chart-target-cert-card"><div class="card-head"><div><p class="label">Targets TLS</p><h2 class="value h2-inline">Historial cert_days_left</h2></div><span id="targetCertChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="targetCertChart"></canvas><div id="targetCertChartEmpty" class="chart-empty">Sin datos de certificados</div></div></article>
-    </section>
-
-    <section class="grid charts" aria-label="Eventos y alertas por intervalo">
-      <article class="card" data-testid="chart-events-card"><div class="card-head"><div><p class="label">Actividad</p><h2 class="value h2-inline">Eventos por intervalo</h2></div><span id="eventsChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="eventsChart"></canvas><div id="eventsChartEmpty" class="chart-empty">Sin eventos</div></div></article>
-      <article class="card" data-testid="chart-alerts-card"><div class="card-head"><div><p class="label">Actividad</p><h2 class="value h2-inline">Alertas por intervalo</h2></div><span id="alertsChartMeta" class="meta">—</span></div><div class="chart-wrap"><canvas id="alertsChart"></canvas><div id="alertsChartEmpty" class="chart-empty">Sin alertas</div></div></article>
-    </section>
-
-    <section class="card mb-16" data-testid="targets-card" aria-label="Targets monitoreados">
+    <section class="card data-card mb-16" data-testid="targets-card" aria-label="Targets monitoreados">
       <div class="card-head"><div><p class="label">Targets</p><h2 class="value h2-inline">Endpoints monitoreados</h2><p class="sub">Estado, latencia, check/TLS y métricas</p></div><span id="targetsCount" class="meta">—</span></div>
       <div class="table-wrap"><table><thead><tr><th>Target</th><th>Check</th><th>Estado</th><th>Latencia</th><th>Req/TLS</th><th>Detalle</th><th>Actualizado</th></tr></thead><tbody id="targetsTable" data-testid="targets-table"><tr><td colspan="7" class="muted">Cargando…</td></tr></tbody></table></div>
     </section>
 
     <section class="grid two" aria-label="Alertas y eventos">
-      <article class="card" data-testid="alerts-card"><div class="card-head"><div><p class="label">Alertas</p><h2 class="value h2-inline">Incidentes</h2></div><span id="alertsMeta" class="meta">—</span></div><div class="list table-wrap"><table><thead><tr><th>Estado</th><th>Severidad</th><th>Origen</th><th>Mensaje</th><th>Creada</th></tr></thead><tbody id="alertsTable"><tr><td colspan="5" class="muted">Sin datos</td></tr></tbody></table></div></article>
-      <article class="card" data-testid="events-card"><div class="card-head"><div><p class="label">Eventos</p><h2 class="value h2-inline">Actividad reciente</h2></div><span id="eventsMeta" class="meta">—</span></div><div class="list table-wrap"><table><thead><tr><th>Nivel</th><th>Tipo</th><th>Origen</th><th>Mensaje</th><th>Hora</th></tr></thead><tbody id="eventsTable"><tr><td colspan="5" class="muted">Sin datos</td></tr></tbody></table></div></article>
+      <article class="card data-card" data-testid="alerts-card"><div class="card-head"><div><p class="label">Alertas</p><h2 class="value h2-inline">Incidentes</h2></div><span id="alertsMeta" class="meta">—</span></div><div class="list table-wrap"><table><thead><tr><th>Estado</th><th>Severidad</th><th>Origen</th><th>Mensaje</th><th>Creada</th></tr></thead><tbody id="alertsTable"><tr><td colspan="5" class="muted">Sin datos</td></tr></tbody></table></div></article>
+      <article class="card data-card" data-testid="events-card"><div class="card-head"><div><p class="label">Eventos</p><h2 class="value h2-inline">Actividad reciente</h2></div><span id="eventsMeta" class="meta">—</span></div><div class="list table-wrap"><table><thead><tr><th>Nivel</th><th>Tipo</th><th>Origen</th><th>Mensaje</th><th>Hora</th></tr></thead><tbody id="eventsTable"><tr><td colspan="5" class="muted">Sin datos</td></tr></tbody></table></div></article>
     </section>
   </div>
   <script src="/static/app.js"></script>

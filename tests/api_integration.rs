@@ -711,11 +711,10 @@ async fn api_alerts_and_events_filters() {
 }
 
 #[tokio::test]
-async fn api_target_history_and_insights() {
+async fn api_target_history_points() {
     let (app, _dir) = seeded_app().await;
 
     let res = app
-        .clone()
         .oneshot(
             Request::builder()
                 .uri("/api/metrics/history?target=t1&range=24")
@@ -735,24 +734,4 @@ async fn api_target_history_and_insights() {
     assert!(pts[0]["latency_ms"].is_number());
     assert!(pts[0]["up_ratio"].is_number());
     assert!(v["bucket_seconds"].is_null());
-
-    let res = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/insights?range=24")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(res.status(), StatusCode::OK);
-    let body = res.into_body().collect().await.unwrap().to_bytes();
-    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(v["range_hours"], 24);
-    assert!(v["bucket_seconds"].is_number());
-    assert!(v["events"].as_array().is_some());
-    assert!(v["alerts"].as_array().is_some());
-    let alerts = v["alerts"].as_array().unwrap();
-    assert!(!alerts.is_empty());
 }

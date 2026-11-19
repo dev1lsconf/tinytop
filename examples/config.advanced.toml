@@ -9,10 +9,11 @@ max_history_hours = 168
 
 # Auth opcional (protege API/dashboard; /api/health puede quedar exento según config)
 # [auth]
-# token = "cambia-este-token"            # Bearer / X-API-Key (o ?token= legado, desaconsejado)
+# token = "cambia-este-token"            # Bearer / X-API-Key
 # # basic_user = "admin"                 # alternativa/complemento: Basic auth
 # # basic_password = "cambia-esta-clave"
 # allow_health_unauth = true
+# allow_query_token = false              # deshabilita ?token= legado (recomendado; usa cabeceras/panel Token)
 
 # Umbrales/alertas (ajusta a tu entorno)
 [alerts]

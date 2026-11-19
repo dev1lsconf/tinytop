@@ -28,20 +28,23 @@ Sección `[alerts]` (umbrales globales): `cpu_percent`, `memory_percent`, `disk_
 
 ### 1.3 Notificaciones
 
-Sección `[notifications]` (best-effort, en transiciones): `webhook_url`, `telegram_bot_token` + `telegram_chat_id`, `ntfy_url`/`ntfy_topic`. Para `webhook_url` se envía JSON genérico (`{"text","alerts"}`); si la URL es un incoming webhook de Discord (`discord.com/api/webhooks/...` o `discordapp.com/api/webhooks/...`) se envía el formato compatible `{"content": ...}`. Los secretos se redactan en `/api/config`. Fallos de entrega no deben tumbar el monitoreo.
+Sección `[notifications]` (best-effort, en transiciones): `webhook_url`, `telegram_bot_token` + `telegram_chat_id`, `ntfy_url`/`ntfy_topic`. Para `webhook_url` se envía JSON genérico (`{"text","alerts"}`); si la URL es un incoming webhook de Discord (`discord.com/api/webhooks/...` o `discordapp.com/api/webhooks/...`) se envía el formato compatible `{"content": ...}`. Los secretos y destinos de notificación se redactan en `/api/config`. Fallos de entrega no deben tumbar el monitoreo.
 
 ### 1.4 Autenticación
 
-Sección `[auth]` (opcional): token (Bearer / `X-API-Key` o Basic `username`/`password`). `?token=` se acepta por compatibilidad, pero **se desaconseja**: el token puede quedar expuesto en historial del navegador, logs del proxy/servidor y cabeceras `Referer`; prefiere `Authorization: Bearer <token>`, `X-API-Key` o el botón/panel **Token** del dashboard (el panel se abre al pulsar “Token” o cuando la API responde 401; el token se guarda solo en la sesión del navegador y se envía en cabeceras, no en la URL).
+Sección `[auth]` (opcional): token (Bearer / `X-API-Key` o Basic `username`/`password`).
+- `allow_query_token` (bool, por defecto `true`): habilita el parámetro legado `?token=` por compatibilidad. **Se desaconseja**: el token puede quedar expuesto en historial del navegador, logs del proxy/servidor y cabeceras `Referer`. Establécelo en `false` para aceptar autenticación solo por cabeceras (`Authorization: Bearer <token>`, `X-API-Key` o Basic). `TINYTOP_AUTH_ALLOW_QUERY_TOKEN` (1/true/yes/on o 0/false/no/off) permite sobreescribirlo por entorno.
+- `allow_health_unauth` (bool, por defecto `true`): permite acceso no autenticado a `/api/health`.
 
-Sin auth la API/UI quedan abiertas: **usar solo en red confiable o detrás de reverse proxy con TLS/auth**. `/api/health` puede quedar exento según configuración; `/api/config` redacta valores sensibles. El dashboard sirve CSS/JS como assets propios y aplica una CSP endurecida (sin `unsafe-inline`); para scripts/extensiones personalizadas externas habría que ajustar la política.
+Prefiere `Authorization: Bearer <token>`, `X-API-Key` o el botón/panel **Token** del dashboard (el panel se abre al pulsar “Token” o cuando la API responde 401; el token se guarda solo en la sesión del navegador y se envía en cabeceras, no en la URL).
+
+Sin auth la API/UI quedan abiertas: **usar solo en red confiable o detrás de reverse proxy con TLS/auth**. `/api/health` puede quedar exento según configuración; `/api/config` redacta valores sensibles (tokens/credenciales y destinos/secretos de notificaciones). El dashboard sirve CSS/JS como assets propios y aplica una CSP endurecida (sin `unsafe-inline`); para scripts/extensiones personalizadas externas habría que ajustar la política.
 
 ## 2. API y exportación
 
 - `GET /api/health` — estado (db/runtime/versión).
 - `GET /api/metrics/latest` — últimas métricas de sistema y targets.
 - `GET /api/metrics/history?range=<h>&target=<system|nombre>` — histórico (rangos largos usan rollups/downsampling). Para targets incluye latencia, disponibilidad (`up_ratio`) y `cert_days_left` cuando aplica.
-- `GET /api/insights?range=<h>` — conteos agregados por intervalo de eventos (por nivel) y alertas (por estado) para visualización.
 - `GET /api/config` — configuración efectiva (redactada).
 - `GET /api/alerts`, `GET /api/events` — incidentes y eventos.
 - `GET /api/export?target=<...>&format=json|csv&range=<h>` — exportación.
@@ -58,7 +61,7 @@ curl -s http://localhost:9090/metrics
 
 ## 3. Dashboard y TUI
 
-- **Dashboard web**: embebido, sin CDN; métricas extendidas e histórico por rango (sistema y targets, con downsampling), CPU vs memoria, latencia/disponibilidad de targets e historial de `cert_days_left` (TLS), eventos/alertas por intervalo, estado de targets/TLS y exportación.
+- **Dashboard web**: embebido, sin CDN. Gráficos históricos aprobados: **CPU**, **memoria**, **red (RX/TX)** y **load average (1/5/15)**. Incluye métricas extendidas, estado de targets/alertas/eventos, exportación y render seguro. No añadir otros gráficos sin aprobación explícita.
 - **TUI**: `tinytop --tui [--config <ruta>]` (requiere TTY). Vistas Sistema/Targets/Alertas/Eventos, sparklines, selección de rango/target y refresco. Atajos: `Tab`/`1-4`, `+/-`, `↑/↓`, `r`, `q`.
 
 ## 4. Operación

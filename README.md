@@ -1,13 +1,13 @@
-# TinyTop v1.0.6 - Monitor ligero en Rust <!-- x-release-please-version -->
+# TinyTop v1.1.0 - Monitor ligero en Rust <!-- x-release-please-version -->
 
 [![CI](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dev1lsconf/tinytop/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dev1lsconf/tinytop?display_name=tag)](https://github.com/dev1lsconf/tinytop/releases)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-1.0.6)](Cargo.toml) <!-- x-release-please-version -->
+[![version](https://img.shields.io/badge/version-1.1.0)](Cargo.toml) <!-- x-release-please-version -->
 [![rust](https://img.shields.io/badge/Rust-1.88%2B%20(edition%202024)-orange.svg)](https://www.rust-lang.org)
 [![platform](https://img.shields.io/badge/platform-linux%20%7C%20BSD-lightgrey.svg)](https://www.kernel.org)
 
-![TinyTop Dashboard](docs/dashboard.png?v=1.0.6) <!-- x-release-please-version -->
+![TinyTop Dashboard](docs/dashboard.png?v=1.1.0) <!-- x-release-please-version -->
 
 **TUI (terminal):**
 
@@ -21,8 +21,8 @@
 - **Targets (checks)**: sondeo concurrente con `check_type` `http` (integraciones compatibles), `tcp`, `ping` (best-effort) y `tls` (handshake y días de certificado, best-effort). Estado, latencia, detalle y resultados estables.
 - **Persistencia**: SQLite (WAL, pragmas) con migraciones, histórico por rango, rollups/downsampling para rangos largos, alertas/eventos y pruning automático.
 - **Alertas y notificaciones**: umbrales configurables (sistema/targets/latencia/cert), historial de incidentes y notificaciones opcionales ante transiciones (webhook genérico/Discord, Telegram, ntfy, best-effort).
-- **API**: `/api/health`, `/api/metrics/latest`, `/api/metrics/history`, `/api/insights`, `/api/config` (redactada), `/api/alerts`, `/api/events`, `/api/export` (JSON/CSV) y `/metrics` (Prometheus).
-- **Dashboard**: HTML/CSS/JS embebido + Chart.js local (sin CDN), métricas extendidas e histórico (sistema/targets con downsampling), CPU vs memoria, latencia/disponibilidad de targets, historial de `cert_days_left` (TLS), eventos/alertas por intervalo, exportación y render seguro.
+- **API**: `/api/health`, `/api/metrics/latest`, `/api/metrics/history`, `/api/config` (redactada), `/api/alerts`, `/api/events`, `/api/export` (JSON/CSV) y `/metrics` (Prometheus).
+- **Dashboard**: HTML/CSS/JS embebido + Chart.js local (sin CDN). Gráficos históricos aprobados: **CPU**, **memoria**, **red (RX/TX)** y **load average (1/5/15)**. Incluye métricas extendidas, estado de targets/alertas/eventos, exportación y render seguro. No añadir otros gráficos sin aprobación explícita.
 - **TUI**: `--tui` con vistas sistema/targets/alertas/eventos, métricas extendidas, sparklines y selección de rango/target (`Tab/1-4`, `+/-`, `↑/↓`, `r`, `q`).
 - **Operación**: apagado ordenado, logging, config por archivo/env/CLI, `--config`/`--check-config` (`--deep` opcional para verificar apertura/migración de `db_path`), recarga por `SIGHUP` (Unix), auth opcional (token/Basic) y cabeceras de seguridad.
 - **Build/Release**: binario optimizado, imagen multi-stage no-root; releases con Linux (x86_64/aarch64/musl) y BSD, e imagen Docker multi-arch (amd64/arm64).
@@ -70,7 +70,6 @@ kind = "generic"
 - `GET /api/health` — estado/readiness (`db.ok`, `runtime`, última colección, errores, versión)
 - `GET /api/metrics/latest` — `{ system, targets }` (métricas extendidas y estado de checks/TLS)
 - `GET /api/metrics/history?range=24&target=system|<name>` — histórico (downsampling/rollups en rangos largos; targets incluyen latencia y `up_ratio`, `cert_days_left` cuando aplica)
-- `GET /api/insights?range=24` — conteos por intervalo de eventos (nivel) y alertas (estado) para gráficas apiladas
 - `GET /api/config` — configuración efectiva (valores sensibles redactados)
 - `GET /api/alerts` — incidentes/alertas (`?status=&limit=`)
 - `GET /api/events` — eventos recientes (`?limit=`)
@@ -188,6 +187,7 @@ El workflow de CI ejecuta fmt, clippy, tests, build y E2E en Ubuntu.
 [auth]
 token = "mi-token"           # o basic_user/basic_password
 allow_health_unauth = true
+allow_query_token = false    # desaconseja/inhabilita ?token= (usa cabeceras o panel Token)
 
 [alerts]
 cpu_percent_warn = 90.0
@@ -226,7 +226,7 @@ port = 443
 
 ## Notas operativas y troubleshooting
 
-- **Seguridad**: auth opcional (`[auth]`, token Bearer/`X-API-Key` o Basic; `?token=` se acepta por compatibilidad pero **se desaconseja** porque el token puede quedar en historial, logs y cabeceras Referer — prefiere header o el flujo/panel de token del dashboard). Sin auth la API queda abierta — usar red privada/reverse proxy con TLS. Config sensible redactada en `/api/config`. Dashboard con CSP endurecida (sin `unsafe-inline`) y assets estáticos propios.
+- **Seguridad**: auth opcional (`[auth]`, token Bearer/`X-API-Key` o Basic). `?token=` se acepta por compatibilidad solo si `allow_query_token = true` (por defecto) pero **se desaconseja** porque el token puede quedar en historial, logs y cabeceras Referer — puede deshabilitarse con `allow_query_token = false` (o `TINYTOP_AUTH_ALLOW_QUERY_TOKEN=0`) para aceptar solo cabeceras o el panel de token del dashboard. Sin auth la API queda abierta — usar red privada/reverse proxy con TLS. Config sensible y destinos/secretos de notificaciones redactados en `/api/config`. Dashboard con CSP endurecida (sin `unsafe-inline`) y assets estáticos propios.
 - **Checks best-effort**: `ping` y días de certificado TLS requieren `ping`/`openssl` en el entorno; pueden no estar disponibles en contenedores mínimos.
 - **Sin datos / “starting”**: espera `interval_seconds`, revisa `/api/health` y logs; valida con `--check-config` (`--deep` para verificar también `db_path`).
 - **Recarga**: en Unix `SIGHUP`; en otros entornos reinicia el proceso.

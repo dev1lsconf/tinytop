@@ -68,7 +68,7 @@ Artefacto: `tinytop_<version>_amd64.deb` ([Releases](https://github.com/dev1lsco
 ```bash
 sudo apt-get update
 sudo apt-get install -y sqlite3 libsqlite3-0 ca-certificates iputils-ping openssl
-sudo dpkg -i tinytop_1.0.6_amd64.deb <!-- x-release-please-version -->
+sudo dpkg -i tinytop_1.1.0_amd64.deb <!-- x-release-please-version -->
 
 # Configuración y datos
 sudo install -d -o root -g root /etc/tinytop
@@ -87,7 +87,7 @@ Artefacto: `tinytop-<version>-1.x86_64.rpm`.
 
 ```bash
 sudo dnf install -y sqlite sqlite-libs ca-certificates iputils openssl
-sudo rpm -i tinytop-1.0.6 <!-- x-release-please-version -->
+sudo rpm -i tinytop-1.1.0-1.x86_64.rpm # ajusta versión/nombre del .rpm descargado <!-- x-release-please-version -->
 
 tinytop --check-config --deep --config /etc/tinytop/config.toml
 ```
@@ -99,8 +99,8 @@ Verifica dependencias con `ldd /usr/bin/tinytop` si es necesario.
 Artefactos: `tinytop-v<version>-linux-x86_64.tar.gz`, `linux-aarch64.tar.gz`, `linux-x86_64-musl.tar.gz`. Contienen `tinytop`, `config.toml`, `static/`, `migrations/`.
 
 ```bash
-tar xzf tinytop-v1.0.6-x86_64.tar.gz <!-- x-release-please-version -->
-cd tinytop-v1.0.6-x86_64  # o el directorio extraído <!-- x-release-please-version -->
+tar xzf tinytop-v1.1.0-linux-x86_64.tar.gz <!-- x-release-please-version -->
+cd tinytop-v1.1.0-linux-x86_64 # o el directorio extraído <!-- x-release-please-version -->
 
 # Dependencias runtime (ej. Debian/Ubuntu)
 sudo apt-get install -y sqlite3 libsqlite3-0 ca-certificates iputils-ping openssl
@@ -138,16 +138,15 @@ Recarga de config (Unix): `sudo systemctl reload tinytop` (SIGHUP).
 Requisitos: [`requirements/docker.txt`](../requirements/docker.txt). Imagen multi-arch: `ghcr.io/dev1lsconf/tinytop` (linux/amd64, linux/arm64).
 
 ```bash
-docker pull ghcr.io/dev1lsconf/tinytop:1.0.6 <!-- x-release-please-version -->
-
+docker pull ghcr.io/dev1lsconf/tinytop:1.1.0 <!-- x-release-please-version -->
+# (opcional) latest apunta a la última release estable
 docker run -d --name tinytop \
   -p 9090:9090 \
   -v "$PWD/config.toml:/app/config.toml:ro" \
-  -v tinytop-data:/app/data \
+  -v "$PWD/data:/app/data" \
   -e TINYTOP_CONFIG=/app/config.toml \
   -e TINYTOP_DB_PATH=/app/data/tinytop.db \
-  --restart unless-stopped \
-  ghcr.io/dev1lsconf/tinytop:1.0.6 <!-- x-release-please-version -->
+  ghcr.io/dev1lsconf/tinytop:1.1.0 <!-- x-release-please-version -->
 ```
 
 Con Docker Compose (repositorio): `docker compose up -d --build` (ver `docker-compose.yml`).
@@ -166,7 +165,7 @@ Requisitos: [`requirements/freebsd-amd64.txt`](../requirements/freebsd-amd64.txt
 # como root
 pkg install sqlite3 ca_root_nss
 
-tar xzf tinytop-v1.0.6-x86_64.tar.gz <!-- x-release-please-version -->
+tar xzf tinytop-v1.1.0-freebsd-x86_64.tar.gz <!-- x-release-please-version -->
 install -m 0555 tinytop /usr/local/bin/tinytop
 install -d /usr/local/etc/tinytop
 install -m 0644 config.toml /usr/local/etc/tinytop/config.toml
@@ -199,7 +198,7 @@ Requisitos: [`requirements/openbsd-amd64.txt`](../requirements/openbsd-amd64.txt
 # como root
 pkg_add sqlite3
 
-tar xzf tinytop-v1.0.6-x86_64.tar.gz <!-- x-release-please-version -->
+tar xzf tinytop-v1.1.0-openbsd-x86_64.tar.gz <!-- x-release-please-version -->
 install -m 0555 tinytop /usr/local/bin/tinytop
 install -d -m 0755 /etc/tinytop
 install -m 0644 config.toml /etc/tinytop/config.toml
@@ -267,7 +266,7 @@ Requisitos: [`requirements/netbsd-amd64.txt`](../requirements/netbsd-amd64.txt).
 pkg_add sqlite3 mozilla-rootcerts
 /usr/sbin/mozilla-rootcerts install || true
 
-tar xzf tinytop-v1.0.6-x86_64.tar.gz <!-- x-release-please-version -->
+tar xzf tinytop-v1.1.0-netbsd-x86_64.tar.gz <!-- x-release-please-version -->
 install -m 0555 tinytop /usr/pkg/bin/tinytop || install -m 0555 tinytop /usr/local/bin/tinytop
 install -d /usr/pkg/etc/tinytop
 install -m 0644 config.toml /usr/pkg/etc/tinytop/config.toml

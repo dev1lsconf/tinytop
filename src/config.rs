@@ -29,10 +29,11 @@ pub struct Config {
     pub notifications: NotificationConfig,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthConfig {
     /// Optional API/UI token. If set, requests must provide Authorization: Bearer <token>
-    /// or X-API-Key: <token> (or ?token= for SSE-less UI basics). Health can be exempt via allow_health_unauth.
+    /// or X-API-Key: <token>. Query-string `?token=` is accepted only when `allow_query_token` is true
+    /// (discouraged: token may leak to history/logs/referrer). Health can be exempt via allow_health_unauth.
     pub token: Option<String>,
     #[serde(default)]
     pub basic_user: Option<String>,
@@ -40,6 +41,21 @@ pub struct AuthConfig {
     pub basic_password: Option<String>,
     #[serde(default = "default_true")]
     pub allow_health_unauth: bool,
+    /// Allow legacy `?token=` query parameter authentication (discouraged; prefer headers).
+    #[serde(default = "default_true")]
+    pub allow_query_token: bool,
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            token: None,
+            basic_user: None,
+            basic_password: None,
+            allow_health_unauth: true,
+            allow_query_token: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -177,6 +193,23 @@ fn default_notify_cooldown_secs() -> u64 {
     300
 }
 
+fn parse_env_bool(v: &str) -> Option<bool> {
+    match v.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
+
+fn is_safe_host(host: &str) -> bool {
+    let h = host.trim();
+    if h.is_empty() || h.len() > 253 {
+        return false;
+    }
+    h.chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | ':' | '[' | ']' | '%'))
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -312,6 +345,10 @@ impl Config {
             let a = self.auth.get_or_insert_with(AuthConfig::default);
             a.token = if v.trim().is_empty() { None } else { Some(v) };
         }
+        if let Ok(v) = std::env::var("TINYTOP_AUTH_ALLOW_QUERY_TOKEN") {
+            let a = self.auth.get_or_insert_with(AuthConfig::default);
+            a.allow_query_token = parse_env_bool(&v).unwrap_or(a.allow_query_token);
+        }
         Ok(())
     }
 
@@ -365,6 +402,11 @@ impl Config {
                         // allow url-like host:port in host field? require host+port
                         bail!("tcp target '{}' requires host and port", t.name);
                     }
+                    if let Some(h) = &t.host
+                        && !is_safe_host(h)
+                    {
+                        bail!("tcp target '{}' has invalid host", t.name);
+                    }
                 }
                 "ping" => {
                     if t.host.as_ref().map(|s| s.trim().is_empty()).unwrap_or(true)
@@ -372,12 +414,23 @@ impl Config {
                     {
                         bail!("ping target '{}' requires host or url/host", t.name);
                     }
+                    if let Some(h) = &t.host
+                        && !h.trim().is_empty()
+                        && !is_safe_host(h)
+                    {
+                        bail!("ping target '{}' has invalid host", t.name);
+                    }
                 }
                 "tls" => {
                     if t.host.as_ref().map(|s| s.trim().is_empty()).unwrap_or(true)
                         || t.port.is_none()
                     {
                         bail!("tls target '{}' requires host and port", t.name);
+                    }
+                    if let Some(h) = &t.host
+                        && !is_safe_host(h)
+                    {
+                        bail!("tls target '{}' has invalid host", t.name);
                     }
                 }
                 other => bail!("target '{}' has unsupported check_type '{}'", t.name, other),
@@ -407,6 +460,15 @@ impl Config {
         }
         if c.notifications.telegram_bot_token.is_some() {
             c.notifications.telegram_bot_token = Some("***".into());
+        }
+        if c.notifications.telegram_chat_id.is_some() {
+            c.notifications.telegram_chat_id = Some("***".into());
+        }
+        if c.notifications.ntfy_url.is_some() {
+            c.notifications.ntfy_url = Some("***".into());
+        }
+        if c.notifications.ntfy_topic.is_some() {
+            c.notifications.ntfy_topic = Some("***".into());
         }
         c
     }
@@ -618,24 +680,46 @@ mod tests {
                 basic_user: Some("u".into()),
                 basic_password: Some("p".into()),
                 allow_health_unauth: true,
+                allow_query_token: true,
             }),
             notifications: NotificationConfig {
                 webhook_url: Some("https://hook".into()),
-                telegram_bot_token: Some("tok".into()),
+                telegram_bot_token: Some("bot".into()),
                 telegram_chat_id: Some("123".into()),
-                ..Default::default()
+                ntfy_url: Some("https://ntfy.sh".into()),
+                ntfy_topic: Some("topic".into()),
+                ..NotificationConfig::default()
             },
-            ..Default::default()
+            ..Config::default()
         };
         let r = cfg.redacted();
-        let a = r.auth.unwrap();
+        let a = r.auth.as_ref().unwrap();
         assert_eq!(a.token.as_deref(), Some("***"));
-        assert_eq!(a.basic_user.as_deref(), Some("u"));
         assert_eq!(a.basic_password.as_deref(), Some("***"));
+        assert_eq!(a.basic_user.as_deref(), Some("u"));
         assert_eq!(r.notifications.webhook_url.as_deref(), Some("***"));
         assert_eq!(r.notifications.telegram_bot_token.as_deref(), Some("***"));
-        // chat id kept (not secret in same way) but config still usable
-        assert_eq!(r.notifications.telegram_chat_id.as_deref(), Some("123"));
+        assert_eq!(r.notifications.telegram_chat_id.as_deref(), Some("***"));
+        assert_eq!(r.notifications.ntfy_url.as_deref(), Some("***"));
+        assert_eq!(r.notifications.ntfy_topic.as_deref(), Some("***"));
+    }
+
+    #[test]
+    fn rejects_unsafe_host_characters() {
+        let cfg = Config {
+            targets: vec![Target {
+                name: "tcp1".into(),
+                url: "".into(),
+                kind: None,
+                check_type: "tcp".into(),
+                host: Some("bad host;rm".into()),
+                port: Some(22),
+                latency_warn_ms: None,
+                cert_expiry_warn_days: None,
+            }],
+            ..Config::default()
+        };
+        assert!(cfg.validate().is_err());
     }
 
     #[test]

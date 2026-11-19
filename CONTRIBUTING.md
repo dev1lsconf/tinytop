@@ -25,6 +25,7 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --all-targets --locked
 cargo build --release --locked
+cargo audit # requiere cargo-audit instalado: cargo install cargo-audit --locked
 ```
 
 Las pruebas e2e (Playwright) viven en `tests/` y se ejecutan en CI; localmente puedes instalarlas con `npm install` y `npx playwright install --with-deps chromium`.

@@ -33,7 +33,6 @@ pub fn router(state: AppState) -> Router {
         .route("/api/health", get(health))
         .route("/api/metrics/latest", get(latest))
         .route("/api/metrics/history", get(history))
-        .route("/api/insights", get(insights))
         .route("/api/config", get(get_config))
         .route("/api/alerts", get(list_alerts))
         .route("/api/events", get(list_events))
@@ -136,7 +135,8 @@ fn is_authorized(headers: &HeaderMap, query: Option<&str>, cfg: &crate::config::
             {
                 return true;
             }
-            if let Some(q) = query
+            if auth.allow_query_token
+                && let Some(q) = query
                 && q.split('&').any(|p| {
                     p.strip_prefix("token=")
                         .map(|v| v == token)
@@ -343,7 +343,9 @@ async fn get_config(State(state): State<AppState>) -> impl IntoResponse {
             "interval_seconds": redacted.interval_seconds, "retention_hours": redacted.retention_hours,
             "max_history_hours": redacted.max_history_hours, "request_timeout_secs": redacted.request_timeout_secs,
             "targets": redacted.targets, "alerts": redacted.alerts,
+            "notifications": redacted.notifications,
             "auth_enabled": redacted.auth.as_ref().map(|a| a.token.is_some() || a.basic_user.is_some()).unwrap_or(false),
+            "auth_allow_query_token": cfg.auth.as_ref().map(|a| a.allow_query_token).unwrap_or(true),
         })),
     )
 }
@@ -376,52 +378,6 @@ async fn list_events(
             &e.to_string(),
         ),
     }
-}
-
-async fn insights(
-    State(state): State<AppState>,
-    Query(params): Query<HistoryParams>,
-) -> impl IntoResponse {
-    let cfg = state.cfg.read().await.clone();
-    let max_range = cfg.max_history_hours.max(1).min(cfg.retention_hours as i64);
-    let range = params.range.unwrap_or(24).clamp(1, max_range);
-    let bucket_seconds: i64 = if range > 72 {
-        3600
-    } else if range > 24 {
-        1800
-    } else {
-        900
-    };
-    let events = match state.db.event_counts_by_bucket(range).await {
-        Ok(v) => v,
-        Err(e) => {
-            return api_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "db_error",
-                &e.to_string(),
-            );
-        }
-    };
-    let alerts = match state.db.alert_counts_by_bucket(range).await {
-        Ok(v) => v,
-        Err(e) => {
-            return api_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "db_error",
-                &e.to_string(),
-            );
-        }
-    };
-    (
-        StatusCode::OK,
-        Json(json!({
-            "range_hours": range,
-            "bucket_seconds": bucket_seconds,
-            "events": events,
-            "alerts": alerts
-        })),
-    )
-        .into_response()
 }
 
 async fn export_data(
