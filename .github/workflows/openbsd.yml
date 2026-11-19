@@ -42,7 +42,7 @@ jobs:
             request_timeout_secs = 5
             CFG
 
-            ./target/release/tinytop --check-config --config /tmp/tt/config.toml
+            ./target/release/tinytop --check-config --deep --config /tmp/tt/config.toml
 
             ./target/release/tinytop --config /tmp/tt/config.toml > /tmp/tt/tinytop.log 2>&1 &
             PID=$!

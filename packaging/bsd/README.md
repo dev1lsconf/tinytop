@@ -36,8 +36,9 @@ Each tarball contains: `tinytop` binary, `config.toml`, `static/`, `migrations/`
 - Persist `db_path` in a writable location (e.g. `/var/db/tinytop`); run as unprivileged user.
 
 ## General notes
-- Validate config before start/reload: `tinytop --check-config --config <path>` (recomendado `--deep` para verificar también la apertura/migración de `db_path`).
+- Validate config before start/reload: `tinytop --check-config --deep --config <path>` (verifica también apertura/migración/ping de `db_path`; útil antes de habilitar el servicio).
 - The web dashboard listens on configured `bind`/`port` (default `0.0.0.0:9090`). TUI requires a TTY (`tinytop --tui`).
 - `ping` and TLS certificate day checks are best-effort and depend on `ping`/`openssl` being available.
 - **Dependencias por plataforma:** ver [`../../requirements/`](../../requirements/README.md) (incluye [`openbsd-amd64.txt`](../../requirements/openbsd-amd64.txt) para OpenBSD 7.9: librerías/ABI y compilación nativa si el binario precompilado no es compatible).
+- Las plantillas rc.d incluyen `configtest` con `--deep` y recarga por `SIGHUP` donde aplica. Ajusta rutas/usuario según la jerarquía del sistema y valida en el entorno objetivo (p. ej. `service tinytop configtest`, `rcctl check/reload tinytop`, o `service tinytop configtest` en NetBSD) tras instalar.
 - See also [`../systemd/tinytop.service`](../systemd/tinytop.service) for Linux/systemd and [`../../docs/ADVANCED.md`](../../docs/ADVANCED.md) for operational guidance.

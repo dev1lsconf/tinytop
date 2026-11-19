@@ -43,8 +43,7 @@ fn check_config_deep_validates_db_path() {
     );
     assert!(
         db_path.exists(),
-        "deep check should create/open db_path {:?}",
-        db_path
+        "deep check should create/open db_path {db_path:?}"
     );
 }
 

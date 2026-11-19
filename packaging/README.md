@@ -45,7 +45,7 @@ sudo install -m 0644 packaging/systemd/tinytop.service /etc/systemd/system/tinyt
 sudo systemctl daemon-reload && sudo systemctl enable --now tinytop
 ```
 
-Valida la configuración antes de ejecutar: `tinytop --check-config --config /etc/tinytop/config.toml`.
+Valida la configuración antes de ejecutar: `tinytop --check-config --deep --config /etc/tinytop/config.toml` (recomendado `--deep` para verificar también `db_path`).
 
 ## Dependencias por plataforma
 
