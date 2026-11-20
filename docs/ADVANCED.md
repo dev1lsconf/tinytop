@@ -33,7 +33,7 @@ Sección `[notifications]` (best-effort, en transiciones): `webhook_url`, `teleg
 ### 1.4 Autenticación
 
 Sección `[auth]` (opcional): token (Bearer / `X-API-Key` o Basic `username`/`password`).
-- `allow_query_token` (bool, por defecto `true`): habilita el parámetro legado `?token=` por compatibilidad. **Se desaconseja**: el token puede quedar expuesto en historial del navegador, logs del proxy/servidor y cabeceras `Referer`. Establécelo en `false` para aceptar autenticación solo por cabeceras (`Authorization: Bearer <token>`, `X-API-Key` o Basic). `TINYTOP_AUTH_ALLOW_QUERY_TOKEN` (1/true/yes/on o 0/false/no/off) permite sobreescribirlo por entorno.
+- `allow_query_token` (bool, por defecto `false`): habilita el parámetro legado `?token=` por compatibilidad. **Se desaconseja**: el token puede quedar expuesto en historial del navegador, logs del proxy/servidor y cabeceras `Referer`. Mantenlo en `false` (recomendado) para aceptar autenticación solo por cabeceras (`Authorization: Bearer <token>`, `X-API-Key` o Basic); establécelo en `true` solo si necesitas compatibilidad legacy. `TINYTOP_AUTH_ALLOW_QUERY_TOKEN` (1/true/yes/on o 0/false/no/off) permite sobreescribirlo por entorno.
 - `allow_health_unauth` (bool, por defecto `true`): permite acceso no autenticado a `/api/health`.
 
 Prefiere `Authorization: Bearer <token>`, `X-API-Key` o el botón/panel **Token** del dashboard (el panel se abre al pulsar “Token” o cuando la API responde 401; el token se guarda solo en la sesión del navegador y se envía en cabeceras, no en la URL).

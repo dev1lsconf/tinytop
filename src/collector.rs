@@ -848,9 +848,20 @@ async fn probe_http(client: &reqwest::Client, target: &Target, kind: &str) -> Ta
             let status_code = resp.status();
             let body = resp.text().await.unwrap_or_default();
             let (status, http_requests, detail) = interpret_response(kind, status_code, &body);
-            // best-effort TLS cert days for https urls
+            // best-effort TLS cert days for https urls (non-blocking for async runtime)
             let cert_days_left = if target.url.starts_with("https://") {
-                extract_host_port(&target.url).and_then(|(h, p)| tls_days_left(&h, p).ok())
+                if let Some((h, p)) = extract_host_port(&target.url) {
+                    tokio::time::timeout(
+                        Duration::from_secs(3),
+                        tokio::task::spawn_blocking(move || tls_days_left(&h, p).ok()),
+                    )
+                    .await
+                    .ok()
+                    .and_then(|r| r.ok())
+                    .flatten()
+                } else {
+                    None
+                }
             } else {
                 None
             };
@@ -1064,20 +1075,32 @@ async fn probe_tls(target: &Target, timeout: Duration) -> TargetInfo {
 }
 
 fn tls_days_left(host: &str, port: u16) -> anyhow::Result<i64> {
-    // best-effort using openssl s_client if available (avoids adding heavy deps). fallback: None
-    let out = std::process::Command::new("openssl")
-        .args([
-            "s_client",
-            "-servername",
-            host,
-            "-connect",
-            &format!("{host}:{port}"),
-        ])
+    // best-effort using openssl CLI if available (avoids adding heavy deps). Bounded execution.
+    let target = format!("{host}:{port}");
+    let mut s_client = std::process::Command::new("openssl")
+        .args(["s_client", "-servername", host, "-connect", &target])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .output()?;
-    if !out.status.success() {
+        .spawn()?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    let status = loop {
+        if let Some(s) = s_client.try_wait()? {
+            break s;
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = s_client.kill();
+            let _ = s_client.wait();
+            anyhow::bail!("openssl s_client timeout");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    };
+    let mut out = Vec::new();
+    if let Some(mut stdout) = s_client.stdout.take() {
+        use std::io::Read;
+        let _ = stdout.read_to_end(&mut out);
+    }
+    if !status.success() || out.is_empty() {
         anyhow::bail!("openssl failed");
     }
     // pipe to openssl x509 -noout -enddate
@@ -1089,9 +1112,20 @@ fn tls_days_left(host: &str, port: u16) -> anyhow::Result<i64> {
         .spawn()?;
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
-        let _ = stdin.write_all(&out.stdout);
+        let _ = stdin.write_all(&out);
     }
-    let out2 = child.wait_with_output()?;
+    let x509_deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let out2 = loop {
+        if let Some(_s) = child.try_wait()? {
+            break child.wait_with_output()?;
+        }
+        if std::time::Instant::now() >= x509_deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            anyhow::bail!("openssl x509 timeout");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    };
     let s = String::from_utf8_lossy(&out2.stdout);
     // notAfter=Jun  7 12:00:00 2026 GMT
     if let Some(v) = s.trim().strip_prefix("notAfter=") {

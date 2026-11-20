@@ -13,7 +13,7 @@ max_history_hours = 168
 # # basic_user = "admin"                 # alternativa/complemento: Basic auth
 # # basic_password = "cambia-esta-clave"
 # allow_health_unauth = true
-# allow_query_token = false              # deshabilita ?token= legado (recomendado; usa cabeceras/panel Token)
+# allow_query_token = false              # por defecto deshabilitado (recomendado); pon true solo por compatibilidad legacy de ?token=
 
 # Umbrales/alertas (ajusta a tu entorno)
 [alerts]

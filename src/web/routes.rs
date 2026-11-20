@@ -345,7 +345,7 @@ async fn get_config(State(state): State<AppState>) -> impl IntoResponse {
             "targets": redacted.targets, "alerts": redacted.alerts,
             "notifications": redacted.notifications,
             "auth_enabled": redacted.auth.as_ref().map(|a| a.token.is_some() || a.basic_user.is_some()).unwrap_or(false),
-            "auth_allow_query_token": cfg.auth.as_ref().map(|a| a.allow_query_token).unwrap_or(true),
+            "auth_allow_query_token": cfg.auth.as_ref().map(|a| a.allow_query_token).unwrap_or(false),
         })),
     )
 }

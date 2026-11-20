@@ -42,7 +42,7 @@ pub struct AuthConfig {
     #[serde(default = "default_true")]
     pub allow_health_unauth: bool,
     /// Allow legacy `?token=` query parameter authentication (discouraged; prefer headers).
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub allow_query_token: bool,
 }
 
@@ -53,7 +53,7 @@ impl Default for AuthConfig {
             basic_user: None,
             basic_password: None,
             allow_health_unauth: true,
-            allow_query_token: true,
+            allow_query_token: false,
         }
     }
 }

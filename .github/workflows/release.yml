@@ -62,7 +62,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
-          toolchain: "1.88"
+          toolchain: "1.94"
           targets: ${{ matrix.target }}
 
       - name: Rust cache
@@ -210,7 +210,7 @@ jobs:
           usesh: true
           prepare: |
             pkg install -y curl pkgconf sqlite3 bash
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.88
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.94
           run: |
             set -e
             . "$HOME/.cargo/env"
@@ -304,7 +304,7 @@ jobs:
           prepare: |
             /usr/sbin/pkg_add curl pkgconf sqlite3 bash mozilla-rootcerts || pkg_add curl pkgconf sqlite3 bash || true
             /usr/sbin/mozilla-rootcerts install || true
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.88
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.94
           run: |
             set -e
             . "$HOME/.cargo/env"

@@ -402,7 +402,7 @@ async fn api_auth_and_config_redaction() {
     let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(v["auth_enabled"], true);
 
-    // legacy query token is still accepted for compatibility (discouraged)
+    // legacy query token is accepted when explicitly enabled for compatibility (discouraged)
     let res = app
         .clone()
         .oneshot(

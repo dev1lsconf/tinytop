@@ -187,7 +187,7 @@ El workflow de CI ejecuta fmt, clippy, tests, build y E2E en Ubuntu.
 [auth]
 token = "mi-token"           # o basic_user/basic_password
 allow_health_unauth = true
-allow_query_token = false    # desaconseja/inhabilita ?token= (usa cabeceras o panel Token)
+# allow_query_token = false  # por defecto: deshabilita ?token= (recomendado). Pon true solo por compatibilidad legacy.
 
 [alerts]
 cpu_percent_warn = 90.0
@@ -226,7 +226,7 @@ port = 443
 
 ## Notas operativas y troubleshooting
 
-- **Seguridad**: auth opcional (`[auth]`, token Bearer/`X-API-Key` o Basic). `?token=` se acepta por compatibilidad solo si `allow_query_token = true` (por defecto) pero **se desaconseja** porque el token puede quedar en historial, logs y cabeceras Referer — puede deshabilitarse con `allow_query_token = false` (o `TINYTOP_AUTH_ALLOW_QUERY_TOKEN=0`) para aceptar solo cabeceras o el panel de token del dashboard. Sin auth la API queda abierta — usar red privada/reverse proxy con TLS. Config sensible y destinos/secretos de notificaciones redactados en `/api/config`. Dashboard con CSP endurecida (sin `unsafe-inline`) y assets estáticos propios.
+- **Seguridad**: auth opcional (`[auth]`, token Bearer/`X-API-Key` o Basic). Por defecto el token por query string `?token=` está deshabilitado (`allow_query_token = false`); prefiere cabeceras (`Authorization: Bearer <token>`, `X-API-Key`) o el panel **Token** del dashboard. Puede habilitarse solo por compatibilidad legacy con `allow_query_token = true` (o `TINYTOP_AUTH_ALLOW_QUERY_TOKEN=1`), pero **se desaconseja** porque el token puede quedar en historial, logs y cabeceras `Referer`. Sin auth la API queda abierta — usar red privada/reverse proxy con TLS. Config sensible y destinos/secretos de notificaciones redactados en `/api/config`. Dashboard con CSP endurecida (sin `unsafe-inline`) y assets estáticos propios.
 - **Checks best-effort**: `ping` y días de certificado TLS requieren `ping`/`openssl` en el entorno; pueden no estar disponibles en contenedores mínimos.
 - **Sin datos / “starting”**: espera `interval_seconds`, revisa `/api/health` y logs; valida con `--check-config` (`--deep` para verificar también `db_path`).
 - **Recarga**: en Unix `SIGHUP`; en otros entornos reinicia el proceso.

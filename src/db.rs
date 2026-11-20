@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, SqlitePool, sqlite::SqliteConnectOptions};
+use sqlx::{AssertSqlSafe, FromRow, SqlitePool, sqlite::SqliteConnectOptions};
 use std::path::Path;
 use std::str::FromStr;
 
@@ -329,7 +329,7 @@ impl Database {
                  GROUP BY bucket_start
                  ORDER BY bucket_start ASC"
             );
-            let agg_rows: Vec<RollupRow> = sqlx::query_as(&sql)
+            let agg_rows: Vec<RollupRow> = sqlx::query_as(AssertSqlSafe(sql))
                 .bind(&cutoff)
                 .fetch_all(&self.pool)
                 .await?;
@@ -468,7 +468,7 @@ impl Database {
                 Option<i64>,
                 Option<String>,
             );
-            let rows: Vec<Row> = sqlx::query_as(&sql)
+            let rows: Vec<Row> = sqlx::query_as(AssertSqlSafe(sql))
                 .bind(target)
                 .bind(&cutoff)
                 .fetch_all(&self.pool)
@@ -681,7 +681,7 @@ impl Database {
              FROM system_metrics WHERE timestamp >= ?
              GROUP BY b"
         );
-        let res = sqlx::query(&sql)
+        let res = sqlx::query(AssertSqlSafe(sql))
             .bind(bucket_seconds)
             .bind(since)
             .execute(&self.pool)
